@@ -40,4 +40,8 @@
   .talla-btn-active {
     @apply inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-sm border border-gold bg-gold font-sans text-sm font-semibold text-header;
   }
+
+  .input-field {
+    @apply w-full rounded-sm border border-muted/50 bg-white px-4 py-3 font-sans text-sm text-ink placeholder:text-muted focus:border-gold focus:outline-none;
+  }
 }
