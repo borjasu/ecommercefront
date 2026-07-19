@@ -1,0 +1,45 @@
+<div class="flex min-h-[80vh] items-center justify-center bg-cream px-4 py-16">
+  <div class="w-full max-w-md rounded-sm border border-muted/30 bg-white/60 p-8 shadow-sm">
+    <h1 class="font-display text-3xl font-semibold text-header">Iniciar sesión</h1>
+    <p class="mt-2 font-sans text-sm text-muted">Ingresa tus datos para continuar.</p>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="mt-8 space-y-5">
+      <div>
+        <label for="email" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+          Correo electrónico
+        </label>
+        <input id="email" type="email" formControlName="email" class="input-field" autocomplete="email" />
+        @if (form.controls.email.invalid && form.controls.email.touched) {
+          <p class="mt-1 font-sans text-xs text-red-600">Ingresa un correo válido.</p>
+        }
+      </div>
+
+      <div>
+        <label for="password" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+          Contraseña
+        </label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          class="input-field"
+          autocomplete="current-password"
+        />
+        @if (form.controls.password.invalid && form.controls.password.touched) {
+          <p class="mt-1 font-sans text-xs text-red-600">La contraseña es requerida.</p>
+        }
+      </div>
+
+      @if (errorMensaje) {
+        <p class="font-sans text-sm text-red-600">{{ errorMensaje }}</p>
+      }
+
+      <button type="submit" class="btn-gold w-full">Ingresar</button>
+    </form>
+
+    <p class="mt-6 text-center font-sans text-sm text-muted">
+      ¿No tienes cuenta?
+      <a routerLink="/registro" class="font-semibold text-header hover:text-gold">Regístrate</a>
+    </p>
+  </div>
+</div>
