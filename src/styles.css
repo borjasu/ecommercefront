@@ -1,1 +1,43 @@
 /* You can add global styles to this file, and also import other style files */
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ */
+/* Design tokens — paleta del catálogo (ver referencia de diseño)      */
+/* ------------------------------------------------------------------ */
+@theme {
+  --color-header: #1c1712; /* header oscuro */
+  --color-gold: #cf9f2f; /* dorado/mostaza: CTAs, precios, badges */
+  --color-cream: #faf6ec; /* fondo general crema */
+  --color-ink: #2b2620; /* texto principal */
+  --color-muted: #8a7f6c; /* texto secundario / breadcrumbs */
+
+  --font-display: 'Playfair Display', serif; /* logo / títulos */
+  --font-sans: 'Inter', sans-serif; /* resto del texto */
+}
+
+@layer base {
+  body {
+    @apply bg-cream text-ink font-sans;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Componentes reutilizables                                          */
+/* ------------------------------------------------------------------ */
+@layer components {
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 rounded-sm bg-gold px-6 py-3 font-sans text-sm font-semibold uppercase tracking-wide text-header transition-colors duration-200 hover:bg-header hover:text-gold cursor-pointer;
+  }
+
+  .badge {
+    @apply inline-block rounded-sm bg-gold px-2 py-1 font-sans text-xs font-semibold uppercase tracking-wider text-header;
+  }
+
+  .talla-btn {
+    @apply inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-sm border border-muted font-sans text-sm text-ink transition-colors duration-150 hover:border-gold;
+  }
+
+  .talla-btn-active {
+    @apply inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-sm border border-gold bg-gold font-sans text-sm font-semibold text-header;
+  }
+}
