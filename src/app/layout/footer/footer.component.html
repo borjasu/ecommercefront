@@ -8,19 +8,20 @@
     </div>
 
     <div class="font-sans text-sm">
-      <p class="mb-3 uppercase tracking-wide text-muted">Ayuda</p>
+      <p class="mb-3 uppercase tracking-wide text-muted">Navegación</p>
       <ul class="space-y-2 text-cream/80">
-        <li><a href="#" class="transition-colors hover:text-gold">Envíos</a></li>
-        <li><a href="#" class="transition-colors hover:text-gold">Cambios y devoluciones</a></li>
+        <li><a routerLink="/catalogo" class="transition-colors hover:text-gold">Inicio</a></li>
+        <li><a routerLink="/catalogo" class="transition-colors hover:text-gold">Catálogo</a></li>
         <li><a href="#" class="transition-colors hover:text-gold">Contacto</a></li>
       </ul>
     </div>
 
     <div class="font-sans text-sm">
-      <p class="mb-3 uppercase tracking-wide text-muted">Empresa</p>
+      <p class="mb-3 uppercase tracking-wide text-muted">Síguenos</p>
       <ul class="space-y-2 text-cream/80">
-        <li><a href="#" class="transition-colors hover:text-gold">Sobre nosotros</a></li>
-        <li><a href="#" class="transition-colors hover:text-gold">Vender en Atelier</a></li>
+        @for (red of redesSociales; track red) {
+          <li><a href="#" class="transition-colors hover:text-gold">{{ red }}</a></li>
+        }
       </ul>
     </div>
   </div>
