@@ -1,0 +1,49 @@
+<div class="flex min-h-screen bg-cream">
+  <aside class="flex w-64 flex-col bg-header text-cream">
+    <div class="px-6 py-6">
+      <p class="font-display text-xl font-semibold text-gold">Atelier</p>
+      <p class="mt-1 font-sans text-xs uppercase tracking-wide text-cream/60">Panel de vendedor</p>
+    </div>
+
+    <nav class="flex flex-1 flex-col gap-1 px-3 font-sans text-sm">
+      <a
+        routerLink="/vendedor/dashboard"
+        routerLinkActive="bg-cream/10 text-gold"
+        class="rounded-sm px-3 py-2 text-cream/80 transition-colors hover:text-gold"
+      >
+        Dashboard
+      </a>
+      <a
+        routerLink="/vendedor/mis-productos"
+        routerLinkActive="bg-cream/10 text-gold"
+        class="rounded-sm px-3 py-2 text-cream/80 transition-colors hover:text-gold"
+      >
+        Mis Productos
+      </a>
+      <a
+        routerLink="/vendedor/pedidos"
+        routerLinkActive="bg-cream/10 text-gold"
+        class="rounded-sm px-3 py-2 text-cream/80 transition-colors hover:text-gold"
+      >
+        Pedidos
+      </a>
+    </nav>
+
+    <div class="border-t border-cream/10 px-3 py-4">
+      @if (usuarioActual(); as usuario) {
+        <p class="px-3 pb-2 font-sans text-xs text-cream/60">{{ usuario.nombre }}</p>
+      }
+      <button
+        type="button"
+        (click)="cerrarSesion()"
+        class="w-full rounded-sm px-3 py-2 text-left font-sans text-sm text-cream/80 transition-colors hover:text-gold"
+      >
+        Cerrar sesión
+      </button>
+    </div>
+  </aside>
+
+  <main class="flex-1">
+    <router-outlet />
+  </main>
+</div>

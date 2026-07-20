@@ -1,0 +1,13 @@
+<nav class="font-sans text-sm text-muted" aria-label="breadcrumb">
+  @for (item of items(); track item.label; let ultimo = $last) {
+    @if (item.url && !ultimo) {
+      <a [routerLink]="item.url" class="transition-colors hover:text-gold">{{ item.label }}</a>
+    } @else {
+      <span [class.text-ink]="ultimo">{{ item.label }}</span>
+    }
+
+    @if (!ultimo) {
+      <span class="mx-2">/</span>
+    }
+  }
+</nav>
