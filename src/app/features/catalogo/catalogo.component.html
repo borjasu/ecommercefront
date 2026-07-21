@@ -1,12 +1,37 @@
-<div class="mx-auto max-w-7xl px-6 py-24 text-center">
-  <div class="mb-8 text-left">
-    <app-breadcrumb [items]="breadcrumbItems" />
+<div class="mx-auto max-w-7xl px-6 py-12">
+  <div class="mb-6">
+    <app-breadcrumb [items]="breadcrumbItems()" />
   </div>
 
-  <p class="font-sans text-sm uppercase tracking-wide text-muted">Catálogo</p>
-  <h1 class="mt-2 font-display text-3xl font-semibold text-header">Próximamente</h1>
-  <p class="mt-4 font-sans text-sm text-muted">
-    Esta vista se construirá en la siguiente fase. Por ahora sirve como destino de redirección
-    tras iniciar sesión o registrarse como comprador.
-  </p>
+  <div class="mb-8 flex flex-col gap-2">
+    <h1 class="font-display text-3xl font-semibold text-header">{{ tituloSeccion() }}</h1>
+    <p class="font-sans text-sm text-muted">{{ productos().length }} artículos disponibles</p>
+  </div>
+
+  @if (!terminoBusqueda()) {
+    <div class="mb-10 flex flex-wrap gap-3 border-b border-muted/20 pb-6">
+      <button type="button" [class]="claseTab(!categoriaActual())" (click)="verTodo()">Todo</button>
+      @for (categoria of categorias; track categoria.valor) {
+        <button
+          type="button"
+          [class]="claseTab(categoriaActual() === categoria.valor)"
+          (click)="seleccionarCategoria(categoria.valor)"
+        >
+          {{ categoria.etiqueta }}
+        </button>
+      }
+    </div>
+  }
+
+  @if (productos().length > 0) {
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      @for (producto of productos(); track producto.id) {
+        <app-producto-card [producto]="producto" (agregarAlCarrito)="onAgregarAlCarrito($event)" />
+      }
+    </div>
+  } @else {
+    <p class="py-16 text-center font-sans text-sm text-muted">
+      {{ mensajeVacio() }}
+    </p>
+  }
 </div>
