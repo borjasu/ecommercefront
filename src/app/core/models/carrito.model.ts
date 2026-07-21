@@ -1,8 +1,8 @@
-import { Producto } from './producto.model';
+import { Producto, Talla } from './producto.model';
 
 export interface ItemCarrito {
   producto: Producto;
-  talla: string;
+  talla: Talla;
   cantidad: number;
 }
 
