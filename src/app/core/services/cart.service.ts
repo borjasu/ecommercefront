@@ -1,10 +1,40 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, computed, signal } from '@angular/core';
+import { ItemCarrito } from '../models/carrito.model';
+import { Producto, Talla } from '../models/producto.model';
 
-// Contador visual para el header. El carrito real (items, totales, persistencia)
-// se implementa en la Fase 6; por ahora solo expone el conteo de artículos.
 @Injectable({
   providedIn: 'root'
 })
 export class CartService {
-  readonly cantidadItems = signal(0);
+  private readonly items = signal<ItemCarrito[]>([]);
+
+  readonly itemsCarrito = this.items.asReadonly();
+
+  readonly cantidadItems = computed(() =>
+    this.items().reduce((total, item) => total + item.cantidad, 0)
+  );
+
+  readonly total = computed(() =>
+    this.items().reduce((total, item) => total + item.producto.precio * item.cantidad, 0)
+  );
+
+  agregarItem(producto: Producto, talla: Talla, cantidad: number): void {
+    this.items.update(items => {
+      const existente = items.find(item => item.producto.id === producto.id && item.talla === talla);
+
+      if (existente) {
+        return items.map(item =>
+          item === existente ? { ...item, cantidad: item.cantidad + cantidad } : item
+        );
+      }
+
+      return [...items, { producto, talla, cantidad }];
+    });
+  }
+
+  eliminarItem(producto: Producto, talla: Talla): void {
+    this.items.update(items =>
+      items.filter(item => !(item.producto.id === producto.id && item.talla === talla))
+    );
+  }
 }

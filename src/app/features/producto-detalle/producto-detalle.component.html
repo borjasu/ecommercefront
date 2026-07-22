@@ -35,14 +35,37 @@
           </div>
         </div>
 
-        <button
-          type="button"
-          class="btn-gold w-full max-w-xs disabled:cursor-not-allowed disabled:opacity-50"
-          [disabled]="!tallaSeleccionada()"
-          (click)="agregarAlCarrito()"
-        >
-          {{ agregado() ? '¡Agregado!' : '+ AGREGAR AL CARRITO' }}
-        </button>
+        <div class="flex items-center gap-3">
+          <div class="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              (click)="decrementarCantidad()"
+              [disabled]="cantidadSeleccionada() === 1"
+              aria-label="Disminuir cantidad"
+              class="inline-flex h-12 w-12 cursor-pointer items-center justify-center rounded-sm border border-muted font-sans text-base text-ink transition-colors duration-150 hover:border-gold disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-muted"
+            >
+              −
+            </button>
+            <span class="w-6 text-center font-sans text-base text-ink" aria-live="polite">{{ cantidadSeleccionada() }}</span>
+            <button
+              type="button"
+              (click)="incrementarCantidad()"
+              aria-label="Aumentar cantidad"
+              class="inline-flex h-12 w-12 cursor-pointer items-center justify-center rounded-sm border border-muted font-sans text-base text-ink transition-colors duration-150 hover:border-gold"
+            >
+              +
+            </button>
+          </div>
+
+          <button
+            type="button"
+            class="btn-gold h-12 w-full max-w-xs disabled:cursor-not-allowed disabled:opacity-50"
+            [disabled]="!tallaSeleccionada()"
+            (click)="agregarAlCarrito()"
+          >
+            {{ agregado() ? '¡Agregado!' : '+ AGREGAR AL CARRITO' }}
+          </button>
+        </div>
       </div>
     </div>
   } @else {

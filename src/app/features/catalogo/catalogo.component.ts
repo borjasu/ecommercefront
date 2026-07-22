@@ -109,8 +109,8 @@ export class CatalogoComponent {
       : 'cursor-pointer rounded-sm border border-muted px-5 py-2 font-sans text-sm uppercase tracking-wide text-ink transition-colors duration-150 hover:border-gold';
   }
 
-  onAgregarAlCarrito(_evento: { producto: Producto; talla: Talla }): void {
-    this.cartService.cantidadItems.update(cantidad => cantidad + 1);
+  onAgregarAlCarrito(evento: { producto: Producto; talla: Talla; cantidad: number }): void {
+    this.cartService.agregarItem(evento.producto, evento.talla, evento.cantidad);
   }
 
   private esCategoriaValida(valor: string | null): valor is Categoria {

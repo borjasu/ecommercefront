@@ -32,7 +32,36 @@
     }
   </div>
 
-  <button type="button" class="btn-gold mt-4 w-full disabled:cursor-not-allowed disabled:opacity-50" [disabled]="!tallaSeleccionada()" (click)="onAgregar()">
+  <div class="mt-4 flex items-center justify-between">
+    <span class="font-sans text-xs uppercase tracking-wide text-muted">Cantidad</span>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="decrementarCantidad()"
+        [disabled]="cantidadSeleccionada() === 1"
+        aria-label="Disminuir cantidad"
+        class="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm border border-muted font-sans text-sm text-ink transition-colors duration-150 hover:border-gold disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-muted"
+      >
+        −
+      </button>
+      <span class="w-5 text-center font-sans text-sm text-ink" aria-live="polite">{{ cantidadSeleccionada() }}</span>
+      <button
+        type="button"
+        (click)="incrementarCantidad()"
+        aria-label="Aumentar cantidad"
+        class="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm border border-muted font-sans text-sm text-ink transition-colors duration-150 hover:border-gold"
+      >
+        +
+      </button>
+    </div>
+  </div>
+
+  <button
+    type="button"
+    class="btn-gold mt-2 w-full disabled:cursor-not-allowed disabled:opacity-50"
+    [disabled]="!tallaSeleccionada()"
+    (click)="onAgregar()"
+  >
     {{ agregado() ? '¡Agregado!' : '+ AGREGAR AL CARRITO' }}
   </button>
 </article>

@@ -14,6 +14,9 @@ const NOMBRES_CATEGORIA: Record<Categoria, string> = {
   bermuda: 'Bermuda'
 };
 
+const CANTIDAD_MINIMA = 1;
+const CANTIDAD_MAXIMA = 20;
+
 @Component({
   selector: 'app-producto-detalle',
   standalone: true,
@@ -33,6 +36,7 @@ export class ProductoDetalleComponent {
   );
 
   readonly tallaSeleccionada = signal<Talla | null>(null);
+  readonly cantidadSeleccionada = signal(CANTIDAD_MINIMA);
   readonly agregado = signal(false);
 
   readonly breadcrumbItems = computed<BreadcrumbItem[]>(() => {
@@ -52,13 +56,24 @@ export class ProductoDetalleComponent {
     this.tallaSeleccionada.set(talla);
   }
 
+  decrementarCantidad(): void {
+    this.cantidadSeleccionada.update(cantidad => Math.max(CANTIDAD_MINIMA, cantidad - 1));
+  }
+
+  incrementarCantidad(): void {
+    this.cantidadSeleccionada.update(cantidad => Math.min(CANTIDAD_MAXIMA, cantidad + 1));
+  }
+
   agregarAlCarrito(): void {
-    if (!this.tallaSeleccionada()) {
+    const talla = this.tallaSeleccionada();
+    const producto = this.producto();
+    if (!talla || !producto) {
       return;
     }
 
-    this.cartService.cantidadItems.update(cantidad => cantidad + 1);
+    this.cartService.agregarItem(producto, talla, this.cantidadSeleccionada());
     this.agregado.set(true);
+    this.cantidadSeleccionada.set(1);
     setTimeout(() => this.agregado.set(false), 1500);
   }
 }
