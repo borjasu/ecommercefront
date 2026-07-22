@@ -6,10 +6,9 @@ const CANTIDAD_MINIMA = 1;
 const CANTIDAD_MAXIMA = 20;
 
 @Component({
-  selector: 'app-producto-card',
-  standalone: true,
-  imports: [RouterLink],
-  templateUrl: './producto-card.component.html'
+    selector: 'app-producto-card',
+    imports: [RouterLink],
+    templateUrl: './producto-card.component.html'
 })
 export class ProductoCardComponent {
   readonly producto = input.required<Producto>();

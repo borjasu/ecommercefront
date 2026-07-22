@@ -4,10 +4,9 @@ import { CartService } from '../../core/services/cart.service';
 import { ItemCarrito } from '../../core/models/carrito.model';
 
 @Component({
-  selector: 'app-carrito',
-  standalone: true,
-  imports: [RouterLink],
-  templateUrl: './carrito.component.html'
+    selector: 'app-carrito',
+    imports: [RouterLink],
+    templateUrl: './carrito.component.html'
 })
 export class CarritoComponent {
   private readonly cartService = inject(CartService);

@@ -18,10 +18,9 @@ const CANTIDAD_MINIMA = 1;
 const CANTIDAD_MAXIMA = 20;
 
 @Component({
-  selector: 'app-producto-detalle',
-  standalone: true,
-  imports: [BreadcrumbComponent, RouterLink],
-  templateUrl: './producto-detalle.component.html'
+    selector: 'app-producto-detalle',
+    imports: [BreadcrumbComponent, RouterLink],
+    templateUrl: './producto-detalle.component.html'
 })
 export class ProductoDetalleComponent {
   private readonly route = inject(ActivatedRoute);

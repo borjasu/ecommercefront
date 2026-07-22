@@ -16,11 +16,10 @@ function passwordsIgualesValidator(control: AbstractControl): ValidationErrors |
 }
 
 @Component({
-  selector: 'app-registro',
-  standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
-  templateUrl: './registro.component.html',
-  styleUrl: './registro.component.css'
+    selector: 'app-registro',
+    imports: [ReactiveFormsModule, RouterLink],
+    templateUrl: './registro.component.html',
+    styleUrl: './registro.component.css'
 })
 export class RegistroComponent {
   private readonly fb = inject(FormBuilder);

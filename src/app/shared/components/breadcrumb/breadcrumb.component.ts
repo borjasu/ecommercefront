@@ -7,10 +7,9 @@ export interface BreadcrumbItem {
 }
 
 @Component({
-  selector: 'app-breadcrumb',
-  standalone: true,
-  imports: [RouterLink],
-  templateUrl: './breadcrumb.component.html'
+    selector: 'app-breadcrumb',
+    imports: [RouterLink],
+    templateUrl: './breadcrumb.component.html'
 })
 export class BreadcrumbComponent {
   readonly items = input.required<BreadcrumbItem[]>();

@@ -4,9 +4,8 @@ import { HeaderComponent } from '../header/header.component';
 import { FooterComponent } from '../footer/footer.component';
 
 @Component({
-  selector: 'app-main-layout',
-  standalone: true,
-  imports: [RouterOutlet, HeaderComponent, FooterComponent],
-  templateUrl: './main-layout.component.html'
+    selector: 'app-main-layout',
+    imports: [RouterOutlet, HeaderComponent, FooterComponent],
+    templateUrl: './main-layout.component.html'
 })
 export class MainLayoutComponent {}

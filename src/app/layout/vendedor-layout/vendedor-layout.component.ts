@@ -3,10 +3,9 @@ import { Router, RouterLink, RouterOutlet, RouterLinkActive } from '@angular/rou
 import { AuthService } from '../../core/services/auth.service';
 
 @Component({
-  selector: 'app-vendedor-layout',
-  standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
-  templateUrl: './vendedor-layout.component.html'
+    selector: 'app-vendedor-layout',
+    imports: [RouterOutlet, RouterLink, RouterLinkActive],
+    templateUrl: './vendedor-layout.component.html'
 })
 export class VendedorLayoutComponent {
   private readonly authService = inject(AuthService);

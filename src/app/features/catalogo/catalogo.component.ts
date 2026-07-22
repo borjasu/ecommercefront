@@ -21,11 +21,10 @@ interface ResultadoCatalogo {
 }
 
 @Component({
-  selector: 'app-catalogo',
-  standalone: true,
-  imports: [BreadcrumbComponent, ProductoCardComponent],
-  templateUrl: './catalogo.component.html',
-  styleUrl: './catalogo.component.css'
+    selector: 'app-catalogo',
+    imports: [BreadcrumbComponent, ProductoCardComponent],
+    templateUrl: './catalogo.component.html',
+    styleUrl: './catalogo.component.css'
 })
 export class CatalogoComponent {
   private readonly route = inject(ActivatedRoute);
