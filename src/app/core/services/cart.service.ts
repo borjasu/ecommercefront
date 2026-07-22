@@ -37,4 +37,8 @@ export class CartService {
       items.filter(item => !(item.producto.id === producto.id && item.talla === talla))
     );
   }
+
+  vaciarCarrito(): void {
+    this.items.set([]);
+  }
 }

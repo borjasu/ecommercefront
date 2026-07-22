@@ -1,1 +1,238 @@
-<h1 class="p-8 font-display text-3xl">Checkout</h1>
+<div class="mx-auto max-w-5xl px-6 py-12">
+  @if (numeroPedido(); as numero) {
+    <div class="mx-auto max-w-md py-16 text-center">
+      <p class="font-sans text-sm uppercase tracking-wide text-gold">Pedido confirmado</p>
+      <h1 class="mt-2 font-display text-3xl font-semibold text-header">¡Gracias por tu compra!</h1>
+      <p class="mt-4 font-sans text-sm text-muted">Tu número de pedido es</p>
+      <p class="mt-1 font-display text-2xl font-semibold text-header">{{ numero }}</p>
+      <a routerLink="/catalogo" class="btn-gold mt-8 inline-flex">Volver al catálogo</a>
+    </div>
+  } @else {
+    <h1 class="font-display text-3xl font-semibold text-header">Checkout</h1>
+
+    <div class="mt-8 flex items-center justify-center">
+      @for (paso of [1, 2, 3]; track paso) {
+        <div class="flex items-center">
+          <div
+            class="flex h-9 w-9 items-center justify-center rounded-full border font-sans text-sm font-semibold"
+            [class.bg-gold]="paso <= pasoActual()"
+            [class.border-gold]="paso <= pasoActual()"
+            [class.text-header]="paso <= pasoActual()"
+            [class.border-muted]="paso > pasoActual()"
+            [class.text-muted]="paso > pasoActual()"
+          >
+            {{ paso }}
+          </div>
+          @if (paso < 3) {
+            <div class="h-px w-10 bg-muted/30"></div>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="mx-auto mt-10 max-w-2xl">
+      @if (pasoActual() === 1) {
+        <h2 class="font-display text-xl font-semibold text-header">Resumen del pedido</h2>
+        <div class="mt-6 flex flex-col divide-y divide-muted/20">
+          @for (item of items(); track item.producto.id + item.talla) {
+            <div class="flex items-center gap-4 py-4">
+              <img
+                [src]="item.producto.imagenUrl"
+                [alt]="item.producto.nombre"
+                class="h-20 w-16 rounded-sm object-cover"
+              />
+              <div class="flex-1">
+                <p class="font-sans text-sm text-ink">{{ item.producto.nombre }}</p>
+                <p class="mt-1 font-sans text-xs uppercase tracking-wide text-muted">
+                  Talla {{ item.talla }} · Cantidad {{ item.cantidad }}
+                </p>
+              </div>
+              <p class="font-sans text-sm font-semibold text-gold">${{ subtotalLinea(item) }}</p>
+            </div>
+          }
+        </div>
+        <div class="mt-6 flex items-center justify-between border-t border-muted/20 pt-6">
+          <p class="font-sans text-lg font-semibold text-header">Total</p>
+          <p class="font-sans text-lg font-semibold text-gold">${{ total() }}</p>
+        </div>
+      }
+
+      @if (pasoActual() === 2) {
+        <h2 class="font-display text-xl font-semibold text-header">Datos de envío</h2>
+        <form [formGroup]="envioForm" class="mt-6 space-y-5">
+          <div>
+            <label for="nombreCompleto" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+              Nombre completo
+            </label>
+            <input
+              id="nombreCompleto"
+              type="text"
+              formControlName="nombreCompleto"
+              class="input-field"
+              autocomplete="name"
+            />
+            @if (envioForm.controls.nombreCompleto.invalid && envioForm.controls.nombreCompleto.touched) {
+              <p class="mt-1 font-sans text-xs text-red-600">El nombre es requerido.</p>
+            }
+          </div>
+
+          <div>
+            <label for="email" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+              Correo electrónico
+            </label>
+            <input
+              id="email"
+              type="email"
+              formControlName="email"
+              class="input-field disabled:cursor-not-allowed disabled:opacity-60"
+            />
+          </div>
+
+          <div>
+            <label for="direccion" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+              Dirección
+            </label>
+            <input
+              id="direccion"
+              type="text"
+              formControlName="direccion"
+              class="input-field"
+              autocomplete="street-address"
+            />
+            @if (envioForm.controls.direccion.invalid && envioForm.controls.direccion.touched) {
+              <p class="mt-1 font-sans text-xs text-red-600">La dirección es requerida.</p>
+            }
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label for="ciudad" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+                Ciudad
+              </label>
+              <input
+                id="ciudad"
+                type="text"
+                formControlName="ciudad"
+                class="input-field"
+                autocomplete="address-level2"
+              />
+              @if (envioForm.controls.ciudad.invalid && envioForm.controls.ciudad.touched) {
+                <p class="mt-1 font-sans text-xs text-red-600">La ciudad es requerida.</p>
+              }
+            </div>
+            <div>
+              <label for="codigoPostal" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+                Código postal
+              </label>
+              <input
+                id="codigoPostal"
+                type="text"
+                inputmode="numeric"
+                formControlName="codigoPostal"
+                class="input-field"
+                autocomplete="postal-code"
+              />
+              @if (envioForm.controls.codigoPostal.invalid && envioForm.controls.codigoPostal.touched) {
+                <p class="mt-1 font-sans text-xs text-red-600">Ingresa un código postal válido.</p>
+              }
+            </div>
+          </div>
+
+          <div>
+            <label for="telefono" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+              Teléfono
+            </label>
+            <input id="telefono" type="tel" formControlName="telefono" class="input-field" autocomplete="tel" />
+            @if (envioForm.controls.telefono.invalid && envioForm.controls.telefono.touched) {
+              <p class="mt-1 font-sans text-xs text-red-600">Ingresa un teléfono válido.</p>
+            }
+          </div>
+        </form>
+      }
+
+      @if (pasoActual() === 3) {
+        <h2 class="font-display text-xl font-semibold text-header">Método de pago</h2>
+        <div class="mt-6 space-y-3">
+          <label class="flex cursor-pointer items-center gap-3 rounded-sm border border-muted/30 p-4">
+            <input
+              type="radio"
+              name="metodoPago"
+              value="tarjeta"
+              [checked]="metodoPago() === 'tarjeta'"
+              (change)="metodoPago.set('tarjeta')"
+            />
+            <span class="font-sans text-sm text-ink">Tarjeta de crédito/débito</span>
+          </label>
+          <label class="flex cursor-pointer items-center gap-3 rounded-sm border border-muted/30 p-4">
+            <input
+              type="radio"
+              name="metodoPago"
+              value="efectivo"
+              [checked]="metodoPago() === 'efectivo'"
+              (change)="metodoPago.set('efectivo')"
+            />
+            <span class="font-sans text-sm text-ink">Efectivo/Transferencia</span>
+          </label>
+        </div>
+
+        @if (metodoPago() === 'tarjeta') {
+          <form [formGroup]="tarjetaForm" class="mt-6 space-y-5">
+            <div>
+              <label for="numeroTarjeta" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+                Número de tarjeta
+              </label>
+              <input
+                id="numeroTarjeta"
+                type="text"
+                formControlName="numero"
+                class="input-field"
+                placeholder="0000 0000 0000 0000"
+              />
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label for="vencimiento" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+                  Vencimiento
+                </label>
+                <input
+                  id="vencimiento"
+                  type="text"
+                  formControlName="vencimiento"
+                  class="input-field"
+                  placeholder="MM/AA"
+                />
+              </div>
+              <div>
+                <label for="cvv" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">CVV</label>
+                <input id="cvv" type="text" formControlName="cvv" class="input-field" placeholder="123" />
+              </div>
+            </div>
+            <p class="font-sans text-xs text-muted">
+              Simulación visual: estos datos no se validan ni se envían a ninguna pasarela de pago.
+            </p>
+          </form>
+        }
+      }
+
+      <div class="mt-10 flex items-center justify-between">
+        @if (pasoActual() > 1) {
+          <button
+            type="button"
+            (click)="pasoAnterior()"
+            class="cursor-pointer font-sans text-sm uppercase tracking-wide text-muted hover:text-header"
+          >
+            Atrás
+          </button>
+        } @else {
+          <span></span>
+        }
+
+        @if (pasoActual() < 3) {
+          <button type="button" (click)="siguientePaso()" class="btn-gold">Siguiente</button>
+        } @else {
+          <button type="button" (click)="confirmarPedido()" class="btn-gold">Confirmar pedido</button>
+        }
+      </div>
+    </div>
+  }
+</div>
