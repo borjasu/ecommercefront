@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { Component, input, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 export interface BreadcrumbItem {
@@ -9,6 +9,7 @@ export interface BreadcrumbItem {
 @Component({
     selector: 'app-breadcrumb',
     imports: [RouterLink],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './breadcrumb.component.html'
 })
 export class BreadcrumbComponent {

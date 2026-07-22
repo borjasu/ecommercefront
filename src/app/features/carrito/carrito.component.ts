@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CartService } from '../../core/services/cart.service';
 import { ItemCarrito } from '../../core/models/carrito.model';
@@ -6,6 +6,7 @@ import { ItemCarrito } from '../../core/models/carrito.model';
 @Component({
     selector: 'app-carrito',
     imports: [RouterLink],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './carrito.component.html'
 })
 export class CarritoComponent {

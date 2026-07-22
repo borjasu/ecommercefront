@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import {
   AbstractControl,
   FormBuilder,
@@ -19,6 +19,7 @@ function passwordsIgualesValidator(control: AbstractControl): ValidationErrors |
     selector: 'app-registro',
     imports: [ReactiveFormsModule, RouterLink],
     templateUrl: './registro.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './registro.component.css'
 })
 export class RegistroComponent {

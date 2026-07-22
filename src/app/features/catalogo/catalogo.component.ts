@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { combineLatest } from 'rxjs';
@@ -24,6 +24,7 @@ interface ResultadoCatalogo {
     selector: 'app-catalogo',
     imports: [BreadcrumbComponent, ProductoCardComponent],
     templateUrl: './catalogo.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './catalogo.component.css'
 })
 export class CatalogoComponent {

@@ -1,4 +1,4 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, input, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Producto, Talla } from '../../../core/models/producto.model';
 
@@ -8,6 +8,7 @@ const CANTIDAD_MAXIMA = 20;
 @Component({
     selector: 'app-producto-card',
     imports: [RouterLink],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './producto-card.component.html'
 })
 export class ProductoCardComponent {

@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { switchMap } from 'rxjs/operators';
@@ -20,6 +20,7 @@ const CANTIDAD_MAXIMA = 20;
 @Component({
     selector: 'app-producto-detalle',
     imports: [BreadcrumbComponent, RouterLink],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './producto-detalle.component.html'
 })
 export class ProductoDetalleComponent {

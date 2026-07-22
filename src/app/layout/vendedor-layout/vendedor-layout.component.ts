@@ -1,10 +1,11 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink, RouterOutlet, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 
 @Component({
     selector: 'app-vendedor-layout',
     imports: [RouterOutlet, RouterLink, RouterLinkActive],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './vendedor-layout.component.html'
 })
 export class VendedorLayoutComponent {
