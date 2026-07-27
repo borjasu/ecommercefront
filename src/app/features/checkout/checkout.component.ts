@@ -3,6 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { CartService } from '../../core/services/cart.service';
+import { PedidoService } from '../../core/services/pedido.service';
 import { ItemCarrito } from '../../core/models/carrito.model';
 
 type MetodoPago = 'tarjeta' | 'efectivo';
@@ -17,6 +18,7 @@ export class CheckoutComponent {
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly cartService = inject(CartService);
+  private readonly pedidoService = inject(PedidoService);
   private readonly router = inject(Router);
 
   readonly items = this.cartService.itemsCarrito;
@@ -72,8 +74,27 @@ export class CheckoutComponent {
   }
 
   confirmarPedido(): void {
-    this.numeroPedido.set(this.generarNumeroPedido());
-    this.cartService.vaciarCarrito();
+    const { nombreCompleto, direccion, ciudad, codigoPostal, telefono } = this.envioForm.getRawValue();
+
+    this.pedidoService
+      .crearPedido({
+        numeroPedido: this.generarNumeroPedido(),
+        items: this.items(),
+        total: this.total(),
+        datosEnvio: {
+          nombreCompleto: nombreCompleto!,
+          direccion: direccion!,
+          ciudad: ciudad!,
+          codigoPostal: codigoPostal!,
+          telefono: telefono!
+        },
+        metodoPago: this.metodoPago(),
+        emailComprador: this.authService.currentUser()?.email
+      })
+      .subscribe(pedido => {
+        this.numeroPedido.set(pedido.numeroPedido);
+        this.cartService.vaciarCarrito();
+      });
   }
 
   private generarNumeroPedido(): string {
