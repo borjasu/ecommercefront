@@ -1,12 +1,14 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, effect, signal } from '@angular/core';
 import { ItemCarrito } from '../models/carrito.model';
 import { Producto, Talla } from '../models/producto.model';
+
+const CLAVE_CARRITO = 'carrito_items';
 
 @Injectable({
   providedIn: 'root'
 })
 export class CartService {
-  private readonly items = signal<ItemCarrito[]>([]);
+  private readonly items = signal<ItemCarrito[]>(this.leerCarritoGuardado());
 
   readonly itemsCarrito = this.items.asReadonly();
 
@@ -17,6 +19,12 @@ export class CartService {
   readonly total = computed(() =>
     this.items().reduce((total, item) => total + item.producto.precio * item.cantidad, 0)
   );
+
+  constructor() {
+    effect(() => {
+      localStorage.setItem(CLAVE_CARRITO, JSON.stringify(this.items()));
+    });
+  }
 
   agregarItem(producto: Producto, talla: Talla, cantidad: number): void {
     this.items.update(items => {
@@ -40,5 +48,20 @@ export class CartService {
 
   vaciarCarrito(): void {
     this.items.set([]);
+  }
+
+  private leerCarritoGuardado(): ItemCarrito[] {
+    const guardado = localStorage.getItem(CLAVE_CARRITO);
+
+    if (!guardado) {
+      return [];
+    }
+
+    try {
+      const items = JSON.parse(guardado);
+      return Array.isArray(items) ? items : [];
+    } catch {
+      return [];
+    }
   }
 }
