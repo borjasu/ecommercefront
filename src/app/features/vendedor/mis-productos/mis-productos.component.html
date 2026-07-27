@@ -1,1 +1,165 @@
-<h1 class="p-8 font-display text-3xl">Mis Productos</h1>
+<div class="p-8">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="font-display text-3xl font-semibold text-header">Mis Productos</h1>
+      <p class="mt-1 font-sans text-sm text-muted">Administra el catálogo de tu tienda.</p>
+    </div>
+    <button type="button" (click)="abrirFormularioNuevo()" class="btn-gold">Agregar producto</button>
+  </div>
+
+  <div class="mt-8 overflow-hidden rounded-sm border border-muted/30 bg-white/60 shadow-sm">
+    @if (productos().length === 0) {
+      <p class="p-6 font-sans text-sm text-muted">Todavía no has agregado productos.</p>
+    } @else {
+      <table class="w-full text-left">
+        <thead>
+          <tr class="border-b border-muted/20 font-sans text-xs uppercase tracking-wide text-muted">
+            <th class="px-6 py-3"></th>
+            <th class="px-6 py-3">Nombre</th>
+            <th class="px-6 py-3">Categoría</th>
+            <th class="px-6 py-3">Precio</th>
+            <th class="px-6 py-3">Tallas</th>
+            <th class="px-6 py-3">Etiqueta</th>
+            <th class="px-6 py-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-muted/20">
+          @for (producto of productos(); track producto.id) {
+            <tr>
+              <td class="px-6 py-3">
+                <img [src]="producto.imagenUrl" [alt]="producto.nombre" class="h-14 w-11 rounded-sm object-cover" />
+              </td>
+              <td class="px-6 py-3 font-sans text-sm text-ink">{{ producto.nombre }}</td>
+              <td class="px-6 py-3 font-sans text-sm text-muted">{{ etiquetaDeCategoria(producto.categoria) }}</td>
+              <td class="px-6 py-3 font-sans text-sm font-semibold text-gold">${{ producto.precio }}</td>
+              <td class="px-6 py-3 font-sans text-sm text-muted">{{ producto.tallasDisponibles.join(', ') }}</td>
+              <td class="px-6 py-3">
+                @if (producto.etiqueta) {
+                  <span class="badge">{{ producto.etiqueta }}</span>
+                }
+              </td>
+              <td class="px-6 py-3">
+                <div class="flex gap-3 font-sans text-sm">
+                  <button
+                    type="button"
+                    (click)="abrirFormularioEditar(producto)"
+                    class="cursor-pointer text-header hover:text-gold"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    (click)="eliminar(producto)"
+                    class="cursor-pointer text-red-600 hover:text-red-800"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</div>
+
+@if (mostrarFormulario()) {
+  <div class="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
+    <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-sm bg-cream p-8 shadow-lg">
+      <h2 class="font-display text-xl font-semibold text-header">
+        {{ productoEditando() ? 'Editar producto' : 'Nuevo producto' }}
+      </h2>
+
+      <form [formGroup]="productoForm" (ngSubmit)="guardar()" class="mt-6 space-y-5">
+        <div>
+          <label for="nombre" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">Nombre</label>
+          <input id="nombre" type="text" formControlName="nombre" class="input-field" />
+          @if (productoForm.controls.nombre.invalid && productoForm.controls.nombre.touched) {
+            <p class="mt-1 font-sans text-xs text-red-600">El nombre es requerido.</p>
+          }
+        </div>
+
+        <div>
+          <label for="descripcion" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+            Descripción
+          </label>
+          <textarea id="descripcion" formControlName="descripcion" rows="3" class="input-field"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label for="precio" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">Precio</label>
+            <input id="precio" type="number" formControlName="precio" class="input-field" min="0.01" step="0.01" />
+            @if (productoForm.controls.precio.invalid && productoForm.controls.precio.touched) {
+              <p class="mt-1 font-sans text-xs text-red-600">El precio debe ser mayor a 0.</p>
+            }
+          </div>
+
+          <div>
+            <label for="categoria" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+              Categoría
+            </label>
+            <select id="categoria" formControlName="categoria" class="input-field">
+              @for (opcion of categorias; track opcion.valor) {
+                <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">Tallas disponibles</label>
+          <div formGroupName="tallas" class="flex gap-4">
+            @for (talla of tallas; track talla) {
+              <label class="flex cursor-pointer items-center gap-2 font-sans text-sm text-ink">
+                <input type="checkbox" [formControlName]="talla" />
+                {{ talla }}
+              </label>
+            }
+          </div>
+          @if (productoForm.controls.tallas.invalid && productoForm.controls.tallas.touched) {
+            <p class="mt-1 font-sans text-xs text-red-600">Selecciona al menos una talla.</p>
+          }
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label for="etiqueta" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+              Etiqueta
+            </label>
+            <select id="etiqueta" formControlName="etiqueta" class="input-field">
+              <option value="NINGUNA">Ninguna</option>
+              <option value="NUEVO">Nuevo</option>
+              <option value="ESENCIAL">Esencial</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="imagenUrl" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+              URL de imagen
+            </label>
+            <input
+              id="imagenUrl"
+              type="text"
+              formControlName="imagenUrl"
+              class="input-field"
+              placeholder="https://picsum.photos/seed/xxx/400/500"
+            />
+          </div>
+        </div>
+
+        <div class="mt-8 flex items-center justify-end gap-4">
+          <button
+            type="button"
+            (click)="cerrarFormulario()"
+            class="cursor-pointer font-sans text-sm uppercase tracking-wide text-muted hover:text-header"
+          >
+            Cancelar
+          </button>
+          <button type="submit" class="btn-gold">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
