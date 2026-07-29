@@ -9,14 +9,18 @@ export const routes: Routes = [
     path: '',
     component: MainLayoutComponent,
     children: [
-      { path: '', redirectTo: 'catalogo', pathMatch: 'full' },
       {
-        path: 'catalogo',
+        path: '',
+        loadComponent: () => import('./features/home/home.component').then(m => m.HomeComponent)
+      },
+      { path: 'catalogo', redirectTo: 'catalogo/hombre', pathMatch: 'full' },
+      {
+        path: 'catalogo/:audiencia',
         loadComponent: () =>
           import('./features/catalogo/catalogo.component').then(m => m.CatalogoComponent)
       },
       {
-        path: 'catalogo/:categoria',
+        path: 'catalogo/:audiencia/:categoria',
         loadComponent: () =>
           import('./features/catalogo/catalogo.component').then(m => m.CatalogoComponent)
       },
@@ -82,5 +86,5 @@ export const routes: Routes = [
       }
     ]
   },
-  { path: '**', redirectTo: 'catalogo' }
+  { path: '**', redirectTo: '' }
 ];
