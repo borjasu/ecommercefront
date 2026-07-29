@@ -1,7 +1,21 @@
-<header class="relative bg-header text-cream">
+<header class="header-surface relative text-brand-bone">
   <div class="mx-auto flex max-w-7xl items-center gap-4 px-6 py-4">
-    <a routerLink="/catalogo" class="font-display text-2xl font-semibold tracking-wide text-gold">
-      Atelier
+    <button
+      type="button"
+      (click)="abrirMenu()"
+      class="flex h-9 w-9 shrink-0 cursor-pointer flex-col items-center justify-center gap-[5px] text-brand-bone/80 transition-colors hover:text-brand-gold"
+      aria-label="Abrir menú"
+      aria-haspopup="true"
+      [attr.aria-expanded]="menuAbierto()"
+    >
+      <span class="block h-[2px] w-6 bg-current"></span>
+      <span class="block h-[2px] w-6 bg-current"></span>
+      <span class="block h-[2px] w-6 bg-current"></span>
+    </button>
+
+    <a routerLink="/" class="flex items-center gap-3">
+      <img src="brand/logo-frank-jeans.png" alt="Frank Jeans" class="h-11 w-11 object-contain" />
+      <span class="font-display text-2xl tracking-[0.15em] text-brand-gold">FRANK JEANS</span>
     </a>
 
     <div class="hidden flex-1 justify-center px-6 md:flex">
@@ -10,30 +24,30 @@
         [value]="terminoBusqueda()"
         (input)="terminoBusqueda.set($any($event.target).value)"
         placeholder="Buscar productos..."
-        class="w-full max-w-md rounded-sm border border-cream/20 bg-cream/5 px-4 py-2 font-sans text-sm text-cream placeholder:text-cream/50 focus:border-gold focus:outline-none"
+        class="w-full max-w-md rounded-sm border border-brand-bone/20 bg-brand-bone/5 px-4 py-2 font-body text-sm text-brand-bone placeholder:text-brand-bone/50 focus:border-brand-gold focus:outline-none"
       />
     </div>
 
-    <div class="ml-auto flex items-center gap-5 font-sans text-sm uppercase tracking-wide">
+    <div class="ml-auto flex items-center gap-5 font-body text-sm uppercase tracking-wide">
       <div class="relative">
         @if (usuarioActual(); as usuario) {
           <button
             type="button"
             (click)="alternarMenuUsuario()"
-            class="flex items-center gap-2 text-cream/80 transition-colors hover:text-gold"
+            class="flex items-center gap-2 text-brand-bone/80 transition-colors hover:text-brand-gold"
           >
             <span class="normal-case">Hola, {{ usuario.nombre }}</span>
           </button>
 
           @if (menuUsuarioAbierto()) {
             <div
-              class="absolute right-0 top-full mt-3 w-52 rounded-sm border border-cream/10 bg-header py-2 normal-case shadow-lg"
+              class="absolute right-0 top-full mt-3 w-52 rounded-sm border border-brand-bone/10 bg-brand-ink py-2 normal-case shadow-lg"
             >
               @if (usuario.rol === 'vendedor') {
                 <a
                   routerLink="/vendedor/dashboard"
                   (click)="menuUsuarioAbierto.set(false)"
-                  class="block px-4 py-2 text-cream/80 transition-colors hover:text-gold"
+                  class="block px-4 py-2 text-brand-bone/80 transition-colors hover:text-brand-gold"
                 >
                   Panel de vendedor
                 </a>
@@ -41,63 +55,130 @@
               <button
                 type="button"
                 (click)="cerrarSesion()"
-                class="block w-full px-4 py-2 text-left text-cream/80 transition-colors hover:text-gold"
+                class="block w-full px-4 py-2 text-left text-brand-bone/80 transition-colors hover:text-brand-gold"
               >
                 Cerrar sesión
               </button>
             </div>
           }
         } @else {
-          <a routerLink="/login" class="text-cream/80 transition-colors hover:text-gold">
+          <a routerLink="/login" class="text-brand-bone/80 transition-colors hover:text-brand-gold">
             Iniciar sesión
           </a>
         }
       </div>
 
-      <a routerLink="/carrito" class="relative text-cream/80 transition-colors hover:text-gold">
+      <a routerLink="/carrito" class="relative text-brand-bone/80 transition-colors hover:text-brand-gold">
         Carrito
         <span class="badge absolute -right-3 -top-3">{{ cantidadCarrito() }}</span>
       </a>
-
-      <button
-        type="button"
-        (click)="alternarMenuMovil()"
-        class="text-cream/80 transition-colors hover:text-gold md:hidden"
-        aria-label="Abrir menú"
-      >
-        ☰
-      </button>
     </div>
   </div>
 
-  @if (menuMovilAbierto()) {
-    <div class="border-t border-cream/10 px-6 py-4 md:hidden">
-      <input
-        type="search"
-        [value]="terminoBusqueda()"
-        (input)="terminoBusqueda.set($any($event.target).value)"
-        placeholder="Buscar productos..."
-        class="mb-4 w-full rounded-sm border border-cream/20 bg-cream/5 px-4 py-2 font-sans text-sm text-cream placeholder:text-cream/50 focus:border-gold focus:outline-none"
-      />
-      <nav class="flex flex-col gap-3 font-sans text-sm uppercase tracking-wide">
-        @for (categoria of categorias; track categoria) {
-          <a
-            href="#"
-            (click)="menuMovilAbierto.set(false)"
-            class="text-cream/80 transition-colors hover:text-gold"
-          >
-            {{ categoria }}
-          </a>
+  <div class="border-t border-brand-bone/10 px-6 py-3 md:hidden">
+    <input
+      type="search"
+      [value]="terminoBusqueda()"
+      (input)="terminoBusqueda.set($any($event.target).value)"
+      placeholder="Buscar productos..."
+      class="w-full rounded-sm border border-brand-bone/20 bg-brand-bone/5 px-4 py-2 font-body text-sm text-brand-bone placeholder:text-brand-bone/50 focus:border-brand-gold focus:outline-none"
+    />
+  </div>
+</header>
+
+@if (menuAbierto()) {
+  <div class="fixed inset-0 z-50 bg-black/50" (click)="cerrarMenu()">
+    <aside
+      #drawer
+      class="fixed left-0 top-0 z-50 flex h-full w-80 max-w-[85vw] flex-col overflow-y-auto bg-brand-ink text-brand-bone shadow-lg outline-none"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Menú de navegación"
+      tabindex="-1"
+      (click)="$event.stopPropagation()"
+      (keydown)="onDrawerKeydown($event)"
+    >
+      <div class="flex items-center justify-between border-b border-brand-bone/10 px-6 py-5">
+        <span class="font-display text-lg tracking-[0.1em] text-brand-gold">MENÚ</span>
+        <button
+          type="button"
+          (click)="cerrarMenu()"
+          class="cursor-pointer text-brand-bone/70 hover:text-brand-gold"
+          aria-label="Cerrar menú"
+        >
+          ✕
+        </button>
+      </div>
+
+      <nav class="flex-1 px-6 py-6">
+        @for (audiencia of audiencias; track audiencia.valor) {
+          <div class="mb-8">
+            <p class="font-display text-sm tracking-[0.2em] text-brand-gold">
+              {{ audiencia.etiqueta.toUpperCase() }}
+            </p>
+            <ul class="mt-3 space-y-2">
+              <li>
+                <a
+                  [routerLink]="['/catalogo', audiencia.valor]"
+                  (click)="cerrarMenu()"
+                  class="block font-body text-sm text-brand-bone/80 transition-colors hover:text-brand-gold"
+                >
+                  Todo
+                </a>
+              </li>
+              @for (categoria of categorias; track categoria.valor) {
+                <li>
+                  <a
+                    [routerLink]="['/catalogo', audiencia.valor, categoria.valor]"
+                    (click)="cerrarMenu()"
+                    class="block font-body text-sm text-brand-bone/80 transition-colors hover:text-brand-gold"
+                  >
+                    {{ categoria.etiqueta }}
+                  </a>
+                </li>
+              }
+            </ul>
+          </div>
         }
       </nav>
-    </div>
-  }
 
-  <nav
-    class="hidden max-w-7xl items-center gap-8 border-t border-cream/10 px-6 py-3 font-sans text-sm uppercase tracking-wide md:mx-auto md:flex"
-  >
-    @for (categoria of categorias; track categoria) {
-      <a href="#" class="text-cream/80 transition-colors hover:text-gold">{{ categoria }}</a>
-    }
-  </nav>
-</header>
+      <div class="border-t border-brand-bone/10 px-6 py-5 font-body text-sm uppercase tracking-wide">
+        @if (usuarioActual(); as usuario) {
+          <p class="normal-case text-brand-bone/60">Hola, {{ usuario.nombre }}</p>
+          @if (usuario.rol === 'vendedor') {
+            <a
+              routerLink="/vendedor/dashboard"
+              (click)="cerrarMenu()"
+              class="mt-3 block text-brand-bone/80 transition-colors hover:text-brand-gold"
+            >
+              Panel de vendedor
+            </a>
+          }
+          <button
+            type="button"
+            (click)="cerrarSesion()"
+            class="mt-3 block cursor-pointer text-left text-brand-bone/80 transition-colors hover:text-brand-gold"
+          >
+            Cerrar sesión
+          </button>
+        } @else {
+          <a
+            routerLink="/login"
+            (click)="cerrarMenu()"
+            class="block text-brand-bone/80 transition-colors hover:text-brand-gold"
+          >
+            Mi cuenta / Iniciar sesión
+          </a>
+        }
+
+        <a
+          routerLink="/carrito"
+          (click)="cerrarMenu()"
+          class="mt-4 block text-brand-bone/80 transition-colors hover:text-brand-gold"
+        >
+          Carrito ({{ cantidadCarrito() }})
+        </a>
+      </div>
+    </aside>
+  </div>
+}

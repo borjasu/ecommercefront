@@ -1,9 +1,10 @@
-import { Component, ElementRef, HostListener, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ElementRef, HostListener, effect, inject, signal, viewChild, ChangeDetectionStrategy } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { AuthService } from '../../core/services/auth.service';
 import { CartService } from '../../core/services/cart.service';
+import { AUDIENCIAS, CATEGORIAS } from '../../shared/constants/categorias';
 
 @Component({
     selector: 'app-header',
@@ -18,13 +19,17 @@ export class HeaderComponent {
   private readonly elementRef = inject(ElementRef<HTMLElement>);
   private readonly router = inject(Router);
 
-  readonly categorias = ['Mujer', 'Hombre', 'Accesorios', 'Nuevo'];
+  readonly audiencias = AUDIENCIAS;
+  readonly categorias = CATEGORIAS;
+
   readonly usuarioActual = this.authService.currentUser;
   readonly cantidadCarrito = this.cartService.cantidadItems;
 
   readonly terminoBusqueda = signal('');
   readonly menuUsuarioAbierto = signal(false);
-  readonly menuMovilAbierto = signal(false);
+  readonly menuAbierto = signal(false);
+
+  readonly drawer = viewChild<ElementRef<HTMLElement>>('drawer');
 
   constructor() {
     toObservable(this.terminoBusqueda)
@@ -35,6 +40,12 @@ export class HeaderComponent {
           this.router.navigate(['/buscar'], { queryParams: { q: terminoLimpio } });
         }
       });
+
+    effect(() => {
+      if (this.menuAbierto()) {
+        setTimeout(() => this.drawer()?.nativeElement.focus());
+      }
+    });
   }
 
   @HostListener('document:click', ['$event'])
@@ -48,12 +59,52 @@ export class HeaderComponent {
     this.menuUsuarioAbierto.update(abierto => !abierto);
   }
 
-  alternarMenuMovil(): void {
-    this.menuMovilAbierto.update(abierto => !abierto);
+  abrirMenu(): void {
+    this.menuAbierto.set(true);
+  }
+
+  cerrarMenu(): void {
+    this.menuAbierto.set(false);
+  }
+
+  onDrawerKeydown(evento: KeyboardEvent): void {
+    if (evento.key === 'Escape') {
+      evento.stopPropagation();
+      this.cerrarMenu();
+      return;
+    }
+
+    if (evento.key !== 'Tab') {
+      return;
+    }
+
+    const contenedor = this.drawer()?.nativeElement;
+    if (!contenedor) {
+      return;
+    }
+
+    const focusables = contenedor.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusables.length === 0) {
+      return;
+    }
+
+    const primero = focusables[0];
+    const ultimo = focusables[focusables.length - 1];
+
+    if (evento.shiftKey && document.activeElement === primero) {
+      evento.preventDefault();
+      ultimo.focus();
+    } else if (!evento.shiftKey && document.activeElement === ultimo) {
+      evento.preventDefault();
+      primero.focus();
+    }
   }
 
   cerrarSesion(): void {
     this.menuUsuarioAbierto.set(false);
+    this.cerrarMenu();
     this.authService.logout();
   }
 }
