@@ -1,12 +1,8 @@
 import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { ProductoService } from '../../../core/services/producto.service';
-import { Categoria, Etiqueta, Producto, Talla } from '../../../core/models/producto.model';
-
-interface CategoriaOpcion {
-  valor: Categoria;
-  etiqueta: string;
-}
+import { Audiencia, Categoria, Etiqueta, Producto, Talla } from '../../../core/models/producto.model';
+import { AUDIENCIAS, CATEGORIAS } from '../../../shared/constants/categorias';
 
 function alMenosUnaTallaValidator(control: AbstractControl): ValidationErrors | null {
   const seleccionadas = Object.values(control.value as Record<string, boolean>);
@@ -23,12 +19,8 @@ export class MisProductosComponent {
   private readonly fb = inject(FormBuilder);
   private readonly productoService = inject(ProductoService);
 
-  readonly categorias: CategoriaOpcion[] = [
-    { valor: 'pantalon', etiqueta: 'Pantalón' },
-    { valor: 'playera', etiqueta: 'Playera' },
-    { valor: 'camisa', etiqueta: 'Camisa' },
-    { valor: 'bermuda', etiqueta: 'Bermuda' }
-  ];
+  readonly categorias = CATEGORIAS;
+  readonly audiencias = AUDIENCIAS;
 
   readonly tallas: Talla[] = ['S', 'M', 'L', 'XL'];
 
@@ -41,6 +33,8 @@ export class MisProductosComponent {
     descripcion: [''],
     precio: [0, [Validators.required, Validators.min(0.01)]],
     categoria: ['pantalon' as Categoria, [Validators.required]],
+    audiencia: ['hombre' as Audiencia, [Validators.required]],
+    destacado: [false],
     etiqueta: ['NINGUNA' as 'NINGUNA' | 'NUEVO' | 'ESENCIAL'],
     imagenUrl: [''],
     tallas: this.fb.group(
@@ -60,6 +54,8 @@ export class MisProductosComponent {
       descripcion: '',
       precio: 0,
       categoria: 'pantalon',
+      audiencia: 'hombre',
+      destacado: false,
       etiqueta: 'NINGUNA',
       imagenUrl: '',
       tallas: { S: false, M: false, L: false, XL: false }
@@ -74,6 +70,8 @@ export class MisProductosComponent {
       descripcion: producto.descripcion,
       precio: producto.precio,
       categoria: producto.categoria,
+      audiencia: producto.audiencia,
+      destacado: producto.destacado,
       etiqueta: producto.etiqueta ?? 'NINGUNA',
       imagenUrl: producto.imagenUrl,
       tallas: {
@@ -105,6 +103,8 @@ export class MisProductosComponent {
       descripcion: valores.descripcion ?? '',
       precio: valores.precio!,
       categoria: valores.categoria as Categoria,
+      audiencia: valores.audiencia as Audiencia,
+      destacado: !!valores.destacado,
       tallasDisponibles,
       imagenUrl: valores.imagenUrl || 'https://picsum.photos/seed/nuevo/400/500',
       etiqueta
@@ -131,6 +131,10 @@ export class MisProductosComponent {
 
   etiquetaDeCategoria(categoria: Categoria): string {
     return this.categorias.find(opcion => opcion.valor === categoria)?.etiqueta ?? categoria;
+  }
+
+  etiquetaDeAudiencia(audiencia: Audiencia): string {
+    return this.audiencias.find(opcion => opcion.valor === audiencia)?.etiqueta ?? audiencia;
   }
 
   private cargarProductos(): void {

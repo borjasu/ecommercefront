@@ -1,49 +1,55 @@
 <div class="p-8">
   <div class="flex items-center justify-between">
     <div>
-      <h1 class="font-display text-3xl font-semibold text-header">Mis Productos</h1>
-      <p class="mt-1 font-sans text-sm text-muted">Administra el catálogo de tu tienda.</p>
+      <h1 class="font-display text-3xl font-semibold text-brand-ink">Mis Productos</h1>
+      <p class="mt-1 font-body text-sm text-brand-muted">Administra el catálogo de tu tienda.</p>
     </div>
     <button type="button" (click)="abrirFormularioNuevo()" class="btn-gold">Agregar producto</button>
   </div>
 
-  <div class="mt-8 overflow-hidden rounded-sm border border-muted/30 bg-white/60 shadow-sm">
+  <div class="mt-8 overflow-hidden rounded-sm border border-brand-muted/30 bg-white/60 shadow-sm">
     @if (productos().length === 0) {
-      <p class="p-6 font-sans text-sm text-muted">Todavía no has agregado productos.</p>
+      <p class="p-6 font-body text-sm text-brand-muted">Todavía no has agregado productos.</p>
     } @else {
       <table class="w-full text-left">
         <thead>
-          <tr class="border-b border-muted/20 font-sans text-xs uppercase tracking-wide text-muted">
+          <tr class="border-b border-brand-muted/20 font-body text-xs uppercase tracking-wide text-brand-muted">
             <th class="px-6 py-3"></th>
             <th class="px-6 py-3">Nombre</th>
+            <th class="px-6 py-3">Audiencia</th>
             <th class="px-6 py-3">Categoría</th>
             <th class="px-6 py-3">Precio</th>
             <th class="px-6 py-3">Tallas</th>
             <th class="px-6 py-3">Etiqueta</th>
+            <th class="px-6 py-3">Destacado</th>
             <th class="px-6 py-3">Acciones</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-muted/20">
+        <tbody class="divide-y divide-brand-muted/20">
           @for (producto of productos(); track producto.id) {
             <tr>
               <td class="px-6 py-3">
                 <img [src]="producto.imagenUrl" [alt]="producto.nombre" class="h-14 w-11 rounded-sm object-cover" />
               </td>
-              <td class="px-6 py-3 font-sans text-sm text-ink">{{ producto.nombre }}</td>
-              <td class="px-6 py-3 font-sans text-sm text-muted">{{ etiquetaDeCategoria(producto.categoria) }}</td>
-              <td class="px-6 py-3 font-sans text-sm font-semibold text-gold">${{ producto.precio }}</td>
-              <td class="px-6 py-3 font-sans text-sm text-muted">{{ producto.tallasDisponibles.join(', ') }}</td>
+              <td class="px-6 py-3 font-body text-sm text-brand-text">{{ producto.nombre }}</td>
+              <td class="px-6 py-3 font-body text-sm text-brand-muted">{{ etiquetaDeAudiencia(producto.audiencia) }}</td>
+              <td class="px-6 py-3 font-body text-sm text-brand-muted">{{ etiquetaDeCategoria(producto.categoria) }}</td>
+              <td class="px-6 py-3 font-body text-sm font-semibold text-brand-gold">${{ producto.precio }}</td>
+              <td class="px-6 py-3 font-body text-sm text-brand-muted">{{ producto.tallasDisponibles.join(', ') }}</td>
               <td class="px-6 py-3">
                 @if (producto.etiqueta) {
                   <span class="badge">{{ producto.etiqueta }}</span>
                 }
               </td>
+              <td class="px-6 py-3 font-body text-sm text-brand-muted">
+                {{ producto.destacado ? '★' : '' }}
+              </td>
               <td class="px-6 py-3">
-                <div class="flex gap-3 font-sans text-sm">
+                <div class="flex gap-3 font-body text-sm">
                   <button
                     type="button"
                     (click)="abrirFormularioEditar(producto)"
-                    class="cursor-pointer text-header hover:text-gold"
+                    class="cursor-pointer text-brand-ink hover:text-brand-gold"
                   >
                     Editar
                   </button>
@@ -66,22 +72,22 @@
 
 @if (mostrarFormulario()) {
   <div class="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
-    <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-sm bg-cream p-8 shadow-lg">
-      <h2 class="font-display text-xl font-semibold text-header">
+    <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-sm bg-brand-bone p-8 shadow-lg">
+      <h2 class="font-display text-xl font-semibold text-brand-ink">
         {{ productoEditando() ? 'Editar producto' : 'Nuevo producto' }}
       </h2>
 
       <form [formGroup]="productoForm" (ngSubmit)="guardar()" class="mt-6 space-y-5">
         <div>
-          <label for="nombre" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">Nombre</label>
+          <label for="nombre" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">Nombre</label>
           <input id="nombre" type="text" formControlName="nombre" class="input-field" />
           @if (productoForm.controls.nombre.invalid && productoForm.controls.nombre.touched) {
-            <p class="mt-1 font-sans text-xs text-red-600">El nombre es requerido.</p>
+            <p class="mt-1 font-body text-xs text-red-600">El nombre es requerido.</p>
           }
         </div>
 
         <div>
-          <label for="descripcion" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+          <label for="descripcion" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
             Descripción
           </label>
           <textarea id="descripcion" formControlName="descripcion" rows="3" class="input-field"></textarea>
@@ -89,15 +95,15 @@
 
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label for="precio" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">Precio</label>
+            <label for="precio" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">Precio</label>
             <input id="precio" type="number" formControlName="precio" class="input-field" min="0.01" step="0.01" />
             @if (productoForm.controls.precio.invalid && productoForm.controls.precio.touched) {
-              <p class="mt-1 font-sans text-xs text-red-600">El precio debe ser mayor a 0.</p>
+              <p class="mt-1 font-body text-xs text-red-600">El precio debe ser mayor a 0.</p>
             }
           </div>
 
           <div>
-            <label for="categoria" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+            <label for="categoria" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
               Categoría
             </label>
             <select id="categoria" formControlName="categoria" class="input-field">
@@ -108,24 +114,47 @@
           </div>
         </div>
 
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label for="audiencia" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              Audiencia
+            </label>
+            <select id="audiencia" formControlName="audiencia" class="input-field">
+              @for (opcion of audiencias; track opcion.valor) {
+                <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
+              }
+            </select>
+            @if (productoForm.controls.audiencia.invalid && productoForm.controls.audiencia.touched) {
+              <p class="mt-1 font-body text-xs text-red-600">Selecciona una audiencia.</p>
+            }
+          </div>
+
+          <div class="flex items-end pb-3">
+            <label class="flex cursor-pointer items-center gap-2 font-body text-sm text-brand-text">
+              <input type="checkbox" formControlName="destacado" />
+              Producto destacado (aparece en el carrusel de inicio)
+            </label>
+          </div>
+        </div>
+
         <div>
-          <label class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">Tallas disponibles</label>
+          <label class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">Tallas disponibles</label>
           <div formGroupName="tallas" class="flex gap-4">
             @for (talla of tallas; track talla) {
-              <label class="flex cursor-pointer items-center gap-2 font-sans text-sm text-ink">
+              <label class="flex cursor-pointer items-center gap-2 font-body text-sm text-brand-text">
                 <input type="checkbox" [formControlName]="talla" />
                 {{ talla }}
               </label>
             }
           </div>
           @if (productoForm.controls.tallas.invalid && productoForm.controls.tallas.touched) {
-            <p class="mt-1 font-sans text-xs text-red-600">Selecciona al menos una talla.</p>
+            <p class="mt-1 font-body text-xs text-red-600">Selecciona al menos una talla.</p>
           }
         </div>
 
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label for="etiqueta" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+            <label for="etiqueta" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
               Etiqueta
             </label>
             <select id="etiqueta" formControlName="etiqueta" class="input-field">
@@ -136,7 +165,7 @@
           </div>
 
           <div>
-            <label for="imagenUrl" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+            <label for="imagenUrl" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
               URL de imagen
             </label>
             <input
@@ -153,7 +182,7 @@
           <button
             type="button"
             (click)="cerrarFormulario()"
-            class="cursor-pointer font-sans text-sm uppercase tracking-wide text-muted hover:text-header"
+            class="cursor-pointer font-body text-sm uppercase tracking-wide text-brand-muted hover:text-brand-ink"
           >
             Cancelar
           </button>
