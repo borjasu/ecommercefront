@@ -1,8 +1,8 @@
 <div class="mx-auto max-w-5xl px-6 py-12">
-  <h1 class="font-display text-3xl font-semibold text-header">Carrito de compras</h1>
+  <h1 class="font-display text-3xl font-semibold text-brand-ink">Carrito de compras</h1>
 
   @if (items().length > 0) {
-    <div class="mt-8 flex flex-col divide-y divide-muted/20">
+    <div class="mt-8 flex flex-col divide-y divide-brand-muted/20">
       @for (item of items(); track item.producto.id + item.talla) {
         <div class="flex items-center gap-4 py-6">
           <img
@@ -12,17 +12,17 @@
           />
 
           <div class="flex-1">
-            <p class="font-sans text-sm text-ink">{{ item.producto.nombre }}</p>
-            <p class="mt-1 font-sans text-xs uppercase tracking-wide text-muted">Talla {{ item.talla }}</p>
-            <p class="mt-1 font-sans text-xs text-muted">Cantidad: {{ item.cantidad }}</p>
+            <p class="font-body text-sm text-brand-text">{{ item.producto.nombre }}</p>
+            <p class="mt-1 font-body text-xs uppercase tracking-wide text-brand-muted">Talla {{ item.talla }}</p>
+            <p class="mt-1 font-body text-xs text-brand-muted">Cantidad: {{ item.cantidad }}</p>
           </div>
 
-          <p class="font-sans text-sm font-semibold text-gold">${{ subtotal(item) }}</p>
+          <p class="font-body text-sm font-semibold text-brand-gold">${{ subtotal(item) }}</p>
 
           <button
             type="button"
             (click)="eliminar(item)"
-            class="cursor-pointer font-sans text-xs uppercase tracking-wide text-muted transition-colors hover:text-gold"
+            class="cursor-pointer font-body text-xs uppercase tracking-wide text-brand-muted transition-colors hover:text-brand-gold"
           >
             Quitar
           </button>
@@ -30,15 +30,15 @@
       }
     </div>
 
-    <div class="mt-8 flex items-center justify-between border-t border-muted/20 pt-6">
-      <p class="font-sans text-lg font-semibold text-header">Total</p>
-      <p class="font-sans text-lg font-semibold text-gold">${{ total() }}</p>
+    <div class="mt-8 flex items-center justify-between border-t border-brand-muted/20 pt-6">
+      <p class="font-body text-lg font-semibold text-brand-ink">Total</p>
+      <p class="font-body text-lg font-semibold text-brand-gold">${{ total() }}</p>
     </div>
 
     <a routerLink="/checkout" class="btn-gold mt-8 inline-flex">Ir a pagar</a>
   } @else {
     <div class="mt-16 text-center">
-      <p class="font-sans text-sm text-muted">Tu carrito está vacío.</p>
+      <p class="font-body text-sm text-brand-muted">Tu carrito está vacío.</p>
       <a routerLink="/catalogo" class="btn-gold mt-6 inline-flex">Ver catálogo</a>
     </div>
   }

@@ -1,49 +1,49 @@
 <div class="p-8">
-  <h1 class="font-display text-3xl font-semibold text-header">Dashboard</h1>
-  <p class="mt-1 font-sans text-sm text-muted">Resumen general de tu tienda.</p>
+  <h1 class="font-display text-3xl font-semibold text-brand-ink">Dashboard</h1>
+  <p class="mt-1 font-body text-sm text-brand-muted">Resumen general de tu tienda.</p>
 
   <div class="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-    <div class="rounded-sm border border-muted/30 bg-white/60 p-6 shadow-sm">
-      <p class="font-sans text-xs uppercase tracking-wide text-muted">Productos activos</p>
-      <p class="mt-2 font-display text-3xl font-semibold text-header">{{ totalProductos() }}</p>
+    <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
+      <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Productos activos</p>
+      <p class="mt-2 font-display text-3xl font-semibold text-brand-ink">{{ totalProductos() }}</p>
     </div>
-    <div class="rounded-sm border border-muted/30 bg-white/60 p-6 shadow-sm">
-      <p class="font-sans text-xs uppercase tracking-wide text-muted">Pedidos recibidos</p>
-      <p class="mt-2 font-display text-3xl font-semibold text-header">{{ totalPedidos() }}</p>
+    <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
+      <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Pedidos recibidos</p>
+      <p class="mt-2 font-display text-3xl font-semibold text-brand-ink">{{ totalPedidos() }}</p>
     </div>
-    <div class="rounded-sm border border-muted/30 bg-white/60 p-6 shadow-sm">
-      <p class="font-sans text-xs uppercase tracking-wide text-muted">Pendientes de envío</p>
-      <p class="mt-2 font-display text-3xl font-semibold text-header">{{ pedidosPendientes() }}</p>
+    <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
+      <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Pendientes de envío</p>
+      <p class="mt-2 font-display text-3xl font-semibold text-brand-ink">{{ pedidosPendientes() }}</p>
     </div>
-    <div class="rounded-sm border border-muted/30 bg-white/60 p-6 shadow-sm">
-      <p class="font-sans text-xs uppercase tracking-wide text-muted">Ingresos totales</p>
-      <p class="mt-2 font-display text-3xl font-semibold text-gold">${{ ingresosTotales() }}</p>
+    <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
+      <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Ingresos totales</p>
+      <p class="mt-2 font-display text-3xl font-semibold text-brand-gold">${{ ingresosTotales() }}</p>
     </div>
   </div>
 
   <div class="mt-10">
-    <h2 class="font-display text-xl font-semibold text-header">Pedidos recientes</h2>
-    <div class="mt-4 overflow-hidden rounded-sm border border-muted/30 bg-white/60 shadow-sm">
+    <h2 class="font-display text-xl font-semibold text-brand-ink">Pedidos recientes</h2>
+    <div class="mt-4 overflow-hidden rounded-sm border border-brand-muted/30 bg-white/60 shadow-sm">
       @if (pedidosRecientes().length === 0) {
-        <p class="p-6 font-sans text-sm text-muted">Todavía no hay pedidos.</p>
+        <p class="p-6 font-body text-sm text-brand-muted">Todavía no hay pedidos.</p>
       } @else {
         <table class="w-full text-left">
           <thead>
-            <tr class="border-b border-muted/20 font-sans text-xs uppercase tracking-wide text-muted">
+            <tr class="border-b border-brand-muted/20 font-body text-xs uppercase tracking-wide text-brand-muted">
               <th class="px-6 py-3">Número</th>
               <th class="px-6 py-3">Fecha</th>
               <th class="px-6 py-3">Total</th>
               <th class="px-6 py-3">Estado</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-muted/20">
+          <tbody class="divide-y divide-brand-muted/20">
             @for (pedido of pedidosRecientes(); track pedido.id) {
               <tr>
-                <td class="px-6 py-4 font-sans text-sm text-ink">
-                  <a routerLink="/vendedor/pedidos" class="hover:text-gold">{{ pedido.numeroPedido }}</a>
+                <td class="px-6 py-4 font-body text-sm text-brand-text">
+                  <a routerLink="/vendedor/pedidos" class="hover:text-brand-gold">{{ pedido.numeroPedido }}</a>
                 </td>
-                <td class="px-6 py-4 font-sans text-sm text-muted">{{ pedido.fecha | date: 'dd/MM/yyyy' }}</td>
-                <td class="px-6 py-4 font-sans text-sm font-semibold text-gold">${{ pedido.total }}</td>
+                <td class="px-6 py-4 font-body text-sm text-brand-muted">{{ pedido.fecha | date: 'dd/MM/yyyy' }}</td>
+                <td class="px-6 py-4 font-body text-sm font-semibold text-brand-gold">${{ pedido.total }}</td>
                 <td class="px-6 py-4">
                   <span class="badge">{{ etiquetaEstado(pedido.estado) }}</span>
                 </td>
