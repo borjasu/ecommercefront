@@ -50,7 +50,7 @@ export class RegistroComponent {
     const { nombre, email, password } = this.form.getRawValue();
 
     this.authService.registro(nombre!, email!, password!).subscribe({
-      next: () => this.router.navigate(['/catalogo']),
+      next: () => this.router.navigate(['/']),
       error: (error: Error) => (this.errorMensaje = error.message)
     });
   }
