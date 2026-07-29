@@ -41,7 +41,7 @@ export class LoginComponent {
       if (usuario.rol === 'vendedor') {
         this.router.navigate(['/vendedor/dashboard']);
       } else {
-        this.router.navigate(['/catalogo']);
+        this.router.navigate(['/']);
       }
     });
   }
