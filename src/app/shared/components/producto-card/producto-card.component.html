@@ -1,0 +1,72 @@
+<article class="flex flex-col">
+  <a
+    [routerLink]="['/producto', producto().id]"
+    class="relative block overflow-hidden rounded-sm bg-white"
+  >
+    @if (producto().etiqueta) {
+      <span class="hang-tag">
+        <span class="hang-tag__body">
+          <span class="hang-tag__hole"></span>
+          {{ producto().etiqueta }}
+        </span>
+      </span>
+    }
+    <img
+      [src]="producto().imagenUrl"
+      [alt]="producto().nombre"
+      class="aspect-[4/5] w-full object-cover transition-transform duration-300 hover:scale-105"
+    />
+  </a>
+
+  <div class="mt-4 flex flex-col gap-1">
+    <a [routerLink]="['/producto', producto().id]" class="font-body text-sm text-brand-text hover:text-brand-gold">
+      {{ producto().nombre }}
+    </a>
+    <p class="font-body text-sm font-semibold text-brand-gold">${{ producto().precio }}</p>
+  </div>
+
+  <div class="mt-3 flex flex-wrap gap-2">
+    @for (talla of producto().tallasDisponibles; track talla) {
+      <button
+        type="button"
+        [class]="tallaSeleccionada() === talla ? 'talla-btn-active' : 'talla-btn'"
+        (click)="seleccionarTalla(talla)"
+      >
+        {{ talla }}
+      </button>
+    }
+  </div>
+
+  <div class="mt-4 flex items-center justify-between">
+    <span class="font-body text-xs uppercase tracking-wide text-brand-muted">Cantidad</span>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="decrementarCantidad()"
+        [disabled]="cantidadSeleccionada() === 1"
+        aria-label="Disminuir cantidad"
+        class="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm border border-brand-muted font-body text-sm text-brand-text transition-colors duration-150 hover:border-brand-gold disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-brand-muted"
+      >
+        −
+      </button>
+      <span class="w-5 text-center font-body text-sm text-brand-text" aria-live="polite">{{ cantidadSeleccionada() }}</span>
+      <button
+        type="button"
+        (click)="incrementarCantidad()"
+        aria-label="Aumentar cantidad"
+        class="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm border border-brand-muted font-body text-sm text-brand-text transition-colors duration-150 hover:border-brand-gold"
+      >
+        +
+      </button>
+    </div>
+  </div>
+
+  <button
+    type="button"
+    class="btn-gold mt-2 w-full disabled:cursor-not-allowed disabled:opacity-50"
+    [disabled]="!tallaSeleccionada()"
+    (click)="onAgregar()"
+  >
+    {{ agregado() ? '¡Agregado!' : '+ AGREGAR AL CARRITO' }}
+  </button>
+</article>

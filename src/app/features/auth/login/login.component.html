@@ -1,21 +1,21 @@
-<div class="flex min-h-[80vh] items-center justify-center bg-cream px-4 py-16">
-  <div class="w-full max-w-md rounded-sm border border-muted/30 bg-white/60 p-8 shadow-sm">
-    <h1 class="font-display text-3xl font-semibold text-header">Iniciar sesión</h1>
-    <p class="mt-2 font-sans text-sm text-muted">Ingresa tus datos para continuar.</p>
+<div class="flex min-h-[80vh] items-center justify-center bg-brand-bone px-4 py-16">
+  <div class="w-full max-w-md rounded-sm border border-brand-muted/30 bg-white/60 p-8 shadow-sm">
+    <h1 class="font-display text-3xl font-semibold text-brand-ink">Iniciar sesión</h1>
+    <p class="mt-2 font-body text-sm text-brand-muted">Ingresa tus datos para continuar.</p>
 
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="mt-8 space-y-5">
       <div>
-        <label for="email" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+        <label for="email" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
           Correo electrónico
         </label>
         <input id="email" type="email" formControlName="email" class="input-field" autocomplete="email" />
         @if (form.controls.email.invalid && form.controls.email.touched) {
-          <p class="mt-1 font-sans text-xs text-red-600">Ingresa un correo válido.</p>
+          <p class="mt-1 font-body text-xs text-red-600">Ingresa un correo válido.</p>
         }
       </div>
 
       <div>
-        <label for="password" class="mb-1 block font-sans text-xs uppercase tracking-wide text-muted">
+        <label for="password" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
           Contraseña
         </label>
         <input
@@ -26,20 +26,20 @@
           autocomplete="current-password"
         />
         @if (form.controls.password.invalid && form.controls.password.touched) {
-          <p class="mt-1 font-sans text-xs text-red-600">La contraseña es requerida.</p>
+          <p class="mt-1 font-body text-xs text-red-600">La contraseña es requerida.</p>
         }
       </div>
 
       @if (errorMensaje) {
-        <p class="font-sans text-sm text-red-600">{{ errorMensaje }}</p>
+        <p class="font-body text-sm text-red-600">{{ errorMensaje }}</p>
       }
 
       <button type="submit" class="btn-gold w-full">Ingresar</button>
     </form>
 
-    <p class="mt-6 text-center font-sans text-sm text-muted">
+    <p class="mt-6 text-center font-body text-sm text-brand-muted">
       ¿No tienes cuenta?
-      <a routerLink="/registro" class="font-semibold text-header hover:text-gold">Regístrate</a>
+      <a routerLink="/registro" class="font-semibold text-brand-ink hover:text-brand-gold">Regístrate</a>
     </p>
   </div>
 </div>

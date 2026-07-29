@@ -1,0 +1,80 @@
+<div class="mx-auto max-w-7xl px-6 py-12">
+  <div class="mb-8">
+    <app-breadcrumb [items]="breadcrumbItems()" />
+  </div>
+
+  @if (producto(); as producto) {
+    <div class="grid grid-cols-1 gap-12 lg:grid-cols-2">
+      <div class="relative overflow-hidden rounded-sm bg-white">
+        @if (producto.etiqueta) {
+          <span class="badge absolute left-4 top-4 z-10">{{ producto.etiqueta }}</span>
+        }
+        <img [src]="producto.imagenUrl" [alt]="producto.nombre" class="aspect-[4/5] w-full object-cover" />
+      </div>
+
+      <div class="flex flex-col gap-6">
+        <div>
+          <h1 class="font-display text-3xl font-semibold text-brand-ink">{{ producto.nombre }}</h1>
+          <p class="mt-2 font-body text-xl font-semibold text-brand-gold">${{ producto.precio }}</p>
+        </div>
+
+        <p class="font-body text-sm leading-relaxed text-brand-muted">{{ producto.descripcion }}</p>
+
+        <div>
+          <p class="mb-3 font-body text-sm uppercase tracking-wide text-brand-text">Talla</p>
+          <div class="flex flex-wrap gap-2">
+            @for (talla of producto.tallasDisponibles; track talla) {
+              <button
+                type="button"
+                [class]="tallaSeleccionada() === talla ? 'talla-btn-active' : 'talla-btn'"
+                (click)="seleccionarTalla(talla)"
+              >
+                {{ talla }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <div class="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              (click)="decrementarCantidad()"
+              [disabled]="cantidadSeleccionada() === 1"
+              aria-label="Disminuir cantidad"
+              class="inline-flex h-12 w-12 cursor-pointer items-center justify-center rounded-sm border border-brand-muted font-body text-base text-brand-text transition-colors duration-150 hover:border-brand-gold disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-brand-muted"
+            >
+              −
+            </button>
+            <span class="w-6 text-center font-body text-base text-brand-text" aria-live="polite">{{ cantidadSeleccionada() }}</span>
+            <button
+              type="button"
+              (click)="incrementarCantidad()"
+              aria-label="Aumentar cantidad"
+              class="inline-flex h-12 w-12 cursor-pointer items-center justify-center rounded-sm border border-brand-muted font-body text-base text-brand-text transition-colors duration-150 hover:border-brand-gold"
+            >
+              +
+            </button>
+          </div>
+
+          <button
+            type="button"
+            class="btn-gold h-12 w-full max-w-xs disabled:cursor-not-allowed disabled:opacity-50"
+            [disabled]="!tallaSeleccionada()"
+            (click)="agregarAlCarrito()"
+          >
+            {{ agregado() ? '¡Agregado!' : '+ AGREGAR AL CARRITO' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="py-24 text-center">
+      <h1 class="font-display text-2xl font-semibold text-brand-ink">Producto no encontrado</h1>
+      <p class="mt-4 font-body text-sm text-brand-muted">
+        El producto que buscas no existe o ya no está disponible.
+      </p>
+      <a routerLink="/catalogo" class="btn-gold mt-8 inline-flex">Volver al catálogo</a>
+    </div>
+  }
+</div>

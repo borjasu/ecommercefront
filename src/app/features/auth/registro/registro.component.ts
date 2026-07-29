@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import {
   AbstractControl,
   FormBuilder,
@@ -16,11 +16,11 @@ function passwordsIgualesValidator(control: AbstractControl): ValidationErrors |
 }
 
 @Component({
-  selector: 'app-registro',
-  standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
-  templateUrl: './registro.component.html',
-  styleUrl: './registro.component.css'
+    selector: 'app-registro',
+    imports: [ReactiveFormsModule, RouterLink],
+    templateUrl: './registro.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
+    styleUrl: './registro.component.css'
 })
 export class RegistroComponent {
   private readonly fb = inject(FormBuilder);
@@ -50,7 +50,7 @@ export class RegistroComponent {
     const { nombre, email, password } = this.form.getRawValue();
 
     this.authService.registro(nombre!, email!, password!).subscribe({
-      next: () => this.router.navigate(['/catalogo']),
+      next: () => this.router.navigate(['/']),
       error: (error: Error) => (this.errorMensaje = error.message)
     });
   }

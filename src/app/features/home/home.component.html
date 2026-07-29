@@ -1,0 +1,43 @@
+<section class="diagonal-cut relative overflow-hidden bg-brand-ink px-6 pb-20 pt-16 text-brand-bone">
+  <img
+    src="brand/logo-frank-jeans.png"
+    alt=""
+    aria-hidden="true"
+    class="pointer-events-none absolute -right-16 top-1/2 hidden h-[380px] w-[380px] -translate-y-1/2 opacity-10 sm:block md:h-[420px] md:w-[420px]"
+  />
+  <div class="relative mx-auto max-w-7xl">
+    <p class="font-utility text-xs uppercase tracking-[0.3em] text-brand-gold">Frank Jeans · Taller</p>
+    <p class="mt-4 max-w-2xl font-display text-5xl leading-[1.05] tracking-wide sm:text-6xl">
+      FORJADOS <span class="text-brand-gold">PARA DURAR</span>
+    </p>
+    <p class="mt-5 max-w-md font-body text-sm text-brand-bone/70">
+      Mezclilla premium y prendas de taller cosidas para aguantar turnos completos, temporada tras temporada.
+    </p>
+    <div class="mt-8 flex flex-wrap gap-4">
+      <a routerLink="/catalogo/hombre" class="btn-gold">Hombre</a>
+      <a
+        routerLink="/catalogo/nino"
+        class="inline-flex cursor-pointer items-center justify-center rounded-[2px] border border-brand-gold px-6 py-3 font-body text-sm font-semibold uppercase tracking-wide text-brand-gold transition-colors duration-200 hover:bg-brand-gold hover:text-brand-ink"
+      >
+        Niño
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="mx-auto max-w-7xl px-6 py-16">
+  <h1 class="font-display text-3xl text-brand-ink">DESTACADOS</h1>
+  <p class="mt-1 font-body text-sm text-brand-muted">Lo más nuevo del taller, elegido para ti.</p>
+
+  @if (destacados().length > 0) {
+    <div class="mt-8 flex snap-x snap-mandatory gap-6 overflow-x-auto pb-4">
+      @for (producto of destacados(); track producto.id) {
+        <div class="w-64 flex-none snap-start">
+          <app-producto-card [producto]="producto" (agregarAlCarrito)="onAgregarAlCarrito($event)" />
+        </div>
+      }
+    </div>
+  } @else {
+    <p class="mt-8 font-body text-sm text-brand-muted">Todavía no hay productos destacados.</p>
+  }
+</section>

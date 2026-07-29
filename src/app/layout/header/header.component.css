@@ -1,0 +1,4 @@
+.header-surface {
+  background: linear-gradient(180deg, #14110d 0%, #1f1912 85%, #2a2015 100%);
+  border-bottom: 1px solid var(--color-brand-gold);
+}
