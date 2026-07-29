@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { Categoria, Producto } from '../models/producto.model';
+import { Audiencia, Categoria, Producto } from '../models/producto.model';
 
 const CLAVE_PRODUCTOS = 'productos_data';
 
@@ -13,9 +13,11 @@ const PRODUCTOS_SEED: Producto[] = [
       'Pantalón de corte slim confeccionado en gabardina de algodón, ideal para looks formales y de oficina.',
     precio: 899,
     categoria: 'pantalon',
+    audiencia: 'hombre',
     tallasDisponibles: ['S', 'M', 'L', 'XL'],
     imagenUrl: 'https://picsum.photos/seed/p1/400/500',
-    etiqueta: 'NUEVO'
+    etiqueta: 'NUEVO',
+    destacado: true
   },
   {
     id: 'p2',
@@ -23,9 +25,11 @@ const PRODUCTOS_SEED: Producto[] = [
     descripcion: 'Pantalón chino de algodón con corte recto, un básico versátil para el día a día.',
     precio: 749,
     categoria: 'pantalon',
+    audiencia: 'nino',
     tallasDisponibles: ['M', 'L', 'XL'],
     imagenUrl: 'https://picsum.photos/seed/p2/400/500',
-    etiqueta: 'ESENCIAL'
+    etiqueta: 'ESENCIAL',
+    destacado: false
   },
   {
     id: 'p3',
@@ -33,9 +37,11 @@ const PRODUCTOS_SEED: Producto[] = [
     descripcion: 'Pantalón cargo con bolsillos funcionales, tela resistente y ajuste cómodo.',
     precio: 999,
     categoria: 'pantalon',
+    audiencia: 'hombre',
     tallasDisponibles: ['S', 'M', 'L'],
     imagenUrl: 'https://picsum.photos/seed/p3/400/500',
-    etiqueta: null
+    etiqueta: null,
+    destacado: false
   },
   {
     id: 'p4',
@@ -43,9 +49,11 @@ const PRODUCTOS_SEED: Producto[] = [
     descripcion: 'Playera de algodón 100% peinado, suave al tacto y de ajuste regular.',
     precio: 349,
     categoria: 'playera',
+    audiencia: 'nino',
     tallasDisponibles: ['S', 'M', 'L', 'XL'],
     imagenUrl: 'https://picsum.photos/seed/p4/400/500',
-    etiqueta: 'ESENCIAL'
+    etiqueta: 'ESENCIAL',
+    destacado: true
   },
   {
     id: 'p5',
@@ -53,9 +61,11 @@ const PRODUCTOS_SEED: Producto[] = [
     descripcion: 'Playera con estampado exclusivo de temporada, tela premium y acabado suave.',
     precio: 429,
     categoria: 'playera',
+    audiencia: 'hombre',
     tallasDisponibles: ['M', 'L'],
     imagenUrl: 'https://picsum.photos/seed/p5/400/500',
-    etiqueta: 'NUEVO'
+    etiqueta: 'NUEVO',
+    destacado: true
   },
   {
     id: 'p6',
@@ -63,9 +73,11 @@ const PRODUCTOS_SEED: Producto[] = [
     descripcion: 'Playera con cuello en V, corte entallado y tejido transpirable.',
     precio: 379,
     categoria: 'playera',
+    audiencia: 'nino',
     tallasDisponibles: ['S', 'M', 'L', 'XL'],
     imagenUrl: 'https://picsum.photos/seed/p6/400/500',
-    etiqueta: null
+    etiqueta: null,
+    destacado: false
   },
   {
     id: 'p7',
@@ -73,9 +85,11 @@ const PRODUCTOS_SEED: Producto[] = [
     descripcion: 'Camisa confeccionada en lino ligero, perfecta para climas cálidos y looks relajados.',
     precio: 1099,
     categoria: 'camisa',
+    audiencia: 'hombre',
     tallasDisponibles: ['S', 'M', 'L'],
     imagenUrl: 'https://picsum.photos/seed/p7/400/500',
-    etiqueta: 'NUEVO'
+    etiqueta: 'NUEVO',
+    destacado: false
   },
   {
     id: 'p8',
@@ -83,9 +97,11 @@ const PRODUCTOS_SEED: Producto[] = [
     descripcion: 'Camisa Oxford de algodón con cuello abotonado, un básico atemporal para el guardarropa.',
     precio: 949,
     categoria: 'camisa',
+    audiencia: 'nino',
     tallasDisponibles: ['S', 'M', 'L', 'XL'],
     imagenUrl: 'https://picsum.photos/seed/p8/400/500',
-    etiqueta: 'ESENCIAL'
+    etiqueta: 'ESENCIAL',
+    destacado: true
   },
   {
     id: 'p9',
@@ -93,9 +109,11 @@ const PRODUCTOS_SEED: Producto[] = [
     descripcion: 'Camisa de franela con estampado a cuadros, cálida y de tacto suave.',
     precio: 899,
     categoria: 'camisa',
+    audiencia: 'hombre',
     tallasDisponibles: ['M', 'L', 'XL'],
     imagenUrl: 'https://picsum.photos/seed/p9/400/500',
-    etiqueta: null
+    etiqueta: null,
+    destacado: false
   },
   {
     id: 'p10',
@@ -103,9 +121,11 @@ const PRODUCTOS_SEED: Producto[] = [
     descripcion: 'Bermuda ligera de secado rápido, ideal para actividades al aire libre.',
     precio: 549,
     categoria: 'bermuda',
+    audiencia: 'nino',
     tallasDisponibles: ['S', 'M', 'L', 'XL'],
     imagenUrl: 'https://picsum.photos/seed/p10/400/500',
-    etiqueta: 'NUEVO'
+    etiqueta: 'NUEVO',
+    destacado: false
   },
   {
     id: 'p11',
@@ -113,9 +133,11 @@ const PRODUCTOS_SEED: Producto[] = [
     descripcion: 'Bermuda de mezclilla con corte recto y lavado clásico.',
     precio: 629,
     categoria: 'bermuda',
+    audiencia: 'hombre',
     tallasDisponibles: ['M', 'L'],
     imagenUrl: 'https://picsum.photos/seed/p11/400/500',
-    etiqueta: 'ESENCIAL'
+    etiqueta: 'ESENCIAL',
+    destacado: true
   },
   {
     id: 'p12',
@@ -123,9 +145,11 @@ const PRODUCTOS_SEED: Producto[] = [
     descripcion: 'Bermuda tipo cargo con bolsillos laterales y tela resistente.',
     precio: 679,
     categoria: 'bermuda',
+    audiencia: 'nino',
     tallasDisponibles: ['S', 'M', 'L', 'XL'],
     imagenUrl: 'https://picsum.photos/seed/p12/400/500',
-    etiqueta: null
+    etiqueta: null,
+    destacado: false
   }
 ];
 
@@ -141,6 +165,18 @@ export class ProductoService {
 
   obtenerPorCategoria(categoria: Categoria): Observable<Producto[]> {
     return of(this.productos.filter(producto => producto.categoria === categoria));
+  }
+
+  obtenerPorAudiencia(audiencia: Audiencia, categoria?: Categoria): Observable<Producto[]> {
+    return of(
+      this.productos.filter(
+        producto => producto.audiencia === audiencia && (!categoria || producto.categoria === categoria)
+      )
+    );
+  }
+
+  obtenerDestacados(): Observable<Producto[]> {
+    return of(this.productos.filter(producto => producto.destacado));
   }
 
   obtenerPorId(id: string): Observable<Producto | undefined> {
@@ -198,7 +234,16 @@ export class ProductoService {
     const guardados = localStorage.getItem(CLAVE_PRODUCTOS);
 
     if (guardados) {
-      return JSON.parse(guardados) as Producto[];
+      const productos = (JSON.parse(guardados) as Partial<Producto>[]).map(
+        producto =>
+          ({
+            audiencia: 'hombre' as Audiencia,
+            destacado: false,
+            ...producto
+          }) as Producto
+      );
+      localStorage.setItem(CLAVE_PRODUCTOS, JSON.stringify(productos));
+      return productos;
     }
 
     localStorage.setItem(CLAVE_PRODUCTOS, JSON.stringify(PRODUCTOS_SEED));

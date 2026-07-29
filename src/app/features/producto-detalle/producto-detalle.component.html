@@ -14,14 +14,14 @@
 
       <div class="flex flex-col gap-6">
         <div>
-          <h1 class="font-display text-3xl font-semibold text-header">{{ producto.nombre }}</h1>
-          <p class="mt-2 font-sans text-xl font-semibold text-gold">${{ producto.precio }}</p>
+          <h1 class="font-display text-3xl font-semibold text-brand-ink">{{ producto.nombre }}</h1>
+          <p class="mt-2 font-body text-xl font-semibold text-brand-gold">${{ producto.precio }}</p>
         </div>
 
-        <p class="font-sans text-sm leading-relaxed text-muted">{{ producto.descripcion }}</p>
+        <p class="font-body text-sm leading-relaxed text-brand-muted">{{ producto.descripcion }}</p>
 
         <div>
-          <p class="mb-3 font-sans text-sm uppercase tracking-wide text-ink">Talla</p>
+          <p class="mb-3 font-body text-sm uppercase tracking-wide text-brand-text">Talla</p>
           <div class="flex flex-wrap gap-2">
             @for (talla of producto.tallasDisponibles; track talla) {
               <button
@@ -42,16 +42,16 @@
               (click)="decrementarCantidad()"
               [disabled]="cantidadSeleccionada() === 1"
               aria-label="Disminuir cantidad"
-              class="inline-flex h-12 w-12 cursor-pointer items-center justify-center rounded-sm border border-muted font-sans text-base text-ink transition-colors duration-150 hover:border-gold disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-muted"
+              class="inline-flex h-12 w-12 cursor-pointer items-center justify-center rounded-sm border border-brand-muted font-body text-base text-brand-text transition-colors duration-150 hover:border-brand-gold disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-brand-muted"
             >
               −
             </button>
-            <span class="w-6 text-center font-sans text-base text-ink" aria-live="polite">{{ cantidadSeleccionada() }}</span>
+            <span class="w-6 text-center font-body text-base text-brand-text" aria-live="polite">{{ cantidadSeleccionada() }}</span>
             <button
               type="button"
               (click)="incrementarCantidad()"
               aria-label="Aumentar cantidad"
-              class="inline-flex h-12 w-12 cursor-pointer items-center justify-center rounded-sm border border-muted font-sans text-base text-ink transition-colors duration-150 hover:border-gold"
+              class="inline-flex h-12 w-12 cursor-pointer items-center justify-center rounded-sm border border-brand-muted font-body text-base text-brand-text transition-colors duration-150 hover:border-brand-gold"
             >
               +
             </button>
@@ -70,8 +70,8 @@
     </div>
   } @else {
     <div class="py-24 text-center">
-      <h1 class="font-display text-2xl font-semibold text-header">Producto no encontrado</h1>
-      <p class="mt-4 font-sans text-sm text-muted">
+      <h1 class="font-display text-2xl font-semibold text-brand-ink">Producto no encontrado</h1>
+      <p class="mt-4 font-body text-sm text-brand-muted">
         El producto que buscas no existe o ya no está disponible.
       </p>
       <a routerLink="/catalogo" class="btn-gold mt-8 inline-flex">Volver al catálogo</a>
