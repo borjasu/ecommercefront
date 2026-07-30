@@ -1,0 +1,118 @@
+@if (usuarioActual(); as usuario) {
+  <div class="rounded-sm border border-brand-muted/20 bg-white/60 p-6 shadow-sm">
+    <h2 class="font-display text-xl font-semibold text-brand-ink">Datos personales</h2>
+    <p class="mt-1 font-body text-sm text-brand-muted">Mantén actualizada tu información de contacto.</p>
+
+    <form [formGroup]="datosForm" (ngSubmit)="guardarDatos()" class="mt-6 space-y-5">
+      <div>
+        <label for="nombre" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">Nombre</label>
+        <input id="nombre" type="text" formControlName="nombre" class="input-field" autocomplete="name" />
+        @if (datosForm.controls.nombre.invalid && datosForm.controls.nombre.touched) {
+          <p class="mt-1 font-body text-xs text-red-600">El nombre es requerido.</p>
+        }
+      </div>
+
+      <div>
+        <label for="email" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+          Correo electrónico
+        </label>
+        <input
+          id="email"
+          type="email"
+          [value]="usuario.email"
+          disabled
+          class="input-field disabled:cursor-not-allowed disabled:opacity-60"
+        />
+        <p class="mt-1 font-body text-xs text-brand-muted">
+          Por seguridad, el correo con el que inicias sesión no se puede cambiar aquí.
+        </p>
+      </div>
+
+      <div>
+        <label for="telefono" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+          Teléfono
+        </label>
+        <input id="telefono" type="tel" formControlName="telefono" class="input-field" autocomplete="tel" />
+      </div>
+
+      @if (datosGuardados()) {
+        <p class="font-body text-sm text-green-700">Tus datos se guardaron correctamente.</p>
+      }
+
+      <button type="submit" class="btn-gold">Guardar cambios</button>
+    </form>
+  </div>
+
+  <div class="mt-6 rounded-sm border border-brand-muted/20 bg-white/60 p-6 shadow-sm">
+    <h2 class="font-display text-xl font-semibold text-brand-ink">Cambiar contraseña</h2>
+    <p class="mt-1 font-body text-sm text-brand-muted">
+      Para tu seguridad, debes confirmar tu contraseña actual antes de establecer una nueva.
+    </p>
+
+    <form [formGroup]="passwordForm" (ngSubmit)="cambiarPassword()" class="mt-6 space-y-5">
+      <div>
+        <label for="passwordActual" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+          Contraseña actual
+        </label>
+        <input
+          id="passwordActual"
+          type="password"
+          formControlName="passwordActual"
+          class="input-field"
+          autocomplete="current-password"
+        />
+        @if (passwordForm.controls.passwordActual.invalid && passwordForm.controls.passwordActual.touched) {
+          <p class="mt-1 font-body text-xs text-red-600">Ingresa tu contraseña actual.</p>
+        }
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label for="passwordNueva" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+            Contraseña nueva
+          </label>
+          <input
+            id="passwordNueva"
+            type="password"
+            formControlName="passwordNueva"
+            class="input-field"
+            autocomplete="new-password"
+          />
+          @if (passwordForm.controls.passwordNueva.invalid && passwordForm.controls.passwordNueva.touched) {
+            <p class="mt-1 font-body text-xs text-red-600">Mínimo 6 caracteres.</p>
+          }
+        </div>
+        <div>
+          <label
+            for="confirmarPasswordNueva"
+            class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted"
+          >
+            Confirmar contraseña nueva
+          </label>
+          <input
+            id="confirmarPasswordNueva"
+            type="password"
+            formControlName="confirmarPasswordNueva"
+            class="input-field"
+            autocomplete="new-password"
+          />
+          @if (passwordForm.errors?.['passwordsNoCoinciden'] && passwordForm.controls.confirmarPasswordNueva.touched) {
+            <p class="mt-1 font-body text-xs text-red-600">Las contraseñas no coinciden.</p>
+          }
+        </div>
+      </div>
+
+      @if (passwordMensaje(); as mensaje) {
+        <p
+          class="font-body text-sm"
+          [class.text-green-700]="mensaje.tipo === 'exito'"
+          [class.text-red-600]="mensaje.tipo === 'error'"
+        >
+          {{ mensaje.texto }}
+        </p>
+      }
+
+      <button type="submit" class="btn-gold">Actualizar contraseña</button>
+    </form>
+  </div>
+}

@@ -1,8 +1,14 @@
 import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { delay } from 'rxjs';
 import { ProductoService } from '../../../core/services/producto.service';
-import { Audiencia, Categoria, Etiqueta, Producto, Talla } from '../../../core/models/producto.model';
+import { ToastService } from '../../../core/services/toast.service';
+import { ConfirmService } from '../../../core/services/confirm.service';
+import { Audiencia, Categoria, Color, Etiqueta, Producto, Talla } from '../../../core/models/producto.model';
 import { AUDIENCIAS, CATEGORIAS } from '../../../shared/constants/categorias';
+import { COLORES } from '../../../shared/constants/colores';
+
+const RETRASO_CARGA_MS = 400;
 
 function alMenosUnaTallaValidator(control: AbstractControl): ValidationErrors | null {
   const seleccionadas = Object.values(control.value as Record<string, boolean>);
@@ -18,13 +24,17 @@ function alMenosUnaTallaValidator(control: AbstractControl): ValidationErrors | 
 export class MisProductosComponent {
   private readonly fb = inject(FormBuilder);
   private readonly productoService = inject(ProductoService);
+  private readonly toastService = inject(ToastService);
+  private readonly confirmService = inject(ConfirmService);
 
   readonly categorias = CATEGORIAS;
   readonly audiencias = AUDIENCIAS;
+  readonly colores = COLORES;
 
   readonly tallas: Talla[] = ['S', 'M', 'L', 'XL'];
 
   readonly productos = signal<Producto[]>([]);
+  readonly cargando = signal(true);
   readonly mostrarFormulario = signal(false);
   readonly productoEditando = signal<Producto | null>(null);
 
@@ -40,11 +50,20 @@ export class MisProductosComponent {
     tallas: this.fb.group(
       { S: [false], M: [false], L: [false], XL: [false] },
       { validators: alMenosUnaTallaValidator }
+    ),
+    colores: this.fb.group(
+      Object.fromEntries(COLORES.map(opcion => [opcion.valor, this.fb.control(false)]))
     )
   });
 
   constructor() {
-    this.cargarProductos();
+    this.productoService
+      .obtenerTodos()
+      .pipe(delay(RETRASO_CARGA_MS))
+      .subscribe(productos => {
+        this.productos.set(productos);
+        this.cargando.set(false);
+      });
   }
 
   abrirFormularioNuevo(): void {
@@ -58,7 +77,8 @@ export class MisProductosComponent {
       destacado: false,
       etiqueta: 'NINGUNA',
       imagenUrl: '',
-      tallas: { S: false, M: false, L: false, XL: false }
+      tallas: { S: false, M: false, L: false, XL: false },
+      colores: this.mapaColores([])
     });
     this.mostrarFormulario.set(true);
   }
@@ -79,7 +99,8 @@ export class MisProductosComponent {
         M: producto.tallasDisponibles.includes('M'),
         L: producto.tallasDisponibles.includes('L'),
         XL: producto.tallasDisponibles.includes('XL')
-      }
+      },
+      colores: this.mapaColores(producto.coloresDisponibles)
     });
     this.mostrarFormulario.set(true);
   }
@@ -96,6 +117,9 @@ export class MisProductosComponent {
 
     const valores = this.productoForm.getRawValue();
     const tallasDisponibles = this.tallas.filter(talla => valores.tallas[talla]);
+    const coloresDisponibles = this.colores
+      .map(opcion => opcion.valor)
+      .filter(color => valores.colores[color]);
     const etiqueta: Etiqueta = valores.etiqueta === 'NINGUNA' ? null : valores.etiqueta;
 
     const datosProducto = {
@@ -104,6 +128,7 @@ export class MisProductosComponent {
       precio: valores.precio!,
       categoria: valores.categoria as Categoria,
       audiencia: valores.audiencia as Audiencia,
+      coloresDisponibles,
       destacado: !!valores.destacado,
       tallasDisponibles,
       imagenUrl: valores.imagenUrl || 'https://picsum.photos/seed/nuevo/400/500',
@@ -118,15 +143,26 @@ export class MisProductosComponent {
     operacion.subscribe(() => {
       this.cargarProductos();
       this.cerrarFormulario();
+      this.toastService.exito(edicion ? 'Producto actualizado.' : 'Producto creado.');
     });
   }
 
-  eliminar(producto: Producto): void {
-    if (!confirm(`¿Seguro que quieres eliminar "${producto.nombre}"?`)) {
+  async eliminar(producto: Producto): Promise<void> {
+    const confirmado = await this.confirmService.confirmar({
+      titulo: 'Eliminar producto',
+      mensaje: `¿Seguro que quieres eliminar "${producto.nombre}"? Esta acción no se puede deshacer.`,
+      textoConfirmar: 'Eliminar',
+      peligroso: true
+    });
+
+    if (!confirmado) {
       return;
     }
 
-    this.productoService.eliminarProducto(producto.id).subscribe(() => this.cargarProductos());
+    this.productoService.eliminarProducto(producto.id).subscribe(() => {
+      this.cargarProductos();
+      this.toastService.exito(`"${producto.nombre}" se eliminó.`);
+    });
   }
 
   etiquetaDeCategoria(categoria: Categoria): string {
@@ -135,6 +171,10 @@ export class MisProductosComponent {
 
   etiquetaDeAudiencia(audiencia: Audiencia): string {
     return this.audiencias.find(opcion => opcion.valor === audiencia)?.etiqueta ?? audiencia;
+  }
+
+  private mapaColores(seleccionados: Color[]): Record<string, boolean> {
+    return Object.fromEntries(this.colores.map(opcion => [opcion.valor, seleccionados.includes(opcion.valor)]));
   }
 
   private cargarProductos(): void {

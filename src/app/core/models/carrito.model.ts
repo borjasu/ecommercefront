@@ -1,8 +1,9 @@
-import { Producto, Talla } from './producto.model';
+import { Color, Producto, Talla } from './producto.model';
 
 export interface ItemCarrito {
   producto: Producto;
   talla: Talla;
+  color?: Color;
   cantidad: number;
 }
 

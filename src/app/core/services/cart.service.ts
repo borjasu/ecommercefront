@@ -1,6 +1,6 @@
 import { Injectable, computed, effect, signal } from '@angular/core';
 import { ItemCarrito } from '../models/carrito.model';
-import { Producto, Talla } from '../models/producto.model';
+import { Color, Producto, Talla } from '../models/producto.model';
 
 const CLAVE_CARRITO = 'carrito_items';
 
@@ -26,9 +26,9 @@ export class CartService {
     });
   }
 
-  agregarItem(producto: Producto, talla: Talla, cantidad: number): void {
+  agregarItem(producto: Producto, talla: Talla, cantidad: number, color?: Color): void {
     this.items.update(items => {
-      const existente = items.find(item => item.producto.id === producto.id && item.talla === talla);
+      const existente = items.find(item => this.esMismaLinea(item, producto.id, talla, color));
 
       if (existente) {
         return items.map(item =>
@@ -36,14 +36,27 @@ export class CartService {
         );
       }
 
-      return [...items, { producto, talla, cantidad }];
+      return [...items, { producto, talla, color, cantidad }];
     });
   }
 
-  eliminarItem(producto: Producto, talla: Talla): void {
+  eliminarItem(producto: Producto, talla: Talla, color?: Color): void {
+    this.items.update(items => items.filter(item => !this.esMismaLinea(item, producto.id, talla, color)));
+  }
+
+  actualizarCantidad(productoId: string, talla: Talla, cantidad: number, color?: Color): void {
+    if (cantidad <= 0) {
+      this.items.update(items => items.filter(item => !this.esMismaLinea(item, productoId, talla, color)));
+      return;
+    }
+
     this.items.update(items =>
-      items.filter(item => !(item.producto.id === producto.id && item.talla === talla))
+      items.map(item => (this.esMismaLinea(item, productoId, talla, color) ? { ...item, cantidad } : item))
     );
+  }
+
+  private esMismaLinea(item: ItemCarrito, productoId: string, talla: Talla, color?: Color): boolean {
+    return item.producto.id === productoId && item.talla === talla && item.color === color;
   }
 
   vaciarCarrito(): void {

@@ -1,0 +1,31 @@
+<div class="mx-auto max-w-7xl px-6 py-12">
+  <div class="mb-6">
+    <app-breadcrumb [items]="breadcrumbItems" />
+  </div>
+
+  <div class="mb-10 flex flex-col gap-2">
+    <h1 class="font-display text-3xl font-semibold text-brand-ink">Favoritos</h1>
+    <p class="font-body text-sm text-brand-muted">
+      {{ cargando() ? 'Cargando…' : productos().length + ' productos guardados' }}
+    </p>
+  </div>
+
+  @if (cargando()) {
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      @for (indice of [1, 2, 3, 4]; track indice) {
+        <app-producto-card-skeleton />
+      }
+    </div>
+  } @else if (productos().length > 0) {
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      @for (producto of productos(); track producto.id) {
+        <app-producto-card [producto]="producto" />
+      }
+    </div>
+  } @else {
+    <div class="py-24 text-center">
+      <p class="font-body text-sm text-brand-muted">Todavía no tienes productos favoritos.</p>
+      <a routerLink="/catalogo" class="btn-gold mt-6 inline-flex">Ver catálogo</a>
+    </div>
+  }
+</div>

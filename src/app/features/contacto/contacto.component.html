@@ -1,0 +1,86 @@
+<div class="mx-auto max-w-5xl px-6 py-12">
+  <div class="mb-6">
+    <app-breadcrumb [items]="breadcrumbItems" />
+  </div>
+
+  <div class="mb-10">
+    <h1 class="font-display text-3xl font-semibold text-brand-ink">Contacto</h1>
+    <p class="mt-2 font-body text-sm text-brand-muted">
+      ¿Tienes dudas sobre un pedido o una prenda? Escríbenos y te respondemos a la brevedad.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 gap-10 md:grid-cols-2">
+    <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-8 shadow-sm">
+      @if (enviado()) {
+        <div class="flex flex-col items-start gap-2">
+          <p class="font-display text-xl text-brand-ink">¡Gracias por escribirnos!</p>
+          <p class="font-body text-sm text-brand-muted">
+            Recibimos tu mensaje. Este formulario es provisional; muy pronto quedará conectado a nuestro equipo de
+            atención al cliente.
+          </p>
+        </div>
+      } @else {
+        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-5">
+          <div>
+            <label for="nombre" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              Nombre
+            </label>
+            <input id="nombre" type="text" formControlName="nombre" class="input-field" autocomplete="name" />
+            @if (form.controls.nombre.invalid && form.controls.nombre.touched) {
+              <p class="mt-1 font-body text-xs text-red-600">Ingresa tu nombre.</p>
+            }
+          </div>
+
+          <div>
+            <label for="correo" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              Correo electrónico
+            </label>
+            <input id="correo" type="email" formControlName="correo" class="input-field" autocomplete="email" />
+            @if (form.controls.correo.invalid && form.controls.correo.touched) {
+              <p class="mt-1 font-body text-xs text-red-600">Ingresa un correo válido.</p>
+            }
+          </div>
+
+          <div>
+            <label for="mensaje" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              Mensaje
+            </label>
+            <textarea
+              id="mensaje"
+              formControlName="mensaje"
+              rows="5"
+              class="input-field resize-none"
+            ></textarea>
+            @if (form.controls.mensaje.invalid && form.controls.mensaje.touched) {
+              <p class="mt-1 font-body text-xs text-red-600">Escribe tu mensaje.</p>
+            }
+          </div>
+
+          <button type="submit" class="btn-gold w-full">Enviar mensaje</button>
+        </form>
+      }
+    </div>
+
+    <div class="font-body text-sm text-brand-text">
+      <p class="mb-3 font-display text-lg tracking-[0.05em] text-brand-ink">DATOS DE CONTACTO</p>
+      <ul class="space-y-3 text-brand-muted">
+        <li>
+          <span class="block text-xs uppercase tracking-wide text-brand-muted">Correo</span>
+          <span class="text-brand-text">contacto&#64;frankjeans.mx</span>
+        </li>
+        <li>
+          <span class="block text-xs uppercase tracking-wide text-brand-muted">Teléfono</span>
+          <span class="text-brand-text">+52 (55) 0000 0000</span>
+        </li>
+        <li>
+          <span class="block text-xs uppercase tracking-wide text-brand-muted">Horario de atención</span>
+          <span class="text-brand-text">Lunes a viernes, 9:00–18:00</span>
+        </li>
+      </ul>
+      <p class="mt-6 font-body text-xs text-brand-muted">
+        Página provisional: los datos de contacto se actualizarán próximamente.
+      </p>
+    </div>
+  </div>
+</div>

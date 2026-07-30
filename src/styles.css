@@ -23,6 +23,29 @@
   body {
     @apply bg-brand-bone text-brand-text font-body;
   }
+
+  /* El navegador muestra cursor de texto (I-beam) sobre cualquier texto
+     seleccionable por defecto, lo que en encabezados, párrafos y etiquetas
+     se percibe como si fueran campos editables. Se restablece a la flecha
+     por defecto en todo el árbol (incluye <div> y demás contenedores de
+     texto) y se reafirma el cursor correcto en elementos interactivos y
+     en los campos que sí son editables, incluyendo su contenido anidado
+     (p. ej. un <span> dentro de un <button> o un <a>). */
+  body * {
+    cursor: default;
+  }
+
+  a[href], a[href] *, button:not(:disabled), button:not(:disabled) *, [role='button'], [role='button'] * {
+    cursor: pointer;
+  }
+
+  input[type='checkbox'], input[type='radio'] {
+    cursor: pointer;
+  }
+
+  input:not([type='checkbox']):not([type='radio']), textarea, select, [contenteditable='true'] {
+    cursor: text;
+  }
 }
 
 /* ------------------------------------------------------------------ */

@@ -1,0 +1,74 @@
+<div class="mx-auto max-w-7xl px-6 py-12">
+  <div class="mb-6">
+    <app-breadcrumb [items]="breadcrumbItems()" />
+  </div>
+
+  <div class="flex items-center gap-4">
+    <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand-ink text-brand-gold">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-6 w-6" aria-hidden="true">
+        <path
+          d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"
+        />
+      </svg>
+    </div>
+    <div>
+      <h1 class="font-display text-3xl font-semibold text-brand-ink">Mi cuenta</h1>
+      @if (usuarioActual(); as usuario) {
+        <p class="mt-1 font-body text-sm text-brand-muted">Hola, {{ usuario.nombre }}</p>
+      }
+    </div>
+  </div>
+
+  <div class="mt-8 flex flex-col gap-8 md:flex-row md:items-start">
+    <nav class="flex shrink-0 gap-2 overflow-x-auto pb-1 md:w-56 md:flex-col md:gap-1 md:overflow-visible md:pb-0">
+      <a
+        routerLink="/cuenta/perfil"
+        routerLinkActive
+        #rlaPerfil="routerLinkActive"
+        [class.bg-brand-ink]="rlaPerfil.isActive"
+        [class.text-brand-gold]="rlaPerfil.isActive"
+        [class.text-brand-text]="!rlaPerfil.isActive"
+        class="shrink-0 whitespace-nowrap rounded-sm px-4 py-2 font-body text-sm transition-colors hover:text-brand-gold"
+      >
+        Perfil
+      </a>
+      <a
+        routerLink="/cuenta/pedidos"
+        routerLinkActive
+        #rlaPedidos="routerLinkActive"
+        [class.bg-brand-ink]="rlaPedidos.isActive"
+        [class.text-brand-gold]="rlaPedidos.isActive"
+        [class.text-brand-text]="!rlaPedidos.isActive"
+        class="shrink-0 whitespace-nowrap rounded-sm px-4 py-2 font-body text-sm transition-colors hover:text-brand-gold"
+      >
+        Pedidos
+      </a>
+      <a
+        routerLink="/cuenta/datos-personales"
+        routerLinkActive
+        #rlaDatos="routerLinkActive"
+        [class.bg-brand-ink]="rlaDatos.isActive"
+        [class.text-brand-gold]="rlaDatos.isActive"
+        [class.text-brand-text]="!rlaDatos.isActive"
+        class="shrink-0 whitespace-nowrap rounded-sm px-4 py-2 font-body text-sm transition-colors hover:text-brand-gold"
+      >
+        Datos personales
+      </a>
+      <a
+        routerLink="/cuenta/direcciones"
+        routerLinkActive
+        #rlaDirecciones="routerLinkActive"
+        [class.bg-brand-ink]="rlaDirecciones.isActive"
+        [class.text-brand-gold]="rlaDirecciones.isActive"
+        [class.text-brand-text]="!rlaDirecciones.isActive"
+        class="shrink-0 whitespace-nowrap rounded-sm px-4 py-2 font-body text-sm transition-colors hover:text-brand-gold"
+      >
+        Direcciones
+      </a>
+    </nav>
+
+    <div class="min-w-0 flex-1">
+      <router-outlet />
+    </div>
+  </div>
+</div>

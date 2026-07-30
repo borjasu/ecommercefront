@@ -1,0 +1,184 @@
+@if (modalService.productoActivo(); as producto) {
+  <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" (click)="cerrar()">
+    <div
+      #panel
+      class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-lg outline-none"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-label]="'Agregar ' + producto.nombre + ' a la bolsa'"
+      tabindex="-1"
+      (click)="$event.stopPropagation()"
+      (keydown)="onKeydown($event)"
+    >
+      <div class="flex items-center justify-between">
+        <span class="font-display text-lg tracking-[0.05em] text-brand-ink">AGREGAR A LA BOLSA</span>
+        <button
+          type="button"
+          (click)="cerrar()"
+          class="cursor-pointer text-brand-muted hover:text-brand-gold"
+          aria-label="Cerrar"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div class="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <div class="relative overflow-hidden rounded-2xl bg-white">
+          <img
+            [src]="imagenes()[indiceImagen()]"
+            [alt]="producto.nombre + ' — imagen ' + (indiceImagen() + 1) + ' de ' + imagenes().length"
+            class="aspect-[4/5] w-full object-cover"
+          />
+
+          <button
+            type="button"
+            (click)="alternarFavorito()"
+            [attr.aria-pressed]="favoritosService.esFavorito(producto.id)"
+            [attr.aria-label]="favoritosService.esFavorito(producto.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+            class="absolute right-3 top-3 flex h-9 w-9 cursor-pointer items-center justify-center transition-transform hover:scale-110"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              [attr.fill]="favoritosService.esFavorito(producto.id) ? '#c9a227' : '#d1cfc8'"
+              class="h-6 w-6 drop-shadow"
+              aria-hidden="true"
+            >
+              <path
+                d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+              />
+            </svg>
+          </button>
+
+          @if (imagenes().length > 1) {
+            <button
+              type="button"
+              (click)="imagenAnterior()"
+              aria-label="Imagen anterior"
+              class="absolute left-3 top-1/2 flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-brand-ink/60 text-base text-brand-bone transition-colors hover:bg-brand-ink"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              (click)="imagenSiguiente()"
+              aria-label="Imagen siguiente"
+              class="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-brand-ink/60 text-base text-brand-bone transition-colors hover:bg-brand-ink"
+            >
+              ›
+            </button>
+
+            <div class="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2">
+              @for (imagen of imagenes(); track $index) {
+                <button
+                  type="button"
+                  (click)="irAImagen($index)"
+                  [attr.aria-label]="'Ir a la imagen ' + ($index + 1)"
+                  [attr.aria-current]="indiceImagen() === $index"
+                  class="h-2 w-2 cursor-pointer rounded-full border border-brand-ink/20 transition-colors"
+                  [class.bg-brand-gold]="indiceImagen() === $index"
+                  [class.bg-white]="indiceImagen() !== $index"
+                ></button>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="flex flex-col gap-5">
+          <div>
+            <p class="font-body text-base text-brand-text">{{ producto.nombre }}</p>
+            <p class="mt-1 font-body text-xl font-semibold text-brand-gold">${{ producto.precio }}</p>
+          </div>
+
+          @if (coloresDisponibles().length > 0) {
+            <div>
+              <p class="mb-2 font-body text-sm uppercase tracking-wide text-brand-text">
+                Color
+                @if (colorSeleccionado()) {
+                  <span class="normal-case text-brand-muted">· {{ etiquetaDeColor(colorSeleccionado()!) }}</span>
+                }
+              </p>
+              <div class="flex flex-wrap gap-2">
+                @for (color of coloresDisponibles(); track color) {
+                  <button
+                    type="button"
+                    (click)="seleccionarColor(color)"
+                    [attr.title]="etiquetaDeColor(color)"
+                    [attr.aria-label]="'Color ' + etiquetaDeColor(color)"
+                    [attr.aria-pressed]="colorSeleccionado() === color"
+                    class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-2 transition-colors"
+                    [class.border-brand-gold]="colorSeleccionado() === color"
+                    [class.border-transparent]="colorSeleccionado() !== color"
+                  >
+                    <span
+                      class="block h-6 w-6 rounded-full border border-brand-muted/30"
+                      [style.backgroundColor]="hexDeColor(color)"
+                    ></span>
+                  </button>
+                }
+              </div>
+            </div>
+          }
+
+          <div>
+            <p class="mb-2 font-body text-sm uppercase tracking-wide text-brand-text">Talla</p>
+            <div class="flex flex-wrap gap-2">
+              @for (talla of producto.tallasDisponibles; track talla) {
+                <button
+                  type="button"
+                  [class]="tallaSeleccionada() === talla ? 'talla-btn-active' : 'talla-btn'"
+                  (click)="seleccionarTalla(talla)"
+                >
+                  {{ talla }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <span class="font-body text-xs uppercase tracking-wide text-brand-muted">Cantidad</span>
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                (click)="decrementarCantidad()"
+                [disabled]="cantidad() === 1"
+                aria-label="Disminuir cantidad"
+                class="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-sm border border-brand-muted font-body text-sm text-brand-text transition-colors duration-150 hover:border-brand-gold disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-brand-muted"
+              >
+                −
+              </button>
+              <span class="w-6 text-center font-body text-sm text-brand-text" aria-live="polite">{{ cantidad() }}</span>
+              <button
+                type="button"
+                (click)="incrementarCantidad()"
+                aria-label="Aumentar cantidad"
+                class="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-sm border border-brand-muted font-body text-sm text-brand-text transition-colors duration-150 hover:border-brand-gold"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-auto flex flex-col gap-3">
+            <button
+              type="button"
+              class="btn-gold w-full disabled:cursor-not-allowed disabled:opacity-50"
+              [disabled]="!puedeAgregar()"
+              (click)="confirmar()"
+            >
+              {{ agregado() ? '¡Agregado!' : '+ AGREGAR A LA BOLSA' }}
+            </button>
+
+            <a
+              [routerLink]="['/producto', producto.id]"
+              (click)="cerrar()"
+              class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[2px] border border-brand-gold px-6 py-3 font-body text-sm font-semibold uppercase tracking-wide text-brand-gold transition-colors duration-200 hover:bg-brand-gold hover:text-brand-ink"
+            >
+              Ver detalles completos
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}

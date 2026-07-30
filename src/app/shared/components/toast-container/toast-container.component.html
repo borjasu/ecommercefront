@@ -1,0 +1,41 @@
+<div class="pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex flex-col items-center gap-2 p-4 sm:inset-x-auto sm:right-4 sm:items-end">
+  @for (mensaje of toastService.mensajes(); track mensaje.id) {
+    <div
+      role="status"
+      class="pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-sm border bg-white p-4 shadow-lg"
+      [class.border-green-200]="mensaje.tipo === 'exito'"
+      [class.border-red-200]="mensaje.tipo === 'error'"
+      [class.border-brand-muted/20]="mensaje.tipo === 'info'"
+    >
+      @if (mensaje.tipo === 'exito') {
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 h-5 w-5 shrink-0 text-green-600" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="m8.5 12.5 2.5 2.5 5-5" />
+        </svg>
+      } @else if (mensaje.tipo === 'error') {
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <line x1="12" y1="8" x2="12" y2="13" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+      } @else {
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 h-5 w-5 shrink-0 text-brand-gold" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <line x1="12" y1="11" x2="12" y2="16" />
+          <line x1="12" y1="7.5" x2="12.01" y2="7.5" />
+        </svg>
+      }
+
+      <p class="flex-1 font-body text-sm text-brand-text">{{ mensaje.texto }}</p>
+
+      <button
+        type="button"
+        (click)="toastService.cerrar(mensaje.id)"
+        class="shrink-0 cursor-pointer text-brand-muted hover:text-brand-ink"
+        aria-label="Cerrar notificación"
+      >
+        ✕
+      </button>
+    </div>
+  }
+</div>

@@ -29,12 +29,69 @@
   <h1 class="font-display text-3xl text-brand-ink">DESTACADOS</h1>
   <p class="mt-1 font-body text-sm text-brand-muted">Lo más nuevo del taller, elegido para ti.</p>
 
-  @if (destacados().length > 0) {
-    <div class="mt-8 flex snap-x snap-mandatory gap-6 overflow-x-auto pb-4">
-      @for (producto of destacados(); track producto.id) {
-        <div class="w-64 flex-none snap-start">
-          <app-producto-card [producto]="producto" (agregarAlCarrito)="onAgregarAlCarrito($event)" />
+  @if (cargandoDestacados()) {
+    <div class="mt-8 flex gap-6">
+      @for (indice of [1, 2, 3]; track indice) {
+        <div class="w-1/3 animate-pulse">
+          <div class="aspect-[4/5] w-full rounded-2xl bg-brand-muted/10"></div>
         </div>
+      }
+    </div>
+  } @else if (destacados().length > 0) {
+    <div class="relative mt-8">
+      <div class="overflow-hidden">
+        <div
+          class="-mx-3 flex"
+          [style.transform]="'translateX(' + desplazamiento() + ')'"
+          [style.transition]="transicionActiva() ? 'transform 500ms ease-in-out' : 'none'"
+        >
+          @for (producto of pista(); track $index) {
+            <div class="box-border shrink-0 grow-0 basis-1/3 px-3">
+              <div class="relative">
+                <a [routerLink]="['/producto', producto.id]" class="block overflow-hidden rounded-2xl bg-white">
+                  <img
+                    [src]="producto.imagenUrl"
+                    [alt]="producto.nombre"
+                    class="aspect-[4/5] w-full object-cover transition-transform duration-300 hover:scale-105"
+                  />
+                </a>
+                <button
+                  type="button"
+                  (click)="abrirModal(producto)"
+                  aria-label="Agregar a la bolsa"
+                  class="absolute bottom-3 right-3 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-brand-gold text-brand-ink shadow-md transition-transform hover:scale-110"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5" aria-hidden="true">
+                    <path
+                      fill-rule="evenodd"
+                      clip-rule="evenodd"
+                      d="M7.5 6v.75H5.513c-.96 0-1.764.724-1.865 1.679l-1.263 12A1.875 1.875 0 0 0 4.25 22.5h15.5a1.875 1.875 0 0 0 1.865-2.071l-1.263-12a1.875 1.875 0 0 0-1.865-1.679H16.5V6a4.5 4.5 0 1 0-9 0ZM12 3a3 3 0 0 0-3 3v.75h6V6a3 3 0 0 0-3-3Zm-3 8.25a3 3 0 1 0 6 0v-.75a.75.75 0 0 1 1.5 0v.75a4.5 4.5 0 1 1-9 0v-.75a.75.75 0 0 1 1.5 0v.75Z"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      @if (hayLoop()) {
+        <button
+          type="button"
+          (click)="anterior()"
+          aria-label="Destacados anteriores"
+          class="absolute left-0 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-brand-muted bg-white text-lg text-brand-text transition-colors hover:border-brand-gold hover:text-brand-gold"
+        >
+          ‹
+        </button>
+        <button
+          type="button"
+          (click)="siguiente()"
+          aria-label="Siguientes destacados"
+          class="absolute right-0 top-1/2 flex h-9 w-9 -translate-y-1/2 translate-x-1/2 cursor-pointer items-center justify-center rounded-full border border-brand-muted bg-white text-lg text-brand-text transition-colors hover:border-brand-gold hover:text-brand-gold"
+        >
+          ›
+        </button>
       }
     </div>
   } @else {
