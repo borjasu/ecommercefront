@@ -39,8 +39,12 @@
       <button
         type="button"
         (click)="cerrarSesion()"
-        class="w-full rounded-sm px-3 py-2 text-left font-body text-sm text-brand-bone/80 transition-colors hover:text-brand-gold"
+        class="flex w-full cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-left font-body text-sm text-red-400 transition-colors hover:text-red-300"
       >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+          <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+          <line x1="12" y1="2" x2="12" y2="12" />
+        </svg>
         Cerrar sesión
       </button>
     </div>
@@ -49,4 +53,7 @@
   <main class="flex-1">
     <router-outlet />
   </main>
+
+  <app-toast-container />
+  <app-confirm-modal />
 </div>

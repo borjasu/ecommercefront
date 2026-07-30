@@ -5,20 +5,162 @@
 
   @if (producto(); as producto) {
     <div class="grid grid-cols-1 gap-12 lg:grid-cols-2">
-      <div class="relative overflow-hidden rounded-sm bg-white">
-        @if (producto.etiqueta) {
-          <span class="badge absolute left-4 top-4 z-10">{{ producto.etiqueta }}</span>
+      <div class="flex gap-3">
+        @if (imagenes().length > 1) {
+          <div class="flex w-16 shrink-0 flex-col gap-3 sm:w-20">
+            @for (imagen of imagenes(); track $index) {
+              <button
+                type="button"
+                (click)="irAImagen($index)"
+                [attr.aria-label]="'Ver imagen ' + ($index + 1)"
+                [attr.aria-current]="indiceImagen() === $index"
+                class="aspect-[4/5] w-full cursor-pointer overflow-hidden rounded-md border-2 transition-colors"
+                [class.border-brand-gold]="indiceImagen() === $index"
+                [class.border-transparent]="indiceImagen() !== $index"
+              >
+                <img
+                  [src]="imagen"
+                  [alt]="producto.nombre + ' — miniatura ' + ($index + 1)"
+                  class="h-full w-full object-cover"
+                />
+              </button>
+            }
+          </div>
         }
-        <img [src]="producto.imagenUrl" [alt]="producto.nombre" class="aspect-[4/5] w-full object-cover" />
+
+        <div
+          class="relative min-w-0 flex-1 select-none overflow-hidden rounded-2xl bg-white"
+          [class.cursor-zoom-in]="!zoomActivo()"
+          [class.cursor-zoom-out]="zoomActivo()"
+          (click)="alternarZoom($event)"
+          (mousemove)="onImagenMouseMove($event)"
+        >
+          @if (producto.etiqueta) {
+            <span class="badge absolute left-4 top-4 z-10">{{ producto.etiqueta }}</span>
+          }
+
+          <button
+            type="button"
+            (click)="alternarFavorito(); $event.stopPropagation()"
+            [attr.aria-pressed]="favoritosService.esFavorito(producto.id)"
+            [attr.aria-label]="favoritosService.esFavorito(producto.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+            class="absolute right-4 top-4 z-10 flex h-10 w-10 cursor-pointer items-center justify-center transition-transform hover:scale-110"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              [attr.fill]="favoritosService.esFavorito(producto.id) ? '#c9a227' : '#d1cfc8'"
+              class="h-6 w-6 drop-shadow"
+              aria-hidden="true"
+            >
+              <path
+                d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+              />
+            </svg>
+          </button>
+
+          <img
+            [src]="imagenes()[indiceImagen()]"
+            [alt]="producto.nombre + ' — imagen ' + (indiceImagen() + 1) + ' de ' + imagenes().length"
+            class="aspect-[4/5] w-full object-cover"
+            [class.opacity-0]="zoomActivo()"
+          />
+
+          @if (zoomActivo()) {
+            <div
+              class="pointer-events-none absolute inset-0 bg-white bg-no-repeat"
+              [style.backgroundImage]="'url(' + imagenes()[indiceImagen()] + ')'"
+              [style.backgroundSize]="'200%'"
+              [style.backgroundPosition]="zoomPosicion().x + '% ' + zoomPosicion().y + '%'"
+            ></div>
+          }
+
+          @if (imagenes().length > 1) {
+            <button
+              type="button"
+              (click)="imagenAnterior(); $event.stopPropagation()"
+              aria-label="Imagen anterior"
+              class="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-brand-ink/60 text-lg text-brand-bone transition-colors hover:bg-brand-ink"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              (click)="imagenSiguiente(); $event.stopPropagation()"
+              aria-label="Imagen siguiente"
+              class="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-brand-ink/60 text-lg text-brand-bone transition-colors hover:bg-brand-ink"
+            >
+              ›
+            </button>
+          }
+        </div>
       </div>
 
       <div class="flex flex-col gap-6">
         <div>
           <h1 class="font-display text-3xl font-semibold text-brand-ink">{{ producto.nombre }}</h1>
+          <p class="mt-1 font-utility text-xs uppercase tracking-wide text-brand-muted">SKU: {{ producto.sku }}</p>
           <p class="mt-2 font-body text-xl font-semibold text-brand-gold">${{ producto.precio }}</p>
         </div>
 
         <p class="font-body text-sm leading-relaxed text-brand-muted">{{ producto.descripcion }}</p>
+
+        <dl class="grid grid-cols-2 gap-x-6 gap-y-3 rounded-sm border border-brand-muted/20 p-4 font-body text-sm">
+          <div>
+            <dt class="text-xs uppercase tracking-wide text-brand-muted">Categoría</dt>
+            <dd class="mt-0.5 text-brand-text">{{ nombreCategoria() }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs uppercase tracking-wide text-brand-muted">Público</dt>
+            <dd class="mt-0.5 text-brand-text">{{ nombreAudiencia() }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs uppercase tracking-wide text-brand-muted">Tallas disponibles</dt>
+            <dd class="mt-0.5 text-brand-text">{{ producto.tallasDisponibles.join(', ') }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs uppercase tracking-wide text-brand-muted">SKU</dt>
+            <dd class="mt-0.5 text-brand-text">{{ producto.sku }}</dd>
+          </div>
+          @if (coloresDisponibles().length > 0) {
+            <div>
+              <dt class="text-xs uppercase tracking-wide text-brand-muted">Color</dt>
+              <dd class="mt-0.5 text-brand-text">
+                {{ coloresDisponibles().length === 1 ? etiquetaDeColor(coloresDisponibles()[0]) : (coloresDisponibles().length + ' colores disponibles') }}
+              </dd>
+            </div>
+          }
+        </dl>
+
+        @if (coloresDisponibles().length > 0) {
+          <div>
+            <p class="mb-3 font-body text-sm uppercase tracking-wide text-brand-text">
+              Color
+              @if (colorSeleccionado()) {
+                <span class="normal-case text-brand-muted">· {{ etiquetaDeColor(colorSeleccionado()!) }}</span>
+              }
+            </p>
+            <div class="flex flex-wrap gap-3">
+              @for (color of coloresDisponibles(); track color) {
+                <button
+                  type="button"
+                  (click)="seleccionarColor(color)"
+                  [attr.title]="etiquetaDeColor(color)"
+                  [attr.aria-label]="'Color ' + etiquetaDeColor(color)"
+                  [attr.aria-pressed]="colorSeleccionado() === color"
+                  class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 transition-colors"
+                  [class.border-brand-gold]="colorSeleccionado() === color"
+                  [class.border-transparent]="colorSeleccionado() !== color"
+                >
+                  <span
+                    class="block h-7 w-7 rounded-full border border-brand-muted/30"
+                    [style.backgroundColor]="hexDeColor(color)"
+                  ></span>
+                </button>
+              }
+            </div>
+          </div>
+        }
 
         <div>
           <p class="mb-3 font-body text-sm uppercase tracking-wide text-brand-text">Talla</p>
@@ -60,10 +202,10 @@
           <button
             type="button"
             class="btn-gold h-12 w-full max-w-xs disabled:cursor-not-allowed disabled:opacity-50"
-            [disabled]="!tallaSeleccionada()"
+            [disabled]="!puedeAgregar()"
             (click)="agregarAlCarrito()"
           >
-            {{ agregado() ? '¡Agregado!' : '+ AGREGAR AL CARRITO' }}
+            {{ agregado() ? '¡Agregado!' : '+ AGREGAR A LA BOLSA' }}
           </button>
         </div>
       </div>

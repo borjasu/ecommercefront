@@ -1,0 +1,66 @@
+@if (confirmService.solicitud(); as solicitud) {
+  <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" (click)="cancelar()">
+    <div
+      #panel
+      class="w-full max-w-sm rounded-sm bg-white p-6 shadow-lg outline-none"
+      role="alertdialog"
+      aria-modal="true"
+      [attr.aria-label]="solicitud.titulo ?? 'Confirmar acción'"
+      tabindex="-1"
+      (click)="$event.stopPropagation()"
+      (keydown)="onKeydown($event)"
+    >
+      <div class="flex items-start gap-3">
+        @if (solicitud.peligroso) {
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+              <path d="M12 9v4" />
+              <path d="M12 17h.01" />
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+            </svg>
+          </div>
+        } @else {
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-gold/10 text-brand-gold">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <line x1="12" y1="11" x2="12" y2="16" />
+              <line x1="12" y1="7.5" x2="12.01" y2="7.5" />
+            </svg>
+          </div>
+        }
+
+        <div class="flex-1">
+          <p class="font-display text-lg text-brand-ink">{{ solicitud.titulo ?? 'Confirmar acción' }}</p>
+          <p class="mt-1 font-body text-sm text-brand-muted">{{ solicitud.mensaje }}</p>
+        </div>
+      </div>
+
+      <div class="mt-6 flex items-center justify-end gap-3">
+        <button
+          type="button"
+          (click)="cancelar()"
+          class="cursor-pointer font-body text-sm uppercase tracking-wide text-brand-muted transition-colors hover:text-brand-ink"
+        >
+          {{ solicitud.textoCancelar ?? 'Cancelar' }}
+        </button>
+        @if (solicitud.peligroso) {
+          <button
+            type="button"
+            (click)="confirmar()"
+            class="cursor-pointer rounded-[2px] bg-red-600 px-5 py-2 font-body text-sm font-semibold uppercase tracking-wide text-white transition-colors hover:bg-red-700"
+          >
+            {{ solicitud.textoConfirmar ?? 'Confirmar' }}
+          </button>
+        } @else {
+          <button
+            type="button"
+            (click)="confirmar()"
+            class="btn-gold"
+          >
+            {{ solicitud.textoConfirmar ?? 'Confirmar' }}
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}

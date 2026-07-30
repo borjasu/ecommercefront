@@ -3,35 +3,83 @@
 
   @if (items().length > 0) {
     <div class="mt-8 flex flex-col divide-y divide-brand-muted/20">
-      @for (item of items(); track item.producto.id + item.talla) {
-        <div class="flex items-center gap-4 py-6">
-          <img
-            [src]="item.producto.imagenUrl"
-            [alt]="item.producto.nombre"
-            class="h-24 w-20 rounded-sm object-cover"
-          />
+      @for (item of items(); track item.producto.id + item.talla + (item.color ?? '')) {
+        <div class="flex flex-wrap items-center gap-4 py-6">
+          <a [routerLink]="['/producto', item.producto.id]" class="shrink-0">
+            <img
+              [src]="item.producto.imagenUrl"
+              [alt]="item.producto.nombre"
+              class="h-24 w-20 rounded-xl object-cover"
+            />
+          </a>
 
-          <div class="flex-1">
-            <p class="font-body text-sm text-brand-text">{{ item.producto.nombre }}</p>
-            <p class="mt-1 font-body text-xs uppercase tracking-wide text-brand-muted">Talla {{ item.talla }}</p>
-            <p class="mt-1 font-body text-xs text-brand-muted">Cantidad: {{ item.cantidad }}</p>
+          <div class="min-w-0 flex-1">
+            <a
+              [routerLink]="['/producto', item.producto.id]"
+              class="font-body text-sm text-brand-text hover:text-brand-gold hover:underline"
+            >
+              {{ item.producto.nombre }}
+            </a>
+            <p class="mt-1 flex items-center gap-2 font-body text-xs uppercase tracking-wide text-brand-muted">
+              <span>Talla {{ item.talla }}</span>
+              @if (item.color) {
+                <span>· Color {{ etiquetaDeColor(item.color) }}</span>
+                <span
+                  class="inline-block h-3 w-3 rounded-full border border-brand-muted/40"
+                  [style.backgroundColor]="hexDeColor(item.color)"
+                ></span>
+              }
+            </p>
+
+            <div class="mt-2 flex items-center gap-3">
+              <button
+                type="button"
+                (click)="decrementar(item)"
+                [class.opacity-40]="item.cantidad === 1"
+                class="flex h-7 w-7 cursor-pointer items-center justify-center rounded-[2px] border border-brand-muted font-body text-sm text-brand-text transition-colors hover:border-brand-gold hover:text-brand-gold"
+                aria-label="Disminuir cantidad"
+              >
+                −
+              </button>
+              <span class="w-6 text-center font-body text-sm text-brand-text">{{ item.cantidad }}</span>
+              <button
+                type="button"
+                (click)="incrementar(item)"
+                class="flex h-7 w-7 cursor-pointer items-center justify-center rounded-[2px] border border-brand-muted font-body text-sm text-brand-text transition-colors hover:border-brand-gold hover:text-brand-gold"
+                aria-label="Aumentar cantidad"
+              >
+                +
+              </button>
+            </div>
           </div>
 
-          <p class="font-body text-sm font-semibold text-brand-gold">${{ subtotal(item) }}</p>
+          <div class="flex basis-full items-center justify-between gap-4 sm:basis-auto sm:justify-end">
+            <p class="font-body text-sm font-semibold text-brand-gold">${{ subtotal(item) }}</p>
 
-          <button
-            type="button"
-            (click)="eliminar(item)"
-            class="cursor-pointer font-body text-xs uppercase tracking-wide text-brand-muted transition-colors hover:text-brand-gold"
-          >
-            Quitar
-          </button>
+            <button
+              type="button"
+              (click)="eliminar(item)"
+              aria-label="Quitar de la bolsa"
+              class="flex h-8 w-8 cursor-pointer items-center justify-center text-red-500 transition-colors hover:text-red-700"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+                <path d="M3 6h18" />
+                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
+            </button>
+          </div>
         </div>
       }
     </div>
 
     <div class="mt-8 flex items-center justify-between border-t border-brand-muted/20 pt-6">
-      <p class="font-body text-lg font-semibold text-brand-ink">Total</p>
+      <div>
+        <p class="font-body text-lg font-semibold text-brand-ink">Total</p>
+        <p class="font-body text-xs text-brand-muted">{{ totalArticulos() }} artículos</p>
+      </div>
       <p class="font-body text-lg font-semibold text-brand-gold">${{ total() }}</p>
     </div>
 

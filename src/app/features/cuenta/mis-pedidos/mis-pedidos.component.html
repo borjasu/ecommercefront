@@ -1,0 +1,78 @@
+<div class="rounded-sm border border-brand-muted/20 bg-white/60 shadow-sm">
+  <div class="border-b border-brand-muted/20 p-6">
+    <h2 class="font-display text-xl font-semibold text-brand-ink">Mis pedidos</h2>
+    <p class="mt-1 font-body text-sm text-brand-muted">Historial y estado de tus compras.</p>
+  </div>
+
+  @if (cargando()) {
+    <div class="divide-y divide-brand-muted/20">
+      @for (indice of [1, 2, 3]; track indice) {
+        <div class="animate-pulse p-6">
+          <div class="h-4 w-32 rounded-sm bg-brand-muted/10"></div>
+          <div class="mt-2 h-3 w-24 rounded-sm bg-brand-muted/10"></div>
+        </div>
+      }
+    </div>
+  } @else if (pedidos().length === 0) {
+    <div class="p-8 text-center">
+      <p class="font-body text-sm text-brand-muted">Todavía no has hecho ningún pedido.</p>
+      <a routerLink="/catalogo" class="btn-gold mt-6 inline-flex">Ver catálogo</a>
+    </div>
+  } @else {
+    <div class="divide-y divide-brand-muted/20">
+      @for (pedido of pedidos(); track pedido.id) {
+        <div class="cursor-pointer p-6 hover:bg-brand-bone/60" (click)="toggleDetalle(pedido)">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p class="font-body text-sm font-semibold text-brand-text">{{ pedido.numeroPedido }}</p>
+              <p class="mt-0.5 font-body text-xs text-brand-muted">{{ pedido.fecha | date: 'dd/MM/yyyy HH:mm' }}</p>
+            </div>
+            <span class="badge">{{ etiquetaEstado(pedido.estado) }}</span>
+            <p class="font-body text-sm font-semibold text-brand-gold">${{ pedido.total }}</p>
+          </div>
+
+          @if (pedidoExpandidoId() === pedido.id) {
+            <div class="mt-5 grid grid-cols-1 gap-8 md:grid-cols-2" (click)="$event.stopPropagation()">
+              <div>
+                <h3 class="font-body text-xs uppercase tracking-wide text-brand-muted">Artículos</h3>
+                <div class="mt-3 flex flex-col divide-y divide-brand-muted/20">
+                  @for (item of pedido.items; track item.producto.id + item.talla) {
+                    <div class="flex items-center gap-4 py-3">
+                      <img
+                        [src]="item.producto.imagenUrl"
+                        [alt]="item.producto.nombre"
+                        class="h-16 w-13 rounded-md object-cover"
+                      />
+                      <div class="flex-1">
+                        <p class="font-body text-sm text-brand-text">{{ item.producto.nombre }}</p>
+                        <p class="mt-1 font-body text-xs uppercase tracking-wide text-brand-muted">
+                          Talla {{ item.talla }} · Cantidad {{ item.cantidad }}
+                        </p>
+                      </div>
+                      <p class="font-body text-sm font-semibold text-brand-gold">
+                        ${{ item.producto.precio * item.cantidad }}
+                      </p>
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <div>
+                <h3 class="font-body text-xs uppercase tracking-wide text-brand-muted">Datos de envío</h3>
+                <div class="mt-3 space-y-1 font-body text-sm text-brand-text">
+                  <p>{{ pedido.datosEnvio.nombreCompleto }}</p>
+                  <p>{{ pedido.datosEnvio.direccion }}</p>
+                  <p>{{ pedido.datosEnvio.ciudad }}, CP {{ pedido.datosEnvio.codigoPostal }}</p>
+                  <p>Tel: {{ pedido.datosEnvio.telefono }}</p>
+                </div>
+
+                <h3 class="mt-6 font-body text-xs uppercase tracking-wide text-brand-muted">Método de pago</h3>
+                <p class="mt-2 font-body text-sm capitalize text-brand-text">{{ pedido.metodoPago }}</p>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

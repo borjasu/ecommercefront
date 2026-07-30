@@ -34,17 +34,21 @@
       @if (pasoActual() === 1) {
         <h2 class="font-display text-xl font-semibold text-brand-ink">Resumen del pedido</h2>
         <div class="mt-6 flex flex-col divide-y divide-brand-muted/20">
-          @for (item of items(); track item.producto.id + item.talla) {
+          @for (item of items(); track item.producto.id + item.talla + (item.color ?? '')) {
             <div class="flex items-center gap-4 py-4">
               <img
                 [src]="item.producto.imagenUrl"
                 [alt]="item.producto.nombre"
-                class="h-20 w-16 rounded-sm object-cover"
+                class="h-20 w-16 rounded-xl object-cover"
               />
               <div class="flex-1">
                 <p class="font-body text-sm text-brand-text">{{ item.producto.nombre }}</p>
                 <p class="mt-1 font-body text-xs uppercase tracking-wide text-brand-muted">
-                  Talla {{ item.talla }} · Cantidad {{ item.cantidad }}
+                  Talla {{ item.talla }}
+                  @if (item.color) {
+                    · Color {{ etiquetaDeColor(item.color) }}
+                  }
+                  · Cantidad {{ item.cantidad }}
                 </p>
               </div>
               <p class="font-body text-sm font-semibold text-brand-gold">${{ subtotalLinea(item) }}</p>
@@ -59,6 +63,29 @@
 
       @if (pasoActual() === 2) {
         <h2 class="font-display text-xl font-semibold text-brand-ink">Datos de envío</h2>
+
+        @if (direccionesService.listado().length > 0) {
+          <div class="mt-6">
+            <label for="direccionGuardada" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              Usar una dirección guardada
+            </label>
+            <select
+              id="direccionGuardada"
+              class="input-field"
+              [value]="direccionSeleccionadaId() ?? ''"
+              (change)="usarDireccionGuardada($any($event.target).value)"
+            >
+              <option value="" disabled>Selecciona una dirección</option>
+              @for (direccion of direccionesService.listado(); track direccion.id) {
+                <option [value]="direccion.id">{{ direccion.alias }} — {{ direccion.direccion }}, {{ direccion.ciudad }}</option>
+              }
+            </select>
+            <p class="mt-1 font-body text-xs text-brand-muted">
+              Se completan los campos de abajo; puedes ajustarlos antes de continuar.
+            </p>
+          </div>
+        }
+
         <form [formGroup]="envioForm" class="mt-6 space-y-5">
           <div>
             <label for="nombreCompleto" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">

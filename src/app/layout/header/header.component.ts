@@ -1,9 +1,12 @@
-import { Component, ElementRef, HostListener, effect, inject, signal, viewChild, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ElementRef, effect, inject, signal, viewChild, ChangeDetectionStrategy } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { AuthService } from '../../core/services/auth.service';
 import { CartService } from '../../core/services/cart.service';
+import { FavoritosService } from '../../core/services/favoritos.service';
+import { ToastService } from '../../core/services/toast.service';
+import { ConfirmService } from '../../core/services/confirm.service';
 import { AUDIENCIAS, CATEGORIAS } from '../../shared/constants/categorias';
 
 @Component({
@@ -16,7 +19,9 @@ import { AUDIENCIAS, CATEGORIAS } from '../../shared/constants/categorias';
 export class HeaderComponent {
   private readonly authService = inject(AuthService);
   private readonly cartService = inject(CartService);
-  private readonly elementRef = inject(ElementRef<HTMLElement>);
+  private readonly favoritosService = inject(FavoritosService);
+  private readonly toastService = inject(ToastService);
+  private readonly confirmService = inject(ConfirmService);
   private readonly router = inject(Router);
 
   readonly audiencias = AUDIENCIAS;
@@ -24,12 +29,14 @@ export class HeaderComponent {
 
   readonly usuarioActual = this.authService.currentUser;
   readonly cantidadCarrito = this.cartService.cantidadItems;
+  readonly cantidadFavoritos = this.favoritosService.cantidad;
 
   readonly terminoBusqueda = signal('');
-  readonly menuUsuarioAbierto = signal(false);
   readonly menuAbierto = signal(false);
+  readonly busquedaMovilAbierta = signal(false);
 
   readonly drawer = viewChild<ElementRef<HTMLElement>>('drawer');
+  readonly inputBusquedaMovil = viewChild<ElementRef<HTMLInputElement>>('inputBusquedaMovil');
 
   constructor() {
     toObservable(this.terminoBusqueda)
@@ -46,17 +53,16 @@ export class HeaderComponent {
         setTimeout(() => this.drawer()?.nativeElement.focus());
       }
     });
+
+    effect(() => {
+      if (this.busquedaMovilAbierta()) {
+        setTimeout(() => this.inputBusquedaMovil()?.nativeElement.focus());
+      }
+    });
   }
 
-  @HostListener('document:click', ['$event'])
-  alHacerClickFuera(evento: MouseEvent): void {
-    if (!this.elementRef.nativeElement.contains(evento.target as Node)) {
-      this.menuUsuarioAbierto.set(false);
-    }
-  }
-
-  alternarMenuUsuario(): void {
-    this.menuUsuarioAbierto.update(abierto => !abierto);
+  alternarBusquedaMovil(): void {
+    this.busquedaMovilAbierta.update(abierta => !abierta);
   }
 
   abrirMenu(): void {
@@ -102,9 +108,20 @@ export class HeaderComponent {
     }
   }
 
-  cerrarSesion(): void {
-    this.menuUsuarioAbierto.set(false);
+  async cerrarSesion(): Promise<void> {
+    const confirmado = await this.confirmService.confirmar({
+      titulo: 'Cerrar sesión',
+      mensaje: '¿Seguro que quieres cerrar sesión?',
+      textoConfirmar: 'Cerrar sesión',
+      peligroso: true
+    });
+
+    if (!confirmado) {
+      return;
+    }
+
     this.cerrarMenu();
     this.authService.logout();
+    this.toastService.exito('Sesión cerrada.');
   }
 }

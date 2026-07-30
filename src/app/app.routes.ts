@@ -13,7 +13,11 @@ export const routes: Routes = [
         path: '',
         loadComponent: () => import('./features/home/home.component').then(m => m.HomeComponent)
       },
-      { path: 'catalogo', redirectTo: 'catalogo/hombre', pathMatch: 'full' },
+      {
+        path: 'catalogo',
+        loadComponent: () =>
+          import('./features/catalogo/catalogo.component').then(m => m.CatalogoComponent)
+      },
       {
         path: 'catalogo/:audiencia',
         loadComponent: () =>
@@ -42,6 +46,48 @@ export const routes: Routes = [
           import('./features/carrito/carrito.component').then(m => m.CarritoComponent)
       },
       {
+        path: 'favoritos',
+        loadComponent: () =>
+          import('./features/favoritos/favoritos.component').then(m => m.FavoritosComponent)
+      },
+      {
+        path: 'cuenta',
+        canActivate: [authGuard],
+        loadComponent: () =>
+          import('./features/cuenta/cuenta-layout/cuenta-layout.component').then(
+            m => m.CuentaLayoutComponent
+          ),
+        children: [
+          { path: '', redirectTo: 'perfil', pathMatch: 'full' },
+          {
+            path: 'perfil',
+            loadComponent: () =>
+              import('./features/cuenta/perfil/perfil.component').then(m => m.PerfilComponent)
+          },
+          {
+            path: 'pedidos',
+            loadComponent: () =>
+              import('./features/cuenta/mis-pedidos/mis-pedidos.component').then(
+                m => m.MisPedidosComponent
+              )
+          },
+          {
+            path: 'datos-personales',
+            loadComponent: () =>
+              import('./features/cuenta/datos-personales/datos-personales.component').then(
+                m => m.DatosPersonalesComponent
+              )
+          },
+          {
+            path: 'direcciones',
+            loadComponent: () =>
+              import('./features/cuenta/direcciones/direcciones.component').then(
+                m => m.DireccionesComponent
+              )
+          }
+        ]
+      },
+      {
         path: 'checkout',
         canActivate: [authGuard],
         loadComponent: () =>
@@ -56,6 +102,11 @@ export const routes: Routes = [
         path: 'registro',
         loadComponent: () =>
           import('./features/auth/registro/registro.component').then(m => m.RegistroComponent)
+      },
+      {
+        path: 'contacto',
+        loadComponent: () =>
+          import('./features/contacto/contacto.component').then(m => m.ContactoComponent)
       }
     ]
   },

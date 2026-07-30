@@ -1,0 +1,146 @@
+<div class="rounded-sm border border-brand-muted/20 bg-white/60 shadow-sm">
+  <div class="flex items-center justify-between border-b border-brand-muted/20 p-6">
+    <div>
+      <h2 class="font-display text-xl font-semibold text-brand-ink">Direcciones</h2>
+      <p class="mt-1 font-body text-sm text-brand-muted">Tus direcciones de envío guardadas.</p>
+    </div>
+    <button type="button" (click)="abrirFormularioNuevo()" class="btn-gold">+ Agregar</button>
+  </div>
+
+  @if (direccionesService.listado().length === 0) {
+    <p class="p-8 text-center font-body text-sm text-brand-muted">Todavía no has guardado ninguna dirección.</p>
+  } @else {
+    <div class="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2">
+      @for (direccion of direccionesService.listado(); track direccion.id) {
+        <div class="rounded-sm border border-brand-muted/20 p-4 font-body text-sm">
+          <div class="flex items-center justify-between">
+            <p class="font-semibold text-brand-text">{{ direccion.alias }}</p>
+            @if (direccion.predeterminada) {
+              <span class="badge">Predeterminada</span>
+            }
+          </div>
+          <div class="mt-2 space-y-0.5 text-brand-muted">
+            <p>{{ direccion.nombreCompleto }}</p>
+            <p>{{ direccion.direccion }}</p>
+            <p>{{ direccion.ciudad }}, CP {{ direccion.codigoPostal }}</p>
+            <p>Tel: {{ direccion.telefono }}</p>
+          </div>
+          <div class="mt-3 flex flex-wrap gap-3 text-xs uppercase tracking-wide">
+            <button
+              type="button"
+              (click)="abrirFormularioEditar(direccion)"
+              class="cursor-pointer text-brand-ink hover:text-brand-gold"
+            >
+              Editar
+            </button>
+            @if (!direccion.predeterminada) {
+              <button
+                type="button"
+                (click)="marcarPredeterminada(direccion)"
+                class="cursor-pointer text-brand-ink hover:text-brand-gold"
+              >
+                Marcar predeterminada
+              </button>
+            }
+            <button
+              type="button"
+              (click)="eliminar(direccion)"
+              class="cursor-pointer text-red-600 hover:text-red-800"
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+@if (mostrarFormulario()) {
+  <div class="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
+    <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-sm bg-brand-bone p-8 shadow-lg">
+      <h2 class="font-display text-xl font-semibold text-brand-ink">
+        {{ direccionEditando() ? 'Editar dirección' : 'Nueva dirección' }}
+      </h2>
+
+      <form [formGroup]="direccionForm" (ngSubmit)="guardar()" class="mt-6 space-y-5">
+        <div>
+          <label for="alias" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+            Alias (ej. Casa, Oficina)
+          </label>
+          <input id="alias" type="text" formControlName="alias" class="input-field" />
+          @if (direccionForm.controls.alias.invalid && direccionForm.controls.alias.touched) {
+            <p class="mt-1 font-body text-xs text-red-600">El alias es requerido.</p>
+          }
+        </div>
+
+        <div>
+          <label for="nombreCompleto" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+            Nombre completo
+          </label>
+          <input id="nombreCompleto" type="text" formControlName="nombreCompleto" class="input-field" />
+          @if (direccionForm.controls.nombreCompleto.invalid && direccionForm.controls.nombreCompleto.touched) {
+            <p class="mt-1 font-body text-xs text-red-600">El nombre es requerido.</p>
+          }
+        </div>
+
+        <div>
+          <label for="direccion" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+            Dirección
+          </label>
+          <input id="direccion" type="text" formControlName="direccion" class="input-field" />
+          @if (direccionForm.controls.direccion.invalid && direccionForm.controls.direccion.touched) {
+            <p class="mt-1 font-body text-xs text-red-600">La dirección es requerida.</p>
+          }
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label for="ciudad" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              Ciudad
+            </label>
+            <input id="ciudad" type="text" formControlName="ciudad" class="input-field" />
+            @if (direccionForm.controls.ciudad.invalid && direccionForm.controls.ciudad.touched) {
+              <p class="mt-1 font-body text-xs text-red-600">La ciudad es requerida.</p>
+            }
+          </div>
+          <div>
+            <label for="codigoPostal" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              Código postal
+            </label>
+            <input id="codigoPostal" type="text" inputmode="numeric" formControlName="codigoPostal" class="input-field" />
+            @if (direccionForm.controls.codigoPostal.invalid && direccionForm.controls.codigoPostal.touched) {
+              <p class="mt-1 font-body text-xs text-red-600">Ingresa un código postal válido.</p>
+            }
+          </div>
+        </div>
+
+        <div>
+          <label for="telefono" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+            Teléfono
+          </label>
+          <input id="telefono" type="tel" formControlName="telefono" class="input-field" />
+          @if (direccionForm.controls.telefono.invalid && direccionForm.controls.telefono.touched) {
+            <p class="mt-1 font-body text-xs text-red-600">Ingresa un teléfono válido.</p>
+          }
+        </div>
+
+        <label class="flex cursor-pointer items-center gap-2 font-body text-sm text-brand-text">
+          <input type="checkbox" formControlName="predeterminada" />
+          Usar como dirección predeterminada
+        </label>
+
+        <div class="mt-8 flex items-center justify-end gap-4">
+          <button
+            type="button"
+            (click)="cerrarFormulario()"
+            class="cursor-pointer font-body text-sm uppercase tracking-wide text-brand-muted hover:text-brand-ink"
+          >
+            Cancelar
+          </button>
+          <button type="submit" class="btn-gold">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

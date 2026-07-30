@@ -1,5 +1,5 @@
 <header class="header-surface relative text-brand-bone">
-  <div class="mx-auto flex max-w-7xl items-center gap-4 px-6 py-4">
+  <div class="mx-auto flex max-w-7xl items-center gap-2 px-4 py-4 sm:gap-4 sm:px-6">
     <button
       type="button"
       (click)="abrirMenu()"
@@ -13,9 +13,11 @@
       <span class="block h-[2px] w-6 bg-current"></span>
     </button>
 
-    <a routerLink="/" class="flex items-center gap-3">
-      <img src="brand/logo-frank-jeans.png" alt="Frank Jeans" class="h-11 w-11 object-contain" />
-      <span class="font-display text-2xl tracking-[0.15em] text-brand-gold">FRANK JEANS</span>
+    <a routerLink="/" class="flex min-w-0 items-center gap-2 sm:gap-3">
+      <img src="brand/logo-frank-jeans.png" alt="Frank Jeans" class="h-9 w-9 shrink-0 object-contain sm:h-11 sm:w-11" />
+      <span class="truncate font-display text-base tracking-[0.1em] text-brand-gold sm:text-2xl sm:tracking-[0.15em]">
+        FRANK JEANS
+      </span>
     </a>
 
     <div class="hidden flex-1 justify-center px-6 md:flex">
@@ -28,62 +30,90 @@
       />
     </div>
 
-    <div class="ml-auto flex items-center gap-5 font-body text-sm uppercase tracking-wide">
-      <div class="relative">
-        @if (usuarioActual(); as usuario) {
-          <button
-            type="button"
-            (click)="alternarMenuUsuario()"
-            class="flex items-center gap-2 text-brand-bone/80 transition-colors hover:text-brand-gold"
-          >
-            <span class="normal-case">Hola, {{ usuario.nombre }}</span>
-          </button>
+    <div class="ml-auto flex items-center gap-3 font-body text-sm uppercase tracking-wide sm:gap-5">
+      @if (usuarioActual(); as usuario) {
+        <span class="hidden cursor-default select-none normal-case text-brand-bone/80 md:inline">
+          Hola, {{ usuario.nombre }}
+        </span>
+      } @else {
+        <a routerLink="/login" class="hidden text-brand-bone/80 transition-colors hover:text-brand-gold md:inline">
+          Iniciar sesión
+        </a>
+      }
 
-          @if (menuUsuarioAbierto()) {
-            <div
-              class="absolute right-0 top-full mt-3 w-52 rounded-sm border border-brand-bone/10 bg-brand-ink py-2 normal-case shadow-lg"
-            >
-              @if (usuario.rol === 'vendedor') {
-                <a
-                  routerLink="/vendedor/dashboard"
-                  (click)="menuUsuarioAbierto.set(false)"
-                  class="block px-4 py-2 text-brand-bone/80 transition-colors hover:text-brand-gold"
-                >
-                  Panel de vendedor
-                </a>
-              }
-              <button
-                type="button"
-                (click)="cerrarSesion()"
-                class="block w-full px-4 py-2 text-left text-brand-bone/80 transition-colors hover:text-brand-gold"
-              >
-                Cerrar sesión
-              </button>
-            </div>
-          }
-        } @else {
-          <a routerLink="/login" class="text-brand-bone/80 transition-colors hover:text-brand-gold">
-            Iniciar sesión
-          </a>
-        }
-      </div>
+      <button
+        type="button"
+        (click)="alternarBusquedaMovil()"
+        class="flex cursor-pointer items-center text-brand-bone/80 transition-colors hover:text-brand-gold md:hidden"
+        aria-label="Buscar"
+        [attr.aria-expanded]="busquedaMovilAbierta()"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+      </button>
 
-      <a routerLink="/carrito" class="relative text-brand-bone/80 transition-colors hover:text-brand-gold">
-        Carrito
-        <span class="badge absolute -right-3 -top-3">{{ cantidadCarrito() }}</span>
+      <a
+        routerLink="/favoritos"
+        class="relative flex items-center text-brand-bone/80 transition-colors hover:text-brand-gold"
+        aria-label="Favoritos"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5" aria-hidden="true">
+          <path
+            d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+          />
+        </svg>
+        <span
+          class="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-brand-gold text-[10px] font-semibold leading-none text-brand-ink"
+        >
+          {{ cantidadFavoritos() }}
+        </span>
       </a>
+
+      <a
+        routerLink="/carrito"
+        class="relative flex items-center text-brand-bone/80 transition-colors hover:text-brand-gold"
+        aria-label="Carrito"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5" aria-hidden="true">
+          <path
+            fill-rule="evenodd"
+            clip-rule="evenodd"
+            d="M7.5 6v.75H5.513c-.96 0-1.764.724-1.865 1.679l-1.263 12A1.875 1.875 0 0 0 4.25 22.5h15.5a1.875 1.875 0 0 0 1.865-2.071l-1.263-12a1.875 1.875 0 0 0-1.865-1.679H16.5V6a4.5 4.5 0 1 0-9 0ZM12 3a3 3 0 0 0-3 3v.75h6V6a3 3 0 0 0-3-3Zm-3 8.25a3 3 0 1 0 6 0v-.75a.75.75 0 0 1 1.5 0v.75a4.5 4.5 0 1 1-9 0v-.75a.75.75 0 0 1 1.5 0v.75Z"
+          />
+        </svg>
+        <span
+          class="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-brand-gold text-[10px] font-semibold leading-none text-brand-ink"
+        >
+          {{ cantidadCarrito() }}
+        </span>
+      </a>
+
+      @if (usuarioActual()) {
+        <a routerLink="/cuenta" class="flex items-center text-brand-bone/80 transition-colors hover:text-brand-gold" aria-label="Mi cuenta">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-5 w-5" aria-hidden="true">
+            <path
+              d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"
+            />
+          </svg>
+        </a>
+      }
     </div>
   </div>
 
-  <div class="border-t border-brand-bone/10 px-6 py-3 md:hidden">
-    <input
-      type="search"
-      [value]="terminoBusqueda()"
-      (input)="terminoBusqueda.set($any($event.target).value)"
-      placeholder="Buscar productos..."
-      class="w-full rounded-sm border border-brand-bone/20 bg-brand-bone/5 px-4 py-2 font-body text-sm text-brand-bone placeholder:text-brand-bone/50 focus:border-brand-gold focus:outline-none"
-    />
-  </div>
+  @if (busquedaMovilAbierta()) {
+    <div class="border-t border-brand-bone/10 px-4 py-3 sm:px-6 md:hidden">
+      <input
+        #inputBusquedaMovil
+        type="search"
+        [value]="terminoBusqueda()"
+        (input)="terminoBusqueda.set($any($event.target).value)"
+        placeholder="Buscar productos..."
+        class="w-full rounded-sm border border-brand-bone/20 bg-brand-bone/5 px-4 py-2 font-body text-sm text-brand-bone placeholder:text-brand-bone/50 focus:border-brand-gold focus:outline-none"
+      />
+    </div>
+  }
 </header>
 
 @if (menuAbierto()) {
@@ -111,11 +141,19 @@
       </div>
 
       <nav class="flex-1 px-6 py-6">
+        <a
+          routerLink="/catalogo"
+          (click)="cerrarMenu()"
+          class="mb-6 block border-b border-brand-bone/10 pb-4 font-display text-base tracking-[0.2em] text-brand-bone transition-colors hover:text-brand-gold"
+        >
+          VER TODO
+        </a>
+
         @for (audiencia of audiencias; track audiencia.valor) {
           <div class="mb-8">
-            <p class="font-display text-sm tracking-[0.2em] text-brand-gold">
+            <h3 class="cursor-default select-none font-display text-sm tracking-[0.2em] text-brand-gold">
               {{ audiencia.etiqueta.toUpperCase() }}
-            </p>
+            </h3>
             <ul class="mt-3 space-y-2">
               <li>
                 <a
@@ -143,8 +181,33 @@
       </nav>
 
       <div class="border-t border-brand-bone/10 px-6 py-5 font-body text-sm uppercase tracking-wide">
+        <a
+          routerLink="/favoritos"
+          (click)="cerrarMenu()"
+          class="block text-brand-bone/80 transition-colors hover:text-brand-gold"
+        >
+          Favoritos ({{ cantidadFavoritos() }})
+        </a>
+
+        <a
+          routerLink="/carrito"
+          (click)="cerrarMenu()"
+          class="mt-2 block text-brand-bone/80 transition-colors hover:text-brand-gold"
+        >
+          Carrito ({{ cantidadCarrito() }})
+        </a>
+
+        <div class="my-4 border-t border-brand-bone/10"></div>
+
         @if (usuarioActual(); as usuario) {
           <p class="normal-case text-brand-bone/60">Hola, {{ usuario.nombre }}</p>
+          <a
+            routerLink="/cuenta"
+            (click)="cerrarMenu()"
+            class="mt-3 block text-brand-bone/80 transition-colors hover:text-brand-gold"
+          >
+            Mi cuenta
+          </a>
           @if (usuario.rol === 'vendedor') {
             <a
               routerLink="/vendedor/dashboard"
@@ -154,11 +217,18 @@
               Panel de vendedor
             </a>
           }
+
+          <div class="my-4 border-t border-brand-bone/10"></div>
+
           <button
             type="button"
             (click)="cerrarSesion()"
-            class="mt-3 block cursor-pointer text-left text-brand-bone/80 transition-colors hover:text-brand-gold"
+            class="flex cursor-pointer items-center gap-2 text-left text-red-400 transition-colors hover:text-red-300"
           >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+              <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+              <line x1="12" y1="2" x2="12" y2="12" />
+            </svg>
             Cerrar sesión
           </button>
         } @else {
@@ -170,14 +240,6 @@
             Mi cuenta / Iniciar sesión
           </a>
         }
-
-        <a
-          routerLink="/carrito"
-          (click)="cerrarMenu()"
-          class="mt-4 block text-brand-bone/80 transition-colors hover:text-brand-gold"
-        >
-          Carrito ({{ cantidadCarrito() }})
-        </a>
       </div>
     </aside>
   </div>

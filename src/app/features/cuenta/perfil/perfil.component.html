@@ -1,0 +1,66 @@
+@if (usuarioActual(); as usuario) {
+  <div class="rounded-sm border border-brand-muted/20 bg-white/60 p-6 shadow-sm">
+    <h2 class="font-display text-xl font-semibold text-brand-ink">Información de tu cuenta</h2>
+    <p class="mt-1 font-body text-sm text-brand-muted">Esta es la información que registraste al crear tu cuenta.</p>
+
+    <dl class="mt-6 grid grid-cols-1 gap-x-8 gap-y-5 font-body text-sm sm:grid-cols-2">
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-brand-muted">Nombre</dt>
+        <dd class="mt-0.5 text-brand-text">{{ usuario.nombre }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-brand-muted">Correo electrónico</dt>
+        <dd class="mt-0.5 text-brand-text">{{ usuario.email }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-brand-muted">Teléfono</dt>
+        <dd class="mt-0.5 text-brand-text">{{ usuario.telefono || 'No registrado' }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-brand-muted">Tipo de cuenta</dt>
+        <dd class="mt-0.5 capitalize text-brand-text">{{ usuario.rol }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-brand-muted">Cliente desde</dt>
+        <dd class="mt-0.5 text-brand-text">{{ usuario.fechaRegistro | date: 'dd/MM/yyyy' }}</dd>
+      </div>
+    </dl>
+
+    <a routerLink="/cuenta/datos-personales" class="mt-6 inline-block font-body text-sm text-brand-gold hover:underline">
+      Editar mis datos personales →
+    </a>
+  </div>
+
+  <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <a
+      routerLink="/cuenta/pedidos"
+      class="rounded-sm border border-brand-muted/20 bg-white/60 p-5 font-body text-sm text-brand-text shadow-sm transition-colors hover:border-brand-gold"
+    >
+      <p class="font-display text-base text-brand-ink">Mis pedidos</p>
+      <p class="mt-1 text-brand-muted">Consulta el estado y el historial de tus compras.</p>
+    </a>
+    <a
+      routerLink="/cuenta/direcciones"
+      class="rounded-sm border border-brand-muted/20 bg-white/60 p-5 font-body text-sm text-brand-text shadow-sm transition-colors hover:border-brand-gold"
+    >
+      <p class="font-display text-base text-brand-ink">Direcciones</p>
+      <p class="mt-1 text-brand-muted">Administra tus direcciones de envío guardadas.</p>
+    </a>
+  </div>
+
+  @if (usuario.rol === 'vendedor') {
+    <a routerLink="/vendedor/dashboard" class="btn-gold mt-6 inline-flex">Ir al panel de vendedor</a>
+  }
+
+  <button
+    type="button"
+    (click)="cerrarSesion()"
+    class="mt-6 flex cursor-pointer items-center gap-2 font-body text-sm uppercase tracking-wide text-red-600 transition-colors hover:text-red-700"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+      <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+      <line x1="12" y1="2" x2="12" y2="12" />
+    </svg>
+    Cerrar sesión
+  </button>
+}

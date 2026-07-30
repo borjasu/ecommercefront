@@ -4,7 +4,10 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { CartService } from '../../core/services/cart.service';
 import { PedidoService } from '../../core/services/pedido.service';
+import { DireccionesService } from '../../core/services/direcciones.service';
 import { ItemCarrito } from '../../core/models/carrito.model';
+import { Color } from '../../core/models/producto.model';
+import { COLORES } from '../../shared/constants/colores';
 
 type MetodoPago = 'tarjeta' | 'efectivo';
 
@@ -19,6 +22,7 @@ export class CheckoutComponent {
   private readonly authService = inject(AuthService);
   private readonly cartService = inject(CartService);
   private readonly pedidoService = inject(PedidoService);
+  readonly direccionesService = inject(DireccionesService);
   private readonly router = inject(Router);
 
   readonly items = this.cartService.itemsCarrito;
@@ -27,6 +31,7 @@ export class CheckoutComponent {
   readonly pasoActual = signal<1 | 2 | 3>(1);
   readonly metodoPago = signal<MetodoPago>('tarjeta');
   readonly numeroPedido = signal<string | null>(null);
+  readonly direccionSeleccionadaId = signal<string | null>(null);
 
   readonly envioForm = this.fb.group({
     nombreCompleto: ['', [Validators.required]],
@@ -54,10 +59,35 @@ export class CheckoutComponent {
     if (usuario) {
       this.envioForm.patchValue({ nombreCompleto: usuario.nombre, email: usuario.email });
     }
+
+    const predeterminada = this.direccionesService.listado().find(direccion => direccion.predeterminada);
+    if (predeterminada) {
+      this.usarDireccionGuardada(predeterminada.id);
+    }
+  }
+
+  usarDireccionGuardada(id: string): void {
+    const direccion = this.direccionesService.listado().find(d => d.id === id);
+    if (!direccion) {
+      return;
+    }
+
+    this.direccionSeleccionadaId.set(id);
+    this.envioForm.patchValue({
+      nombreCompleto: direccion.nombreCompleto,
+      direccion: direccion.direccion,
+      ciudad: direccion.ciudad,
+      codigoPostal: direccion.codigoPostal,
+      telefono: direccion.telefono
+    });
   }
 
   subtotalLinea(item: ItemCarrito): number {
     return item.producto.precio * item.cantidad;
+  }
+
+  etiquetaDeColor(color: Color): string {
+    return COLORES.find(opcion => opcion.valor === color)?.etiqueta ?? color;
   }
 
   siguientePaso(): void {
