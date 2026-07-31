@@ -4,6 +4,7 @@ import { Producto } from '../../../core/models/producto.model';
 import { SelectorProductoModalService } from '../../../core/services/selector-producto-modal.service';
 import { FavoritosService } from '../../../core/services/favoritos.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { OfertaService } from '../../../core/services/oferta.service';
 
 @Component({
     selector: 'app-producto-card',
@@ -14,9 +15,14 @@ import { ToastService } from '../../../core/services/toast.service';
 export class ProductoCardComponent {
   private readonly modalService = inject(SelectorProductoModalService);
   private readonly toastService = inject(ToastService);
+  private readonly ofertaService = inject(OfertaService);
   readonly favoritosService = inject(FavoritosService);
 
   readonly producto = input.required<Producto>();
+
+  precioInfo() {
+    return this.ofertaService.calcularPrecio(this.producto());
+  }
 
   abrirModal(): void {
     this.modalService.abrir(this.producto());

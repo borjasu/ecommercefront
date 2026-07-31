@@ -6,6 +6,7 @@ import { CartService } from '../../core/services/cart.service';
 import { ProductoService } from '../../core/services/producto.service';
 import { FavoritosService } from '../../core/services/favoritos.service';
 import { ToastService } from '../../core/services/toast.service';
+import { OfertaService } from '../../core/services/oferta.service';
 import { Audiencia, Categoria, Color, Producto, Talla } from '../../core/models/producto.model';
 import { COLORES } from '../../shared/constants/colores';
 import { BreadcrumbComponent, BreadcrumbItem } from '../../shared/components/breadcrumb/breadcrumb.component';
@@ -36,6 +37,7 @@ export class ProductoDetalleComponent {
   private readonly productoService = inject(ProductoService);
   private readonly cartService = inject(CartService);
   private readonly toastService = inject(ToastService);
+  private readonly ofertaService = inject(OfertaService);
   readonly favoritosService = inject(FavoritosService);
 
   readonly producto = toSignal<Producto | undefined>(
@@ -65,6 +67,13 @@ export class ProductoDetalleComponent {
   });
 
   readonly coloresDisponibles = computed(() => this.producto()?.coloresDisponibles ?? []);
+
+  readonly precioInfo = computed(() => {
+    const producto = this.producto();
+    return producto
+      ? this.ofertaService.calcularPrecio(producto)
+      : { precioOriginal: 0, precioFinal: 0 };
+  });
 
   readonly puedeAgregar = computed(() => {
     const talla = this.tallaSeleccionada();

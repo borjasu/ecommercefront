@@ -9,6 +9,15 @@
           </span>
         </span>
       }
+      @if (precioInfo().oferta) {
+        <span
+          class="absolute left-3 z-10 rounded-[2px] bg-brand-oxide px-2 py-1 font-body text-xs font-semibold uppercase tracking-wider text-white"
+          [class.top-1]="!producto().etiqueta"
+          [class.top-9]="!!producto().etiqueta"
+        >
+          -{{ precioInfo().porcentajeDescuento }}%
+        </span>
+      }
       <img
         [src]="producto().imagenUrl"
         [alt]="producto().nombre"
@@ -41,7 +50,14 @@
     <a [routerLink]="['/producto', producto().id]" class="font-body text-sm text-brand-text hover:text-brand-gold">
       {{ producto().nombre }}
     </a>
-    <p class="font-body text-sm font-semibold text-brand-gold">${{ producto().precio }}</p>
+    @if (precioInfo().oferta) {
+      <p class="flex items-center gap-2 font-body text-sm">
+        <span class="text-brand-muted line-through">${{ precioInfo().precioOriginal }}</span>
+        <span class="font-semibold text-brand-oxide">${{ precioInfo().precioFinal }}</span>
+      </p>
+    } @else {
+      <p class="font-body text-sm font-semibold text-brand-gold">${{ producto().precio }}</p>
+    }
   </div>
 
   <button type="button" class="btn-gold mt-3 w-full truncate" (click)="abrirModal()">AGREGAR</button>
