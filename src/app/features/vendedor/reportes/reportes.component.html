@@ -1,0 +1,121 @@
+<div class="p-8">
+  <h1 class="font-display text-3xl font-semibold text-brand-ink">Reportes</h1>
+  <p class="mt-1 font-body text-sm text-brand-muted">Analiza el desempeño de ventas de tu tienda.</p>
+
+  <div class="mt-6 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex flex-wrap gap-2">
+      @for (preset of presets; track preset.valor) {
+        <button
+          type="button"
+          (click)="aplicarPreset(preset.valor)"
+          [class]="
+            presetActivo() === preset.valor
+              ? 'cursor-pointer rounded-sm border border-brand-gold bg-brand-gold px-3 py-1.5 font-body text-xs font-semibold uppercase tracking-wide text-brand-ink'
+              : 'cursor-pointer rounded-sm border border-brand-muted px-3 py-1.5 font-body text-xs uppercase tracking-wide text-brand-text transition-colors duration-150 hover:border-brand-gold'
+          "
+        >
+          {{ preset.etiqueta }}
+        </button>
+      }
+    </div>
+
+    <div class="flex items-center gap-2">
+      <input
+        type="date"
+        [value]="fechaDesde()"
+        (change)="onFechaDesdeChange($any($event.target).value)"
+        class="input-field !py-1.5 text-sm"
+      />
+      <span class="text-brand-muted">–</span>
+      <input
+        type="date"
+        [value]="fechaHasta()"
+        (change)="onFechaHastaChange($any($event.target).value)"
+        class="input-field !py-1.5 text-sm"
+      />
+    </div>
+  </div>
+
+  <div class="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-3">
+    <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
+      <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Ingresos en el periodo</p>
+      <p class="mt-2 font-display text-3xl font-semibold text-brand-gold">${{ ingresosTotales() }}</p>
+    </div>
+    <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
+      <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Pedidos en el periodo</p>
+      <p class="mt-2 font-display text-3xl font-semibold text-brand-ink">{{ totalPedidos() }}</p>
+    </div>
+    <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
+      <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Ticket promedio</p>
+      <p class="mt-2 font-display text-3xl font-semibold text-brand-ink">${{ ticketPromedio() }}</p>
+    </div>
+  </div>
+
+  <div class="mt-10">
+    <div class="flex items-center justify-between">
+      <h2 class="font-display text-xl font-semibold text-brand-ink">Ventas por periodo</h2>
+      <div class="flex items-center gap-1 rounded-[2px] border border-brand-muted/40 p-1">
+        @for (opcion of opcionesGranularidad; track opcion.valor) {
+          <button
+            type="button"
+            (click)="granularidad.set(opcion.valor)"
+            [class]="
+              granularidad() === opcion.valor
+                ? 'cursor-pointer rounded-[2px] bg-brand-ink px-3 py-1 font-body text-xs uppercase tracking-wide text-brand-gold'
+                : 'cursor-pointer rounded-[2px] px-3 py-1 font-body text-xs uppercase tracking-wide text-brand-muted'
+            "
+          >
+            {{ opcion.etiqueta }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="mt-4 rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
+      @if (serieVentas().length === 0) {
+        <p class="font-body text-sm text-brand-muted">No hay ventas en este periodo.</p>
+      } @else {
+        <div class="flex h-56 items-end gap-2 overflow-x-auto">
+          @for (punto of serieVentas(); track punto.etiqueta) {
+            <div class="flex h-full min-w-10 flex-1 flex-col items-center justify-end gap-2">
+              <span class="font-utility text-[11px] text-brand-muted">${{ punto.total }}</span>
+              <div
+                class="w-full rounded-t-[2px] bg-brand-gold transition-all duration-300"
+                [style.height.%]="alturaBarra(punto.total)"
+              ></div>
+              <span class="font-body text-[11px] uppercase tracking-wide text-brand-muted">{{ punto.etiqueta }}</span>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <div class="mt-10">
+    <h2 class="font-display text-xl font-semibold text-brand-ink">Productos más vendidos</h2>
+    <div class="mt-4 overflow-hidden rounded-sm border border-brand-muted/30 bg-white/60 shadow-sm">
+      @if (productosMasVendidos().length === 0) {
+        <p class="p-6 font-body text-sm text-brand-muted">No hay ventas registradas en este periodo.</p>
+      } @else {
+        <table class="w-full text-left">
+          <thead>
+            <tr class="border-b border-brand-muted/20 font-body text-xs uppercase tracking-wide text-brand-muted">
+              <th class="px-6 py-3">Producto</th>
+              <th class="px-6 py-3">Cantidad vendida</th>
+              <th class="px-6 py-3">Ingresos generados</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-brand-muted/20">
+            @for (producto of productosMasVendidos(); track producto.productoId) {
+              <tr>
+                <td class="px-6 py-3 font-body text-sm text-brand-text">{{ producto.nombre }}</td>
+                <td class="px-6 py-3 font-body text-sm text-brand-muted">{{ producto.cantidad }}</td>
+                <td class="px-6 py-3 font-body text-sm font-semibold text-brand-gold">${{ producto.ingresos }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </div>
+</div>
