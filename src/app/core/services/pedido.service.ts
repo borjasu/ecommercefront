@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
-import { EstadoPedido, Pedido } from '../models/pedido.model';
+import { EstadoPago, EstadoPedido, InfoEnvio, Pedido } from '../models/pedido.model';
 
 const CLAVE_PEDIDOS = 'pedidos_data';
 
@@ -10,11 +10,12 @@ const CLAVE_PEDIDOS = 'pedidos_data';
 export class PedidoService {
   private pedidos: Pedido[] = this.leerPedidosGuardados();
 
-  crearPedido(datos: Omit<Pedido, 'id' | 'estado' | 'fecha'>): Observable<Pedido> {
+  crearPedido(datos: Omit<Pedido, 'id' | 'estado' | 'estadoPago' | 'fecha'>): Observable<Pedido> {
     const nuevoPedido: Pedido = {
       ...datos,
       id: crypto.randomUUID(),
       estado: 'pendiente',
+      estadoPago: 'pendiente',
       fecha: new Date().toISOString()
     };
 
@@ -32,8 +33,20 @@ export class PedidoService {
     return of(this.pedidos.find(pedido => pedido.id === id));
   }
 
-  actualizarEstado(id: string, estado: EstadoPedido): Observable<Pedido> {
-    this.pedidos = this.pedidos.map(pedido => (pedido.id === id ? { ...pedido, estado } : pedido));
+  actualizarEstado(id: string, estado: EstadoPedido, infoEnvio?: InfoEnvio): Observable<Pedido> {
+    this.pedidos = this.pedidos.map(pedido =>
+      pedido.id === id
+        ? { ...pedido, estado, ...(infoEnvio ? { infoEnvio: { ...pedido.infoEnvio, ...infoEnvio } } : {}) }
+        : pedido
+    );
+    this.guardarPedidos();
+
+    const actualizado = this.pedidos.find(pedido => pedido.id === id);
+    return of(actualizado as Pedido);
+  }
+
+  actualizarEstadoPago(id: string, estadoPago: EstadoPago): Observable<Pedido> {
+    this.pedidos = this.pedidos.map(pedido => (pedido.id === id ? { ...pedido, estadoPago } : pedido));
     this.guardarPedidos();
 
     const actualizado = this.pedidos.find(pedido => pedido.id === id);
@@ -46,6 +59,19 @@ export class PedidoService {
 
   private leerPedidosGuardados(): Pedido[] {
     const guardados = localStorage.getItem(CLAVE_PEDIDOS);
-    return guardados ? (JSON.parse(guardados) as Pedido[]) : [];
+
+    if (!guardados) {
+      return [];
+    }
+
+    const pedidos = (JSON.parse(guardados) as Partial<Pedido>[]).map(
+      pedido =>
+        ({
+          estadoPago: 'pendiente' as EstadoPago,
+          ...pedido
+        }) as Pedido
+    );
+    localStorage.setItem(CLAVE_PEDIDOS, JSON.stringify(pedidos));
+    return pedidos;
   }
 }
