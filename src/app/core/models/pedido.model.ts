@@ -1,8 +1,8 @@
-import { ItemCarrito } from './carrito.model';
+import { Color, Producto, Talla } from './producto.model';
 
 export type EstadoPedido = 'pendiente' | 'enviado' | 'entregado' | 'cancelado';
 export type EstadoPago = 'pendiente' | 'pagado' | 'reembolsado';
-export type Paqueteria = 'DHL' | 'FedEx' | 'Estafeta' | 'Correos de México' | 'Otro';
+export type MetodoPago = 'tarjeta' | 'efectivo';
 
 export interface DatosEnvio {
   nombreCompleto: string;
@@ -13,22 +13,38 @@ export interface DatosEnvio {
 }
 
 export interface InfoEnvio {
-  paqueteria?: Paqueteria;
-  numeroGuia?: string;
-  urlRastreo?: string;
-  fechaEnvio?: string;
+  paqueteria: string | null;
+  idEnvioSkydropx: string | null;
+  numeroGuia: string | null;
+  urlEtiqueta: string | null;
+  urlRastreo: string | null;
+  fechaEnvio: string | null;
+}
+
+export interface ItemPedido {
+  id: string;
+  productoId: string;
+  producto: Producto;
+  talla: Talla;
+  color: Color;
+  cantidad: number;
+  precioUnitario: number;
 }
 
 export interface Pedido {
   id: string;
   numeroPedido: string;
-  items: ItemCarrito[];
+  usuarioId: string;
+  // Solo viene poblado en las respuestas del lado vendedor (/vendedor/pedidos).
+  usuario?: { id: string; nombre: string; email: string };
+  items: ItemPedido[];
+  subtotal: number;
+  costoEnvio: number;
   total: number;
   datosEnvio: DatosEnvio;
-  metodoPago: 'tarjeta' | 'efectivo';
+  metodoPago: MetodoPago;
   estado: EstadoPedido;
   estadoPago: EstadoPago;
-  infoEnvio?: InfoEnvio;
+  infoEnvio: InfoEnvio;
   fecha: string;
-  emailComprador?: string;
 }

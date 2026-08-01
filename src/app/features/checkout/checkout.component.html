@@ -11,7 +11,7 @@
     <h1 class="font-display text-3xl font-semibold text-brand-ink">Checkout</h1>
 
     <div class="mt-8 flex items-center justify-center">
-      @for (paso of [1, 2, 3]; track paso) {
+      @for (paso of [1, 2, 3, 4]; track paso) {
         <div class="flex items-center">
           <div
             class="flex h-9 w-9 items-center justify-center rounded-full border font-body text-sm font-semibold"
@@ -23,7 +23,7 @@
           >
             {{ paso }}
           </div>
-          @if (paso < 3) {
+          @if (paso < 4) {
             <div class="h-px w-10 bg-brand-muted/30"></div>
           }
         </div>
@@ -56,128 +56,193 @@
           }
         </div>
         <div class="mt-6 flex items-center justify-between border-t border-brand-muted/20 pt-6">
-          <p class="font-body text-lg font-semibold text-brand-ink">Total</p>
-          <p class="font-body text-lg font-semibold text-brand-gold">${{ total() }}</p>
+          <p class="font-body text-lg font-semibold text-brand-ink">Subtotal</p>
+          <p class="font-body text-lg font-semibold text-brand-gold">${{ subtotal() }}</p>
         </div>
+        <p class="mt-1 font-body text-xs text-brand-muted">El costo de envío se calcula en el siguiente paso.</p>
       }
 
       @if (pasoActual() === 2) {
-        <h2 class="font-display text-xl font-semibold text-brand-ink">Datos de envío</h2>
+        <h2 class="font-display text-xl font-semibold text-brand-ink">Dirección de envío</h2>
 
         @if (direccionesService.listado().length > 0) {
-          <div class="mt-6">
-            <label for="direccionGuardada" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-              Usar una dirección guardada
-            </label>
-            <select
-              id="direccionGuardada"
-              class="input-field"
-              [value]="direccionSeleccionadaId() ?? ''"
-              (change)="usarDireccionGuardada($any($event.target).value)"
-            >
-              <option value="" disabled>Selecciona una dirección</option>
-              @for (direccion of direccionesService.listado(); track direccion.id) {
-                <option [value]="direccion.id">{{ direccion.alias }} — {{ direccion.direccion }}, {{ direccion.ciudad }}</option>
-              }
-            </select>
-            <p class="mt-1 font-body text-xs text-brand-muted">
-              Se completan los campos de abajo; puedes ajustarlos antes de continuar.
-            </p>
+          <div class="mt-6 space-y-3">
+            @for (direccion of direccionesService.listado(); track direccion.id) {
+              <label
+                class="flex cursor-pointer items-start gap-3 rounded-sm border p-4 transition-colors"
+                [class.border-brand-gold]="direccionSeleccionadaId() === direccion.id"
+                [class.border-brand-muted]="direccionSeleccionadaId() !== direccion.id"
+              >
+                <input
+                  type="radio"
+                  name="direccion"
+                  class="mt-1"
+                  [checked]="direccionSeleccionadaId() === direccion.id"
+                  (change)="seleccionarDireccion(direccion.id)"
+                />
+                <span class="flex-1">
+                  <span class="block font-body text-sm font-semibold text-brand-text">{{ direccion.alias }}</span>
+                  <span class="mt-1 block font-body text-xs text-brand-muted">
+                    {{ direccion.nombreCompleto }} · {{ direccion.direccion }}, {{ direccion.ciudad }}, CP
+                    {{ direccion.codigoPostal }} · Tel: {{ direccion.telefono }}
+                  </span>
+                </span>
+              </label>
+            }
           </div>
         }
 
-        <form [formGroup]="envioForm" class="mt-6 space-y-5">
-          <div>
-            <label for="nombreCompleto" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-              Nombre completo
-            </label>
-            <input
-              id="nombreCompleto"
-              type="text"
-              formControlName="nombreCompleto"
-              class="input-field"
-              autocomplete="name"
-            />
-            @if (envioForm.controls.nombreCompleto.invalid && envioForm.controls.nombreCompleto.touched) {
-              <p class="mt-1 font-body text-xs text-red-600">El nombre es requerido.</p>
-            }
-          </div>
-
-          <div>
-            <label for="email" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-              Correo electrónico
-            </label>
-            <input
-              id="email"
-              type="email"
-              formControlName="email"
-              class="input-field disabled:cursor-not-allowed disabled:opacity-60"
-            />
-          </div>
-
-          <div>
-            <label for="direccion" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-              Dirección
-            </label>
-            <input
-              id="direccion"
-              type="text"
-              formControlName="direccion"
-              class="input-field"
-              autocomplete="street-address"
-            />
-            @if (envioForm.controls.direccion.invalid && envioForm.controls.direccion.touched) {
-              <p class="mt-1 font-body text-xs text-red-600">La dirección es requerida.</p>
-            }
-          </div>
-
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        @if (!mostrarNuevaDireccion()) {
+          <button
+            type="button"
+            (click)="abrirNuevaDireccion()"
+            class="mt-6 cursor-pointer font-body text-sm uppercase tracking-wide text-brand-gold hover:underline"
+          >
+            + Agregar nueva dirección
+          </button>
+        } @else {
+          <form [formGroup]="nuevaDireccionForm" class="mt-6 space-y-5 rounded-sm border border-brand-muted/20 p-5">
             <div>
-              <label for="ciudad" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                Ciudad
+              <label for="alias" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                Alias (ej. Casa, Oficina)
+              </label>
+              <input id="alias" type="text" formControlName="alias" class="input-field" />
+            </div>
+
+            <div>
+              <label for="nombreCompleto" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                Nombre completo
               </label>
               <input
-                id="ciudad"
+                id="nombreCompleto"
                 type="text"
-                formControlName="ciudad"
+                formControlName="nombreCompleto"
                 class="input-field"
-                autocomplete="address-level2"
+                autocomplete="name"
               />
-              @if (envioForm.controls.ciudad.invalid && envioForm.controls.ciudad.touched) {
-                <p class="mt-1 font-body text-xs text-red-600">La ciudad es requerida.</p>
+              @if (nuevaDireccionForm.controls.nombreCompleto.invalid && nuevaDireccionForm.controls.nombreCompleto.touched) {
+                <p class="mt-1 font-body text-xs text-red-600">El nombre es requerido.</p>
               }
             </div>
+
             <div>
-              <label for="codigoPostal" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                Código postal
+              <label for="direccion" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                Dirección
               </label>
               <input
-                id="codigoPostal"
+                id="direccion"
                 type="text"
-                inputmode="numeric"
-                formControlName="codigoPostal"
+                formControlName="direccion"
                 class="input-field"
-                autocomplete="postal-code"
+                autocomplete="street-address"
               />
-              @if (envioForm.controls.codigoPostal.invalid && envioForm.controls.codigoPostal.touched) {
-                <p class="mt-1 font-body text-xs text-red-600">Ingresa un código postal válido.</p>
+              @if (nuevaDireccionForm.controls.direccion.invalid && nuevaDireccionForm.controls.direccion.touched) {
+                <p class="mt-1 font-body text-xs text-red-600">La dirección es requerida.</p>
               }
             </div>
-          </div>
 
-          <div>
-            <label for="telefono" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-              Teléfono
-            </label>
-            <input id="telefono" type="tel" formControlName="telefono" class="input-field" autocomplete="tel" />
-            @if (envioForm.controls.telefono.invalid && envioForm.controls.telefono.touched) {
-              <p class="mt-1 font-body text-xs text-red-600">Ingresa un teléfono válido.</p>
-            }
-          </div>
-        </form>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label for="ciudad" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                  Ciudad
+                </label>
+                <input
+                  id="ciudad"
+                  type="text"
+                  formControlName="ciudad"
+                  class="input-field"
+                  autocomplete="address-level2"
+                />
+                @if (nuevaDireccionForm.controls.ciudad.invalid && nuevaDireccionForm.controls.ciudad.touched) {
+                  <p class="mt-1 font-body text-xs text-red-600">La ciudad es requerida.</p>
+                }
+              </div>
+              <div>
+                <label for="codigoPostal" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                  Código postal
+                </label>
+                <input
+                  id="codigoPostal"
+                  type="text"
+                  inputmode="numeric"
+                  formControlName="codigoPostal"
+                  class="input-field"
+                  autocomplete="postal-code"
+                />
+                @if (nuevaDireccionForm.controls.codigoPostal.invalid && nuevaDireccionForm.controls.codigoPostal.touched) {
+                  <p class="mt-1 font-body text-xs text-red-600">Ingresa un código postal válido.</p>
+                }
+              </div>
+            </div>
+
+            <div>
+              <label for="telefono" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                Teléfono
+              </label>
+              <input id="telefono" type="tel" formControlName="telefono" class="input-field" autocomplete="tel" />
+              @if (nuevaDireccionForm.controls.telefono.invalid && nuevaDireccionForm.controls.telefono.touched) {
+                <p class="mt-1 font-body text-xs text-red-600">Ingresa un teléfono válido.</p>
+              }
+            </div>
+
+            <div class="flex items-center gap-4">
+              <button type="button" (click)="guardarNuevaDireccion()" class="btn-gold">Guardar dirección</button>
+              <button
+                type="button"
+                (click)="cancelarNuevaDireccion()"
+                class="cursor-pointer font-body text-sm uppercase tracking-wide text-brand-muted hover:text-brand-ink"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        }
       }
 
       @if (pasoActual() === 3) {
+        <h2 class="font-display text-xl font-semibold text-brand-ink">Elige tu envío</h2>
+
+        @if (cotizando()) {
+          <div class="mt-8 flex flex-col items-center gap-3 py-10 text-center">
+            <div class="h-8 w-8 animate-spin rounded-full border-2 border-brand-gold border-t-transparent"></div>
+            <p class="font-body text-sm text-brand-muted">Cotizando opciones de envío con la paquetería…</p>
+          </div>
+        } @else if (errorCotizacion()) {
+          <div class="mt-8 flex flex-col items-center gap-4 py-10 text-center">
+            <p class="font-body text-sm text-brand-muted">{{ errorCotizacion() }}</p>
+            <button type="button" (click)="reintentarCotizacion()" class="btn-gold">Reintentar</button>
+          </div>
+        } @else {
+          <div class="mt-6 space-y-3">
+            @for (opcion of opcionesEnvio(); track opcion.rateId) {
+              <label
+                class="flex cursor-pointer items-center justify-between gap-3 rounded-sm border p-4 transition-colors"
+                [class.border-brand-gold]="rateSeleccionado() === opcion.rateId"
+                [class.border-brand-muted]="rateSeleccionado() !== opcion.rateId"
+              >
+                <span class="flex items-start gap-3">
+                  <input
+                    type="radio"
+                    name="rate"
+                    class="mt-1"
+                    [checked]="rateSeleccionado() === opcion.rateId"
+                    (change)="seleccionarRate(opcion.rateId)"
+                  />
+                  <span>
+                    <span class="block font-body text-sm font-semibold text-brand-text">
+                      {{ opcion.paqueteria }} · {{ opcion.servicio }}
+                    </span>
+                    <span class="mt-1 block font-body text-xs text-brand-muted">Entrega estimada: {{ opcion.tiempoEstimado }}</span>
+                  </span>
+                </span>
+                <span class="font-body text-sm font-semibold text-brand-gold">${{ opcion.costo }}</span>
+              </label>
+            }
+          </div>
+        }
+      }
+
+      @if (pasoActual() === 4) {
         <h2 class="font-display text-xl font-semibold text-brand-ink">Método de pago</h2>
         <div class="mt-6 space-y-3">
           <label class="flex cursor-pointer items-center gap-3 rounded-sm border border-brand-muted/30 p-4">
@@ -205,6 +270,12 @@
         @if (metodoPago() === 'tarjeta') {
           <form [formGroup]="tarjetaForm" class="mt-6 space-y-5">
             <div>
+              <label for="nombreTitular" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                Nombre del titular
+              </label>
+              <input id="nombreTitular" type="text" formControlName="nombreTitular" class="input-field" />
+            </div>
+            <div>
               <label for="numeroTarjeta" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
                 Número de tarjeta
               </label>
@@ -216,29 +287,48 @@
                 placeholder="0000 0000 0000 0000"
               />
             </div>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-3 gap-4">
               <div>
-                <label for="vencimiento" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                  Vencimiento
+                <label for="mesVencimiento" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                  Mes
                 </label>
-                <input
-                  id="vencimiento"
-                  type="text"
-                  formControlName="vencimiento"
-                  class="input-field"
-                  placeholder="MM/AA"
-                />
+                <input id="mesVencimiento" type="text" formControlName="mesVencimiento" class="input-field" placeholder="MM" />
+              </div>
+              <div>
+                <label for="anioVencimiento" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                  Año
+                </label>
+                <input id="anioVencimiento" type="text" formControlName="anioVencimiento" class="input-field" placeholder="AAAA" />
               </div>
               <div>
                 <label for="cvv" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">CVV</label>
                 <input id="cvv" type="text" formControlName="cvv" class="input-field" placeholder="123" />
               </div>
             </div>
+            <div>
+              <label for="paymentMethodId" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                Tipo de tarjeta
+              </label>
+              <select id="paymentMethodId" formControlName="paymentMethodId" class="input-field">
+                <option value="visa">Visa</option>
+                <option value="master">Mastercard</option>
+                <option value="amex">American Express</option>
+              </select>
+            </div>
             <p class="font-body text-xs text-brand-muted">
-              Simulación visual: estos datos no se validan ni se envían a ninguna pasarela de pago.
+              Tu pago se procesa de forma segura con Mercado Pago; nunca almacenamos los datos de tu tarjeta.
             </p>
           </form>
         }
+
+        @if (errorPago()) {
+          <p class="mt-4 font-body text-sm text-red-600">{{ errorPago() }}</p>
+        }
+
+        <div class="mt-6 flex items-center justify-between border-t border-brand-muted/20 pt-6">
+          <p class="font-body text-lg font-semibold text-brand-ink">Total</p>
+          <p class="font-body text-lg font-semibold text-brand-gold">${{ totalConEnvio() }}</p>
+        </div>
       }
 
       <div class="mt-10 flex items-center justify-between">
@@ -246,7 +336,8 @@
           <button
             type="button"
             (click)="pasoAnterior()"
-            class="cursor-pointer font-body text-sm uppercase tracking-wide text-brand-muted hover:text-brand-ink"
+            [disabled]="procesando()"
+            class="cursor-pointer font-body text-sm uppercase tracking-wide text-brand-muted hover:text-brand-ink disabled:cursor-not-allowed disabled:opacity-60"
           >
             Atrás
           </button>
@@ -254,10 +345,25 @@
           <span></span>
         }
 
-        @if (pasoActual() < 3) {
-          <button type="button" (click)="siguientePaso()" class="btn-gold">Siguiente</button>
+        @if (pasoActual() === 1) {
+          <button type="button" (click)="irAPaso(2)" class="btn-gold">Siguiente</button>
+        } @else if (pasoActual() === 2) {
+          <button type="button" [disabled]="!direccionSeleccionadaId()" (click)="irAPasoEnvio()" class="btn-gold disabled:cursor-not-allowed disabled:opacity-50">
+            Siguiente
+          </button>
+        } @else if (pasoActual() === 3) {
+          <button
+            type="button"
+            [disabled]="!rateSeleccionado()"
+            (click)="irAPasoPago()"
+            class="btn-gold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Siguiente
+          </button>
         } @else {
-          <button type="button" (click)="confirmarPedido()" class="btn-gold">Confirmar pedido</button>
+          <button type="button" [disabled]="procesando()" (click)="confirmarPedido()" class="btn-gold disabled:cursor-not-allowed disabled:opacity-60">
+            {{ procesando() ? 'Procesando…' : 'Confirmar pedido' }}
+          </button>
         }
       </div>
     </div>
