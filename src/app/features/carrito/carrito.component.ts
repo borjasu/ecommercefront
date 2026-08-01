@@ -24,7 +24,7 @@ export class CarritoComponent {
   readonly totalArticulos = this.cartService.cantidadItems;
 
   subtotal(item: ItemCarrito): number {
-    return item.producto.precio * item.cantidad;
+    return (item.producto.precioFinal ?? item.producto.precio) * item.cantidad;
   }
 
   incrementar(item: ItemCarrito): void {

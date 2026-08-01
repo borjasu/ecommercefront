@@ -16,8 +16,11 @@ export class CartService {
     this.items().reduce((total, item) => total + item.cantidad, 0)
   );
 
+  // precioFinal ya trae aplicada la oferta vigente (viene del backend); si no
+  // está presente por algún motivo, cae al precio base — nunca al revés, para
+  // que lo que se ve en el carrito coincida con lo que de verdad se cobra.
   readonly total = computed(() =>
-    this.items().reduce((total, item) => total + item.producto.precio * item.cantidad, 0)
+    this.items().reduce((total, item) => total + (item.producto.precioFinal ?? item.producto.precio) * item.cantidad, 0)
   );
 
   constructor() {

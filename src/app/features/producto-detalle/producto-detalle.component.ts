@@ -7,6 +7,7 @@ import { ProductoService } from '../../core/services/producto.service';
 import { FavoritosService } from '../../core/services/favoritos.service';
 import { ToastService } from '../../core/services/toast.service';
 import { OfertaService } from '../../core/services/oferta.service';
+import { AuthService } from '../../core/services/auth.service';
 import { Audiencia, Categoria, Color, Producto, Talla } from '../../core/models/producto.model';
 import { ColoresService } from '../../core/services/colores.service';
 import { BreadcrumbComponent, BreadcrumbItem } from '../../shared/components/breadcrumb/breadcrumb.component';
@@ -40,6 +41,7 @@ export class ProductoDetalleComponent {
   private readonly ofertaService = inject(OfertaService);
   private readonly coloresService = inject(ColoresService);
   readonly favoritosService = inject(FavoritosService);
+  private readonly authService = inject(AuthService);
 
   readonly producto = toSignal<Producto | undefined>(
     this.route.paramMap.pipe(
@@ -122,6 +124,11 @@ export class ProductoDetalleComponent {
   alternarFavorito(): void {
     const producto = this.producto();
     if (!producto) {
+      return;
+    }
+
+    if (!this.authService.currentUser()) {
+      this.toastService.error('Inicia sesión para guardar tus favoritos.');
       return;
     }
 
