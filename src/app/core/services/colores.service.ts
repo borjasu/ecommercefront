@@ -1,4 +1,6 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { API_URL } from '../config/api.config';
 import { Color } from '../models/producto.model';
 
 export interface ColorOpcion {
@@ -7,30 +9,49 @@ export interface ColorOpcion {
   hex: string;
 }
 
-// Debe coincidir exactamente con el enum `color_enum` de Postgres en el backend
-// (src/entities/enums.ts) — el backend no soporta colores personalizados por
-// vendedor todavía (requeriría migrar el enum fijo a una tabla con FK), así
-// que por ahora la lista es fija en ambos lados.
-const COLORES_BASE: ColorOpcion[] = [
-  { valor: 'negro', etiqueta: 'Negro', hex: '#14110d' },
-  { valor: 'azul', etiqueta: 'Azul', hex: '#2b3a55' },
-  { valor: 'gris', etiqueta: 'Gris', hex: '#8a8a8a' },
-  { valor: 'beige', etiqueta: 'Beige', hex: '#d9c9a3' },
-  { valor: 'blanco', etiqueta: 'Blanco', hex: '#f5f5f0' },
-  { valor: 'cafe', etiqueta: 'Café', hex: '#6b4226' }
-];
+interface ColorApi {
+  id: string;
+  nombre: string;
+  valorHex: string | null;
+  activo: boolean;
+}
+
+const HEX_FALLBACK = '#9c9c9c';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ColoresService {
-  readonly listado = () => COLORES_BASE;
+  private readonly http = inject(HttpClient);
+
+  private readonly colores = signal<ColorOpcion[]>([]);
+
+  readonly listado = this.colores.asReadonly();
+
+  // Catálogo dinámico (backend real, ver modules/catalogos) — público y casi
+  // estático, se carga una sola vez por sesión de la app (el servicio es
+  // providedIn: 'root', no depende del login).
+  constructor() {
+    this.http.get<ColorApi[]>(`${API_URL}/colores`).subscribe(colores => {
+      this.colores.set(
+        colores.map(color => ({
+          valor: color.nombre,
+          etiqueta: this.capitalizar(color.nombre),
+          hex: color.valorHex ?? HEX_FALLBACK
+        }))
+      );
+    });
+  }
 
   etiquetaDe(valor: Color): string {
-    return COLORES_BASE.find(opcion => opcion.valor === valor)?.etiqueta ?? valor;
+    return this.colores().find(opcion => opcion.valor === valor)?.etiqueta ?? valor;
   }
 
   hexDe(valor: Color): string {
-    return COLORES_BASE.find(opcion => opcion.valor === valor)?.hex ?? '#9c9c9c';
+    return this.colores().find(opcion => opcion.valor === valor)?.hex ?? HEX_FALLBACK;
+  }
+
+  private capitalizar(texto: string): string {
+    return texto.length > 0 ? texto.charAt(0).toUpperCase() + texto.slice(1) : texto;
   }
 }

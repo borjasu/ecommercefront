@@ -11,7 +11,12 @@ import { AuthService } from '../../../core/services/auth.service';
     selector: 'app-producto-card',
     imports: [RouterLink],
     changeDetection: ChangeDetectionStrategy.Eager,
-    templateUrl: './producto-card.component.html'
+    templateUrl: './producto-card.component.html',
+    // El host debe estirarse a la altura de la celda del grid (align-items:
+    // stretch es el default de CSS Grid) — sin esto, <article> solo toma su
+    // altura de contenido y el botón "AGREGAR" queda a distinta altura entre
+    // tarjetas de la misma fila según qué tan largo sea el nombre del producto.
+    host: { class: 'block h-full' }
 })
 export class ProductoCardComponent {
   private readonly modalService = inject(SelectorProductoModalService);

@@ -1,14 +1,29 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { API_URL } from '../config/api.config';
 import { Talla } from '../models/producto.model';
 
-// Debe coincidir exactamente con el enum `talla_enum` de Postgres en el backend
-// (src/entities/enums.ts) — el backend no soporta tallas personalizadas por
-// vendedor todavía, así que por ahora la lista es fija en ambos lados.
-const TALLAS_BASE: Talla[] = ['S', 'M', 'L', 'XL'];
+interface TallaApi {
+  id: string;
+  nombre: string;
+  orden: number;
+  activo: boolean;
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class TallasService {
-  readonly listado = () => TALLAS_BASE;
+  private readonly http = inject(HttpClient);
+
+  private readonly tallas = signal<Talla[]>([]);
+
+  readonly listado = this.tallas.asReadonly();
+
+  // El backend ya ordena por `orden` (S/M/L/XL...), no hace falta reordenar aquí.
+  constructor() {
+    this.http.get<TallaApi[]>(`${API_URL}/tallas`).subscribe(tallas => {
+      this.tallas.set(tallas.map(talla => talla.nombre));
+    });
+  }
 }

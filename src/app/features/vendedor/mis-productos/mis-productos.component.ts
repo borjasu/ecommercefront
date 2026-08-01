@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, effect, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { delay } from 'rxjs';
 import { ProductoService } from '../../../core/services/producto.service';
@@ -80,6 +80,30 @@ export class MisProductosComponent {
 
   constructor() {
     this.cargarProductosIniciales();
+
+    // colores()/tallas() vienen de un GET async (catálogo dinámico real, ver
+    // modules/catalogos) — al construirse el componente ese fetch normalmente
+    // ya resolvió (los servicios son providedIn:'root' y se piden desde antes
+    // en la navegación), pero por si no: los sub-FormGroup de checkboxes se
+    // arman con Object.fromEntries al momento en que corre este effect, y
+    // `.reset()` no agrega controles nuevos a un FormGroup ya construido — sin
+    // este effect, si el fetch tarda, el formulario quedaría con 0 casillas.
+    effect(() => {
+      const tallas = this.tallas();
+      const colores = this.colores();
+
+      this.productoForm.setControl(
+        'tallas',
+        this.fb.group(
+          Object.fromEntries(tallas.map(talla => [talla, this.fb.control(false)])),
+          { validators: alMenosUnaTallaValidator }
+        )
+      );
+      this.productoForm.setControl(
+        'colores',
+        this.fb.group(Object.fromEntries(colores.map(opcion => [opcion.valor, this.fb.control(false)])))
+      );
+    });
   }
 
   reintentar(): void {

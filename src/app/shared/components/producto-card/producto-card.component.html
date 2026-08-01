@@ -1,4 +1,4 @@
-<article class="flex flex-col">
+<article class="flex h-full flex-col">
   <div class="relative overflow-hidden rounded-xl bg-white">
     <a [routerLink]="['/producto', producto().id]" class="relative block">
       @if (producto().etiqueta) {
@@ -47,7 +47,10 @@
   </div>
 
   <div class="mt-4 flex flex-col gap-1">
-    <a [routerLink]="['/producto', producto().id]" class="font-body text-sm text-brand-text hover:text-brand-gold">
+    <a
+      [routerLink]="['/producto', producto().id]"
+      class="line-clamp-2 font-body text-sm text-brand-text hover:text-brand-gold"
+    >
       {{ producto().nombre }}
     </a>
     @if (precioInfo().porcentajeDescuento) {
@@ -60,5 +63,5 @@
     }
   </div>
 
-  <button type="button" class="btn-gold mt-3 w-full truncate" (click)="abrirModal()">AGREGAR</button>
+  <button type="button" class="btn-gold mt-auto w-full truncate" (click)="abrirModal()">AGREGAR</button>
 </article>
