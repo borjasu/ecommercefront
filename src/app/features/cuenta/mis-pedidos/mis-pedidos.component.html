@@ -68,6 +68,23 @@
 
                 <h3 class="mt-6 font-body text-xs uppercase tracking-wide text-brand-muted">Método de pago</h3>
                 <p class="mt-2 font-body text-sm capitalize text-brand-text">{{ pedido.metodoPago }}</p>
+
+                @if (pedido.infoEnvio?.numeroGuia) {
+                  <h3 class="mt-6 font-body text-xs uppercase tracking-wide text-brand-muted">Guía de rastreo</h3>
+                  <div class="mt-2 space-y-1 font-body text-sm text-brand-text">
+                    <p>{{ pedido.infoEnvio?.paqueteria }} · {{ pedido.infoEnvio?.numeroGuia }}</p>
+                    @if (pedido.infoEnvio?.urlRastreo) {
+                      <a
+                        [href]="pedido.infoEnvio?.urlRastreo"
+                        target="_blank"
+                        rel="noopener"
+                        class="text-brand-gold hover:underline"
+                      >
+                        Ver rastreo
+                      </a>
+                    }
+                  </div>
+                }
               </div>
             </div>
           }

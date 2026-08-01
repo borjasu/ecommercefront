@@ -48,7 +48,7 @@
   <div class="mt-6">
     <p class="font-body text-xs font-semibold uppercase tracking-wide text-brand-muted">Talla</p>
     <ul class="mt-3 flex flex-wrap gap-2">
-      @for (talla of tallas; track talla) {
+      @for (talla of tallas(); track talla) {
         <li>
           <label
             class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-[2px] border font-body text-sm transition-colors"
@@ -69,7 +69,7 @@
   <div class="mt-6">
     <p class="font-body text-xs font-semibold uppercase tracking-wide text-brand-muted">Color</p>
     <ul class="mt-3 flex flex-wrap gap-3">
-      @for (color of colores; track color.valor) {
+      @for (color of colores(); track color.valor) {
         <li>
           <label
             [attr.title]="color.etiqueta"
@@ -259,7 +259,20 @@
     }
 
     <div class="flex-1">
-      @if (cargando()) {
+      @if (error()) {
+        <div class="flex flex-col items-center gap-4 py-16 text-center">
+          <p class="font-body text-sm text-brand-muted">
+            No pudimos cargar los productos. Intenta de nuevo.
+          </p>
+          <button
+            type="button"
+            (click)="reintentar()"
+            class="cursor-pointer rounded-[2px] border border-brand-muted px-6 py-2 font-body text-sm uppercase tracking-wide text-brand-text transition-colors hover:border-brand-gold hover:text-brand-gold"
+          >
+            Reintentar
+          </button>
+        </div>
+      } @else if (cargando()) {
         <div class="grid gap-6" [class]="claseGrid()">
           @for (indice of [1, 2, 3, 4, 5, 6, 7, 8]; track indice) {
             <app-producto-card-skeleton />
@@ -267,10 +280,21 @@
         </div>
       } @else if (productos().length > 0) {
         <div class="grid gap-6" [class]="claseGrid()">
-          @for (producto of productos(); track producto.id) {
+          @for (producto of productosVisibles(); track producto.id) {
             <app-producto-card [producto]="producto" />
           }
         </div>
+        @if (hayMasProductos()) {
+          <div class="mt-10 flex justify-center">
+            <button
+              type="button"
+              (click)="cargarMasProductos()"
+              class="cursor-pointer rounded-[2px] border border-brand-muted px-6 py-3 font-body text-sm uppercase tracking-wide text-brand-text transition-colors hover:border-brand-gold hover:text-brand-gold"
+            >
+              Cargar más
+            </button>
+          </div>
+        }
       } @else {
         <p class="py-16 text-center font-body text-sm text-brand-muted">
           {{ mensajeVacio() }}

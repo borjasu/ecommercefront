@@ -1,0 +1,67 @@
+<div class="p-4 sm:p-8">
+  <h1 class="font-body text-3xl font-bold text-brand-ink">Pagos</h1>
+  <p class="mt-1 font-body text-sm text-brand-muted">
+    Historial simulado de pagos por pedido. Todavía no hay integración con una pasarela real.
+  </p>
+
+  <div class="mt-6 flex flex-wrap gap-2">
+    @for (filtro of filtros; track filtro.valor) {
+      <button
+        type="button"
+        (click)="filtroActual.set(filtro.valor)"
+        [class]="
+          filtroActual() === filtro.valor
+            ? 'cursor-pointer rounded-sm border border-brand-gold bg-brand-gold px-4 py-2 font-body text-sm font-semibold uppercase tracking-wide text-brand-ink'
+            : 'cursor-pointer rounded-sm border border-brand-muted px-4 py-2 font-body text-sm uppercase tracking-wide text-brand-text transition-colors duration-150 hover:border-brand-gold'
+        "
+      >
+        {{ filtro.etiqueta }}
+      </button>
+    }
+  </div>
+
+  <div class="mt-6 overflow-hidden rounded-sm border border-brand-muted/30 bg-white/60 shadow-sm">
+    @if (pedidosFiltrados().length === 0) {
+      <p class="p-6 font-body text-sm text-brand-muted">No hay pedidos para este filtro.</p>
+    } @else {
+      <div class="overflow-x-auto">
+      <table class="w-full text-left">
+        <thead>
+          <tr class="border-b border-brand-muted/20 font-body text-xs uppercase tracking-wide text-brand-muted">
+            <th class="px-6 py-3">Número</th>
+            <th class="px-6 py-3">Fecha</th>
+            <th class="px-6 py-3">Método de pago</th>
+            <th class="px-6 py-3">Monto</th>
+            <th class="px-6 py-3">Estado de pago</th>
+            <th class="px-6 py-3">Cambiar estado</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-brand-muted/20">
+          @for (pedido of pedidosFiltrados(); track pedido.id) {
+            <tr>
+              <td class="px-6 py-4 font-body text-sm text-brand-text">{{ pedido.numeroPedido }}</td>
+              <td class="px-6 py-4 font-body text-sm text-brand-muted">{{ pedido.fecha | date: 'dd/MM/yyyy HH:mm' }}</td>
+              <td class="px-6 py-4 font-body text-sm capitalize text-brand-text">{{ pedido.metodoPago }}</td>
+              <td class="px-6 py-4 font-body text-sm font-semibold text-brand-gold">${{ pedido.total }}</td>
+              <td class="px-6 py-4">
+                <span class="badge">{{ etiquetaEstadoPago(pedido.estadoPago) }}</span>
+              </td>
+              <td class="px-6 py-4">
+                <select
+                  [value]="pedido.estadoPago"
+                  (change)="cambiarEstadoPago(pedido, $any($event.target).value)"
+                  class="input-field !py-1.5 text-sm"
+                >
+                  @for (estado of estadosPago; track estado) {
+                    <option [value]="estado">{{ etiquetaEstadoPago(estado) }}</option>
+                  }
+                </select>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+      </div>
+    }
+  </div>
+</div>

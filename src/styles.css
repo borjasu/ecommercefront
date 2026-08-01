@@ -39,11 +39,11 @@
     cursor: pointer;
   }
 
-  input[type='checkbox'], input[type='radio'] {
+  input[type='checkbox'], input[type='radio'], select, select * {
     cursor: pointer;
   }
 
-  input:not([type='checkbox']):not([type='radio']), textarea, select, [contenteditable='true'] {
+  input:not([type='checkbox']):not([type='radio']), textarea, [contenteditable='true'] {
     cursor: text;
   }
 }
@@ -70,6 +70,20 @@
 
   .input-field {
     @apply w-full rounded-[2px] border border-brand-muted/50 bg-white px-4 py-3 font-body text-sm text-brand-text placeholder:text-brand-muted focus:border-brand-gold focus:outline-none;
+  }
+
+  /* Los <select> heredan .input-field pero el navegador dibuja su propia
+     flecha (gris, inconsistente entre navegadores) encima del padding
+     normal, lo que se ve "sin diseño". Se apaga esa flecha nativa y se
+     dibuja una propia con el color de marca, con espacio dedicado. */
+  select.input-field {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237a7568' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.85rem center;
+    background-size: 1rem;
+    padding-right: 2.5rem;
   }
 
   /* Divisor tipo puntada: detalle sutil, no usar en todos los separadores */

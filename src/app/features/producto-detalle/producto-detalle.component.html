@@ -38,6 +38,15 @@
           @if (producto.etiqueta) {
             <span class="badge absolute left-4 top-4 z-10">{{ producto.etiqueta }}</span>
           }
+          @if (precioInfo().oferta) {
+            <span
+              class="absolute left-4 z-10 rounded-[2px] bg-brand-oxide px-2 py-1 font-body text-xs font-semibold uppercase tracking-wider text-white"
+              [class.top-4]="!producto.etiqueta"
+              [class.top-14]="!!producto.etiqueta"
+            >
+              -{{ precioInfo().porcentajeDescuento }}%
+            </span>
+          }
 
           <button
             type="button"
@@ -100,7 +109,14 @@
         <div>
           <h1 class="font-display text-3xl font-semibold text-brand-ink">{{ producto.nombre }}</h1>
           <p class="mt-1 font-utility text-xs uppercase tracking-wide text-brand-muted">SKU: {{ producto.sku }}</p>
-          <p class="mt-2 font-body text-xl font-semibold text-brand-gold">${{ producto.precio }}</p>
+          @if (precioInfo().oferta) {
+            <p class="mt-2 flex items-center gap-3 font-body text-xl">
+              <span class="text-brand-muted line-through">${{ precioInfo().precioOriginal }}</span>
+              <span class="font-semibold text-brand-oxide">${{ precioInfo().precioFinal }}</span>
+            </p>
+          } @else {
+            <p class="mt-2 font-body text-xl font-semibold text-brand-gold">${{ producto.precio }}</p>
+          }
         </div>
 
         <p class="font-body text-sm leading-relaxed text-brand-muted">{{ producto.descripcion }}</p>

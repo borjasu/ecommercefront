@@ -1,8 +1,8 @@
 export type Categoria = 'pantalon' | 'playera' | 'camisa' | 'bermuda';
-export type Talla = 'S' | 'M' | 'L' | 'XL';
+export type Talla = string;
 export type Etiqueta = 'NUEVO' | 'ESENCIAL' | null;
 export type Audiencia = 'hombre' | 'nino';
-export type Color = 'negro' | 'azul' | 'gris' | 'beige' | 'blanco' | 'cafe';
+export type Color = string;
 
 export interface Producto {
   id: string;

@@ -1,56 +1,134 @@
-<div class="flex min-h-screen bg-brand-bone">
-  <aside class="flex w-64 flex-col bg-brand-ink text-brand-bone">
-    <div class="px-6 py-6">
-      <div class="flex items-center gap-2">
-        <img src="brand/logo-frank-jeans.png" alt="Frank Jeans" class="h-8 w-8 object-contain" />
-        <p class="font-display text-lg tracking-[0.1em] text-brand-gold">FRANK JEANS</p>
-      </div>
-      <p class="mt-1 font-body text-xs uppercase tracking-wide text-brand-bone/60">Panel de vendedor</p>
+<ng-template #navContenido>
+  <div class="px-6 py-6">
+    <div class="flex items-center gap-2">
+      <img src="brand/logo-frank-jeans.png" alt="Frank Jeans" class="h-8 w-8 object-contain" />
+      <p class="font-display text-lg tracking-[0.1em] text-brand-gold">FRANK JEANS</p>
     </div>
+    <p class="mt-1 font-body text-xs uppercase tracking-wide text-brand-bone/60">Panel de vendedor</p>
+  </div>
 
-    <nav class="flex flex-1 flex-col gap-1 px-3 font-body text-sm">
-      <a
-        routerLink="/vendedor/dashboard"
-        routerLinkActive="bg-brand-bone/10 text-brand-gold"
-        class="rounded-sm px-3 py-2 text-brand-bone/80 transition-colors hover:text-brand-gold"
-      >
-        Dashboard
-      </a>
-      <a
-        routerLink="/vendedor/mis-productos"
-        routerLinkActive="bg-brand-bone/10 text-brand-gold"
-        class="rounded-sm px-3 py-2 text-brand-bone/80 transition-colors hover:text-brand-gold"
-      >
-        Mis Productos
-      </a>
-      <a
-        routerLink="/vendedor/pedidos"
-        routerLinkActive="bg-brand-bone/10 text-brand-gold"
-        class="rounded-sm px-3 py-2 text-brand-bone/80 transition-colors hover:text-brand-gold"
-      >
-        Pedidos
-      </a>
-    </nav>
+  <nav class="flex flex-1 flex-col gap-1 px-3 font-body text-sm">
+    <a
+      routerLink="/vendedor/dashboard"
+      routerLinkActive="bg-brand-bone/10 text-brand-gold"
+      (click)="cerrarMenu()"
+      class="rounded-sm px-3 py-2 text-brand-bone/80 transition-colors hover:text-brand-gold"
+    >
+      Dashboard
+    </a>
+    <a
+      routerLink="/vendedor/mis-productos"
+      routerLinkActive="bg-brand-bone/10 text-brand-gold"
+      (click)="cerrarMenu()"
+      class="rounded-sm px-3 py-2 text-brand-bone/80 transition-colors hover:text-brand-gold"
+    >
+      Mis Productos
+    </a>
+    <a
+      routerLink="/vendedor/pedidos"
+      routerLinkActive="bg-brand-bone/10 text-brand-gold"
+      (click)="cerrarMenu()"
+      class="rounded-sm px-3 py-2 text-brand-bone/80 transition-colors hover:text-brand-gold"
+    >
+      Pedidos
+    </a>
+    <a
+      routerLink="/vendedor/ofertas"
+      routerLinkActive="bg-brand-bone/10 text-brand-gold"
+      (click)="cerrarMenu()"
+      class="rounded-sm px-3 py-2 text-brand-bone/80 transition-colors hover:text-brand-gold"
+    >
+      Ofertas
+    </a>
+    <a
+      routerLink="/vendedor/reportes"
+      routerLinkActive="bg-brand-bone/10 text-brand-gold"
+      (click)="cerrarMenu()"
+      class="rounded-sm px-3 py-2 text-brand-bone/80 transition-colors hover:text-brand-gold"
+    >
+      Reportes
+    </a>
+    <a
+      routerLink="/vendedor/pagos"
+      routerLinkActive="bg-brand-bone/10 text-brand-gold"
+      (click)="cerrarMenu()"
+      class="rounded-sm px-3 py-2 text-brand-bone/80 transition-colors hover:text-brand-gold"
+    >
+      Pagos
+    </a>
+  </nav>
 
-    <div class="border-t border-brand-bone/10 px-3 py-4">
-      @if (usuarioActual(); as usuario) {
-        <p class="px-3 pb-2 font-body text-xs text-brand-bone/60">{{ usuario.nombre }}</p>
-      }
-      <button
-        type="button"
-        (click)="cerrarSesion()"
-        class="flex w-full cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-left font-body text-sm text-red-400 transition-colors hover:text-red-300"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
-          <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
-          <line x1="12" y1="2" x2="12" y2="12" />
-        </svg>
-        Cerrar sesión
-      </button>
+  <div class="border-t border-brand-bone/10 px-3 py-4">
+    @if (usuarioActual(); as usuario) {
+      <p class="px-3 pb-2 font-body text-xs text-brand-bone/60">{{ usuario.nombre }}</p>
+    }
+    <button
+      type="button"
+      (click)="cerrarSesion()"
+      class="flex w-full cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-left font-body text-sm text-red-400 transition-colors hover:text-red-300"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+        <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+        <line x1="12" y1="2" x2="12" y2="12" />
+      </svg>
+      Cerrar sesión
+    </button>
+  </div>
+</ng-template>
+
+<div class="flex min-h-screen flex-col bg-brand-bone md:flex-row">
+  <div class="flex items-center justify-between border-b border-brand-bone/10 bg-brand-ink px-4 py-3 text-brand-bone md:hidden">
+    <div class="flex items-center gap-2">
+      <img src="brand/logo-frank-jeans.png" alt="Frank Jeans" class="h-8 w-8 object-contain" />
+      <p class="font-display text-base tracking-[0.1em] text-brand-gold">FRANK JEANS</p>
     </div>
+    <button
+      type="button"
+      (click)="abrirMenu()"
+      class="flex h-9 w-9 shrink-0 cursor-pointer flex-col items-center justify-center gap-[5px] text-brand-bone/80 transition-colors hover:text-brand-gold"
+      aria-label="Abrir menú"
+      aria-haspopup="true"
+      [attr.aria-expanded]="menuAbierto()"
+    >
+      <span class="block h-[2px] w-6 bg-current"></span>
+      <span class="block h-[2px] w-6 bg-current"></span>
+      <span class="block h-[2px] w-6 bg-current"></span>
+    </button>
+  </div>
+
+  <aside class="hidden w-64 shrink-0 flex-col bg-brand-ink text-brand-bone md:flex">
+    <ng-container [ngTemplateOutlet]="navContenido" />
   </aside>
 
-  <main class="flex-1">
+  @if (menuAbierto()) {
+    <div class="fixed inset-0 z-50 bg-black/50 md:hidden" (click)="cerrarMenu()">
+      <aside
+        #drawer
+        class="fixed left-0 top-0 z-50 flex h-full w-72 max-w-[85vw] flex-col overflow-y-auto bg-brand-ink text-brand-bone shadow-lg outline-none"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menú del panel de vendedor"
+        tabindex="-1"
+        (click)="$event.stopPropagation()"
+        (keydown)="onDrawerKeydown($event)"
+      >
+        <div class="flex items-center justify-between border-b border-brand-bone/10 px-6 py-5">
+          <span class="font-display text-lg tracking-[0.1em] text-brand-gold">MENÚ</span>
+          <button
+            type="button"
+            (click)="cerrarMenu()"
+            class="cursor-pointer text-brand-bone/70 hover:text-brand-gold"
+            aria-label="Cerrar menú"
+          >
+            ✕
+          </button>
+        </div>
+        <ng-container [ngTemplateOutlet]="navContenido" />
+      </aside>
+    </div>
+  }
+
+  <main class="min-w-0 flex-1">
     <router-outlet />
   </main>
 

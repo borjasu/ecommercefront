@@ -26,8 +26,31 @@
 </section>
 
 <section class="mx-auto max-w-7xl px-6 py-16">
-  <h1 class="font-display text-3xl text-brand-ink">DESTACADOS</h1>
-  <p class="mt-1 font-body text-sm text-brand-muted">Lo más nuevo del taller, elegido para ti.</p>
+  <div class="flex items-start justify-between gap-4">
+    <div>
+      <h1 class="font-display text-3xl text-brand-ink">DESTACADOS</h1>
+      <p class="mt-1 font-body text-sm text-brand-muted">Lo más nuevo del taller, elegido para ti.</p>
+    </div>
+    @if (!cargandoDestacados() && hayLoop()) {
+      <button
+        type="button"
+        (click)="alternarPausa()"
+        [attr.aria-label]="pausado() ? 'Reanudar carrusel' : 'Pausar carrusel'"
+        [attr.aria-pressed]="pausado()"
+        class="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-brand-muted bg-white text-brand-text transition-colors hover:border-brand-gold hover:text-brand-gold"
+      >
+        @if (pausado()) {
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true">
+            <path d="M6 4.5v15l13-7.5-13-7.5Z" />
+          </svg>
+        } @else {
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true">
+            <path d="M6 4.5h4v15H6v-15Zm8 0h4v15h-4v-15Z" />
+          </svg>
+        }
+      </button>
+    }
+  </div>
 
   @if (cargandoDestacados()) {
     <div class="mt-8 flex gap-6">

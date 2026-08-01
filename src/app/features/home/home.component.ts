@@ -25,6 +25,7 @@ export class HomeComponent {
   readonly cargandoDestacados = signal(true);
   readonly indice = signal(ITEMS_VISIBLES);
   readonly transicionActiva = signal(true);
+  readonly pausado = signal(false);
 
   readonly hayLoop = computed(() => this.destacados().length > ITEMS_VISIBLES);
 
@@ -50,7 +51,15 @@ export class HomeComponent {
 
     interval(INTERVALO_CARRUSEL_MS)
       .pipe(takeUntilDestroyed())
-      .subscribe(() => this.siguiente());
+      .subscribe(() => {
+        if (!this.pausado()) {
+          this.siguiente();
+        }
+      });
+  }
+
+  alternarPausa(): void {
+    this.pausado.update(pausado => !pausado);
   }
 
   siguiente(): void {

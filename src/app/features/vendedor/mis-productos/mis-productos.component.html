@@ -1,14 +1,41 @@
-<div class="p-8">
-  <div class="flex items-center justify-between">
+<div class="p-4 sm:p-8">
+  <div class="flex flex-wrap items-center justify-between gap-4">
     <div>
-      <h1 class="font-display text-3xl font-semibold text-brand-ink">Mis Productos</h1>
+      <h1 class="font-body text-3xl font-bold text-brand-ink">Mis Productos</h1>
       <p class="mt-1 font-body text-sm text-brand-muted">Administra el catálogo de tu tienda.</p>
     </div>
     <button type="button" (click)="abrirFormularioNuevo()" class="btn-gold">Agregar producto</button>
   </div>
 
-  <div class="mt-8 overflow-hidden rounded-sm border border-brand-muted/30 bg-white/60 shadow-sm">
-    @if (cargando()) {
+  <div class="mt-6 flex flex-wrap gap-2">
+    @for (filtro of filtrosCategoria; track filtro.valor) {
+      <button
+        type="button"
+        (click)="cambiarFiltroCategoria(filtro.valor)"
+        [class]="
+          filtroCategoria() === filtro.valor
+            ? 'cursor-pointer rounded-sm border border-brand-gold bg-brand-gold px-4 py-2 font-body text-sm font-semibold uppercase tracking-wide text-brand-ink'
+            : 'cursor-pointer rounded-sm border border-brand-muted px-4 py-2 font-body text-sm uppercase tracking-wide text-brand-text transition-colors duration-150 hover:border-brand-gold'
+        "
+      >
+        {{ filtro.etiqueta }}
+      </button>
+    }
+  </div>
+
+  <div class="mt-6 overflow-hidden rounded-sm border border-brand-muted/30 bg-white/60 shadow-sm">
+    @if (error()) {
+      <div class="flex flex-col items-center gap-4 p-10 text-center">
+        <p class="font-body text-sm text-brand-muted">No pudimos cargar tus productos. Intenta de nuevo.</p>
+        <button
+          type="button"
+          (click)="reintentar()"
+          class="cursor-pointer rounded-[2px] border border-brand-muted px-6 py-2 font-body text-sm uppercase tracking-wide text-brand-text transition-colors hover:border-brand-gold hover:text-brand-gold"
+        >
+          Reintentar
+        </button>
+      </div>
+    } @else if (cargando()) {
       <div class="divide-y divide-brand-muted/20 p-6">
         @for (indice of [1, 2, 3, 4]; track indice) {
           <div class="flex animate-pulse items-center gap-4 py-3">
@@ -17,9 +44,12 @@
           </div>
         }
       </div>
-    } @else if (productos().length === 0) {
-      <p class="p-6 font-body text-sm text-brand-muted">Todavía no has agregado productos.</p>
+    } @else if (productosFiltrados().length === 0) {
+      <p class="p-6 font-body text-sm text-brand-muted">
+        {{ productos().length === 0 ? 'Todavía no has agregado productos.' : 'No hay productos en esta categoría.' }}
+      </p>
     } @else {
+      <div class="overflow-x-auto">
       <table class="w-full text-left">
         <thead>
           <tr class="border-b border-brand-muted/20 font-body text-xs uppercase tracking-wide text-brand-muted">
@@ -35,7 +65,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-brand-muted/20">
-          @for (producto of productos(); track producto.id) {
+          @for (producto of productosVisibles(); track producto.id) {
             <tr>
               <td class="px-6 py-3">
                 <img [src]="producto.imagenUrl" [alt]="producto.nombre" class="h-14 w-11 rounded-sm object-cover" />
@@ -50,24 +80,53 @@
                   <span class="badge">{{ producto.etiqueta }}</span>
                 }
               </td>
-              <td class="px-6 py-3 font-body text-sm text-brand-muted">
-                {{ producto.destacado ? '★' : '' }}
+              <td class="px-6 py-3">
+                <div class="flex items-center justify-center">
+                  @if (producto.destacado) {
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="#c9a227"
+                      stroke="#c9a227"
+                      stroke-width="1"
+                      stroke-linejoin="round"
+                      class="h-4 w-4"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6-5.9-3.3-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8Z" />
+                    </svg>
+                    <span class="sr-only">Destacado</span>
+                  }
+                </div>
               </td>
               <td class="px-6 py-3">
-                <div class="flex gap-3 font-body text-sm">
+                <div class="flex items-center gap-3">
                   <button
                     type="button"
                     (click)="abrirFormularioEditar(producto)"
-                    class="cursor-pointer text-brand-ink hover:text-brand-gold"
+                    aria-label="Editar producto"
+                    title="Editar"
+                    class="flex h-8 w-8 cursor-pointer items-center justify-center text-brand-ink transition-colors hover:text-brand-gold"
                   >
-                    Editar
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
                   </button>
                   <button
                     type="button"
                     (click)="eliminar(producto)"
-                    class="cursor-pointer text-red-600 hover:text-red-800"
+                    aria-label="Eliminar producto"
+                    title="Eliminar"
+                    class="flex h-8 w-8 cursor-pointer items-center justify-center text-red-500 transition-colors hover:text-red-700"
                   >
-                    Eliminar
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+                      <path d="M3 6h18" />
+                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                      <line x1="10" y1="11" x2="10" y2="17" />
+                      <line x1="14" y1="11" x2="14" y2="17" />
+                    </svg>
                   </button>
                 </div>
               </td>
@@ -75,6 +134,18 @@
           }
         </tbody>
       </table>
+      </div>
+      @if (hayMasProductos()) {
+        <div class="flex justify-center border-t border-brand-muted/20 p-4">
+          <button
+            type="button"
+            (click)="cargarMasProductos()"
+            class="cursor-pointer rounded-[2px] border border-brand-muted px-6 py-2 font-body text-sm uppercase tracking-wide text-brand-text transition-colors hover:border-brand-gold hover:text-brand-gold"
+          >
+            Cargar más
+          </button>
+        </div>
+      }
     }
   </div>
 </div>
@@ -82,133 +153,321 @@
 @if (mostrarFormulario()) {
   <div class="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
     <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-sm bg-brand-bone p-8 shadow-lg">
-      <h2 class="font-display text-xl font-semibold text-brand-ink">
+      <h2 class="font-body text-xl font-bold text-brand-ink">
         {{ productoEditando() ? 'Editar producto' : 'Nuevo producto' }}
       </h2>
 
-      <form [formGroup]="productoForm" (ngSubmit)="guardar()" class="mt-6 space-y-5">
-        <div>
-          <label for="nombre" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">Nombre</label>
-          <input id="nombre" type="text" formControlName="nombre" class="input-field" />
-          @if (productoForm.controls.nombre.invalid && productoForm.controls.nombre.touched) {
-            <p class="mt-1 font-body text-xs text-red-600">El nombre es requerido.</p>
-          }
-        </div>
+      <form [formGroup]="productoForm" (ngSubmit)="guardar()" class="mt-6 space-y-8">
+        <div class="space-y-5">
+          <p class="font-body text-xs font-bold tracking-[0.1em] text-brand-gold">INFORMACIÓN GENERAL</p>
 
-        <div>
-          <label for="descripcion" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-            Descripción
-          </label>
-          <textarea id="descripcion" formControlName="descripcion" rows="3" class="input-field"></textarea>
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
           <div>
-            <label for="precio" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">Precio</label>
-            <input id="precio" type="number" formControlName="precio" class="input-field" min="0.01" step="0.01" />
-            @if (productoForm.controls.precio.invalid && productoForm.controls.precio.touched) {
-              <p class="mt-1 font-body text-xs text-red-600">El precio debe ser mayor a 0.</p>
+            <label for="nombre" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">Nombre</label>
+            <input id="nombre" type="text" formControlName="nombre" class="input-field" />
+            @if (productoForm.controls.nombre.invalid && productoForm.controls.nombre.touched) {
+              <p class="mt-1 font-body text-xs text-red-600">El nombre es requerido.</p>
             }
           </div>
 
           <div>
-            <label for="categoria" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-              Categoría
+            <label for="descripcion" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              Descripción
             </label>
-            <select id="categoria" formControlName="categoria" class="input-field">
-              @for (opcion of categorias; track opcion.valor) {
-                <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
+            <textarea id="descripcion" formControlName="descripcion" rows="3" class="input-field"></textarea>
+          </div>
+
+          <div>
+            <label class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">Imagen</label>
+            <div class="flex items-center gap-4">
+              @if (productoForm.controls.imagenUrl.value) {
+                <img
+                  [src]="productoForm.controls.imagenUrl.value"
+                  alt="Vista previa"
+                  class="h-20 w-16 shrink-0 rounded-sm border border-brand-muted/30 object-cover"
+                />
+              } @else {
+                <div
+                  class="flex h-20 w-16 shrink-0 items-center justify-center rounded-sm border border-dashed border-brand-muted/40 font-body text-[10px] text-brand-muted"
+                >
+                  Sin imagen
+                </div>
               }
-            </select>
+              <div class="flex-1">
+                <input
+                  #inputImagen
+                  type="file"
+                  accept="image/*"
+                  class="hidden"
+                  (change)="onArchivoImagenSeleccionado($event)"
+                />
+                <button
+                  type="button"
+                  (click)="inputImagen.click()"
+                  class="cursor-pointer rounded-[2px] border border-brand-muted px-4 py-2 font-body text-xs uppercase tracking-wide text-brand-text transition-colors hover:border-brand-gold hover:text-brand-gold"
+                >
+                  Subir imagen
+                </button>
+                <input
+                  id="imagenUrl"
+                  type="text"
+                  formControlName="imagenUrl"
+                  class="input-field mt-2"
+                  placeholder="O pega una URL: https://picsum.photos/seed/xxx/400/500"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label for="audiencia" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-              Audiencia
-            </label>
-            <select id="audiencia" formControlName="audiencia" class="input-field">
-              @for (opcion of audiencias; track opcion.valor) {
-                <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
+        <div class="space-y-5 border-t border-brand-muted/20 pt-6">
+          <p class="font-body text-xs font-bold tracking-[0.1em] text-brand-gold">PRECIO Y CLASIFICACIÓN</p>
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label for="precio" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">Precio</label>
+              <input id="precio" type="number" formControlName="precio" class="input-field" min="0.01" step="0.01" />
+              @if (productoForm.controls.precio.invalid && productoForm.controls.precio.touched) {
+                <p class="mt-1 font-body text-xs text-red-600">El precio debe ser mayor a 0.</p>
               }
-            </select>
-            @if (productoForm.controls.audiencia.invalid && productoForm.controls.audiencia.touched) {
-              <p class="mt-1 font-body text-xs text-red-600">Selecciona una audiencia.</p>
+            </div>
+
+            <div>
+              <label for="categoria" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                Categoría
+              </label>
+              <select id="categoria" formControlName="categoria" class="input-field">
+                @for (opcion of categorias; track opcion.valor) {
+                  <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label for="audiencia" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                Audiencia
+              </label>
+              <select id="audiencia" formControlName="audiencia" class="input-field">
+                @for (opcion of audiencias; track opcion.valor) {
+                  <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
+                }
+              </select>
+              @if (productoForm.controls.audiencia.invalid && productoForm.controls.audiencia.touched) {
+                <p class="mt-1 font-body text-xs text-red-600">Selecciona una audiencia.</p>
+              }
+            </div>
+
+            <div>
+              <label for="etiqueta" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                Etiqueta
+              </label>
+              <select id="etiqueta" formControlName="etiqueta" class="input-field">
+                <option value="NINGUNA">Ninguna</option>
+                <option value="NUEVO">Nuevo</option>
+                <option value="ESENCIAL">Esencial</option>
+              </select>
+            </div>
+          </div>
+
+          <label class="flex cursor-pointer items-center gap-2 font-body text-sm text-brand-text">
+            <input type="checkbox" formControlName="destacado" />
+            Producto destacado (aparece en el carrusel de inicio)
+          </label>
+        </div>
+
+        <div class="space-y-5 border-t border-brand-muted/20 pt-6">
+          <p class="font-body text-xs font-bold tracking-[0.1em] text-brand-gold">VARIANTES</p>
+
+          <div>
+            <div class="mb-1 flex items-center justify-between">
+              <label class="block font-body text-xs uppercase tracking-wide text-brand-muted">Tallas disponibles</label>
+              @if (!mostrarAgregarTalla()) {
+                <button
+                  type="button"
+                  (click)="abrirAgregarTalla()"
+                  class="flex cursor-pointer items-center gap-1 font-body text-xs uppercase tracking-wide text-brand-gold hover:text-brand-ink"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  Agregar talla
+                </button>
+              }
+            </div>
+
+            @if (mostrarAgregarTalla()) {
+              <div class="mb-3 flex flex-wrap items-end gap-3 rounded-[2px] border border-brand-muted/30 bg-brand-bone/50 p-3">
+                <div class="min-w-0 flex-1">
+                  <label for="nuevaTallaNombre" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                    Nombre de la talla
+                  </label>
+                  <input
+                    id="nuevaTallaNombre"
+                    type="text"
+                    class="input-field"
+                    placeholder="Ej. XS, 3XL"
+                    [value]="nuevaTallaNombre()"
+                    (input)="nuevaTallaNombre.set($any($event.target).value)"
+                  />
+                </div>
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    (click)="agregarTallaPersonalizada()"
+                    [disabled]="!nuevaTallaNombre().trim()"
+                    class="cursor-pointer rounded-[2px] bg-brand-gold px-4 py-3 font-body text-xs font-semibold uppercase tracking-wide text-brand-ink transition-colors hover:bg-brand-ink hover:text-brand-gold disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Guardar
+                  </button>
+                  <button
+                    type="button"
+                    (click)="cancelarAgregarTalla()"
+                    class="cursor-pointer rounded-[2px] border border-brand-muted/50 px-4 py-3 font-body text-xs uppercase tracking-wide text-brand-muted transition-colors hover:text-brand-ink"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            }
+
+            <div formGroupName="tallas" class="flex flex-wrap gap-4">
+              @for (talla of tallas(); track talla) {
+                <span class="flex items-center gap-2">
+                  <label class="flex cursor-pointer items-center gap-2 font-body text-sm text-brand-text">
+                    <input type="checkbox" [formControlName]="talla" />
+                    {{ talla }}
+                  </label>
+                  @if (esTallaPersonalizada(talla)) {
+                    <button
+                      type="button"
+                      (click)="eliminarTallaPersonalizada(talla)"
+                      [attr.aria-label]="'Eliminar talla ' + talla"
+                      title="Eliminar talla"
+                      class="flex h-4 w-4 cursor-pointer items-center justify-center text-brand-muted transition-colors hover:text-red-600"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
+                        <path d="M3 6h18" />
+                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
+                    </button>
+                  }
+                </span>
+              }
+            </div>
+            @if (productoForm.controls.tallas.invalid && productoForm.controls.tallas.touched) {
+              <p class="mt-1 font-body text-xs text-red-600">Selecciona al menos una talla.</p>
             }
           </div>
 
-          <div class="flex items-end pb-3">
-            <label class="flex cursor-pointer items-center gap-2 font-body text-sm text-brand-text">
-              <input type="checkbox" formControlName="destacado" />
-              Producto destacado (aparece en el carrusel de inicio)
-            </label>
-          </div>
-        </div>
+          <div>
+            <div class="mb-1 flex items-center justify-between">
+              <label class="block font-body text-xs uppercase tracking-wide text-brand-muted">
+                Colores disponibles (opcional)
+              </label>
+              @if (!mostrarAgregarColor()) {
+                <button
+                  type="button"
+                  (click)="abrirAgregarColor()"
+                  class="flex cursor-pointer items-center gap-1 font-body text-xs uppercase tracking-wide text-brand-gold hover:text-brand-ink"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  Agregar color
+                </button>
+              }
+            </div>
 
-        <div>
-          <label class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-            Colores disponibles (opcional)
-          </label>
-          <div formGroupName="colores" class="flex flex-wrap gap-3">
-            @for (opcion of colores; track opcion.valor) {
-              <label
-                [attr.title]="opcion.etiqueta"
-                class="flex cursor-pointer items-center gap-2 rounded-[2px] border border-brand-muted/40 px-3 py-2 font-body text-sm text-brand-text"
-              >
-                <input type="checkbox" [formControlName]="opcion.valor" />
+            @if (mostrarAgregarColor()) {
+              <div class="mb-3 flex flex-wrap items-end gap-3 rounded-[2px] border border-brand-muted/30 bg-brand-bone/50 p-3">
+                <div class="min-w-0 flex-1">
+                  <label for="nuevoColorNombre" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                    Nombre del color
+                  </label>
+                  <input
+                    id="nuevoColorNombre"
+                    type="text"
+                    class="input-field"
+                    placeholder="Ej. Verde olivo"
+                    [value]="nuevoColorNombre()"
+                    (input)="nuevoColorNombre.set($any($event.target).value)"
+                  />
+                </div>
+                <div>
+                  <label for="nuevoColorHex" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                    Tono
+                  </label>
+                  <input
+                    id="nuevoColorHex"
+                    type="color"
+                    class="h-[42px] w-14 cursor-pointer rounded-[2px] border border-brand-muted/50 bg-white p-1"
+                    [value]="nuevoColorHex()"
+                    (input)="nuevoColorHex.set($any($event.target).value)"
+                  />
+                </div>
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    (click)="agregarColorPersonalizado()"
+                    [disabled]="!nuevoColorNombre().trim()"
+                    class="cursor-pointer rounded-[2px] bg-brand-gold px-4 py-3 font-body text-xs font-semibold uppercase tracking-wide text-brand-ink transition-colors hover:bg-brand-ink hover:text-brand-gold disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Guardar
+                  </button>
+                  <button
+                    type="button"
+                    (click)="cancelarAgregarColor()"
+                    class="cursor-pointer rounded-[2px] border border-brand-muted/50 px-4 py-3 font-body text-xs uppercase tracking-wide text-brand-muted transition-colors hover:text-brand-ink"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            }
+
+            <div formGroupName="colores" class="flex flex-wrap gap-3">
+              @for (opcion of colores(); track opcion.valor) {
                 <span
-                  class="inline-block h-4 w-4 rounded-full border border-brand-muted/40"
-                  [style.backgroundColor]="opcion.hex"
-                ></span>
-                {{ opcion.etiqueta }}
-              </label>
-            }
+                  class="flex items-center gap-2 rounded-[2px] border border-brand-muted/40 px-3 py-2 font-body text-sm text-brand-text"
+                >
+                  <label [attr.title]="opcion.etiqueta" class="flex cursor-pointer items-center gap-2">
+                    <input type="checkbox" [formControlName]="opcion.valor" />
+                    <span
+                      class="inline-block h-4 w-4 rounded-full border border-brand-muted/40"
+                      [style.backgroundColor]="opcion.hex"
+                    ></span>
+                    {{ opcion.etiqueta }}
+                  </label>
+                  @if (esColorPersonalizado(opcion.valor)) {
+                    <button
+                      type="button"
+                      (click)="eliminarColorPersonalizado(opcion)"
+                      [attr.aria-label]="'Eliminar color ' + opcion.etiqueta"
+                      title="Eliminar color"
+                      class="flex h-4 w-4 cursor-pointer items-center justify-center text-brand-muted transition-colors hover:text-red-600"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
+                        <path d="M3 6h18" />
+                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
+                    </button>
+                  }
+                </span>
+              }
+            </div>
           </div>
         </div>
 
-        <div>
-          <label class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">Tallas disponibles</label>
-          <div formGroupName="tallas" class="flex gap-4">
-            @for (talla of tallas; track talla) {
-              <label class="flex cursor-pointer items-center gap-2 font-body text-sm text-brand-text">
-                <input type="checkbox" [formControlName]="talla" />
-                {{ talla }}
-              </label>
-            }
-          </div>
-          @if (productoForm.controls.tallas.invalid && productoForm.controls.tallas.touched) {
-            <p class="mt-1 font-body text-xs text-red-600">Selecciona al menos una talla.</p>
-          }
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label for="etiqueta" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-              Etiqueta
-            </label>
-            <select id="etiqueta" formControlName="etiqueta" class="input-field">
-              <option value="NINGUNA">Ninguna</option>
-              <option value="NUEVO">Nuevo</option>
-              <option value="ESENCIAL">Esencial</option>
-            </select>
-          </div>
-
-          <div>
-            <label for="imagenUrl" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-              URL de imagen
-            </label>
-            <input
-              id="imagenUrl"
-              type="text"
-              formControlName="imagenUrl"
-              class="input-field"
-              placeholder="https://picsum.photos/seed/xxx/400/500"
-            />
-          </div>
-        </div>
-
-        <div class="mt-8 flex items-center justify-end gap-4">
+        <div class="flex items-center justify-end gap-4 border-t border-brand-muted/20 pt-6">
           <button
             type="button"
             (click)="cerrarFormulario()"

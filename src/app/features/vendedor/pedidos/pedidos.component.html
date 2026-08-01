@@ -1,5 +1,5 @@
-<div class="p-8">
-  <h1 class="font-display text-3xl font-semibold text-brand-ink">Pedidos</h1>
+<div class="p-4 sm:p-8">
+  <h1 class="font-body text-3xl font-bold text-brand-ink">Pedidos</h1>
   <p class="mt-1 font-body text-sm text-brand-muted">Consulta y gestiona los pedidos de tus clientes.</p>
 
   <div class="mt-6 flex flex-wrap gap-2">
@@ -22,6 +22,7 @@
     @if (pedidosFiltrados().length === 0) {
       <p class="p-6 font-body text-sm text-brand-muted">No hay pedidos para este filtro.</p>
     } @else {
+      <div class="overflow-x-auto">
       <table class="w-full text-left">
         <thead>
           <tr class="border-b border-brand-muted/20 font-body text-xs uppercase tracking-wide text-brand-muted">
@@ -93,7 +94,27 @@
                       </div>
 
                       <h3 class="mt-6 font-body text-xs uppercase tracking-wide text-brand-muted">Método de pago</h3>
-                      <p class="mt-2 font-body text-sm capitalize text-brand-text">{{ pedido.metodoPago }}</p>
+                      <p class="mt-2 font-body text-sm capitalize text-brand-text">
+                        {{ pedido.metodoPago }} ·
+                        <span class="badge">{{ etiquetaEstadoPago(pedido.estadoPago) }}</span>
+                      </p>
+
+                      @if (pedido.infoEnvio?.numeroGuia) {
+                        <h3 class="mt-6 font-body text-xs uppercase tracking-wide text-brand-muted">Guía de rastreo</h3>
+                        <div class="mt-2 space-y-1 font-body text-sm text-brand-text">
+                          <p>{{ pedido.infoEnvio?.paqueteria }} · {{ pedido.infoEnvio?.numeroGuia }}</p>
+                          @if (pedido.infoEnvio?.urlRastreo) {
+                            <a
+                              [href]="pedido.infoEnvio?.urlRastreo"
+                              target="_blank"
+                              rel="noopener"
+                              class="text-brand-gold hover:underline"
+                            >
+                              Ver rastreo
+                            </a>
+                          }
+                        </div>
+                      }
 
                       @if (pedido.emailComprador) {
                         <h3 class="mt-6 font-body text-xs uppercase tracking-wide text-brand-muted">Correo del cliente</h3>
@@ -107,6 +128,59 @@
           }
         </tbody>
       </table>
+      </div>
     }
   </div>
 </div>
+
+@if (pedidoPendienteGuia(); as pedido) {
+  <div class="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
+    <div class="w-full max-w-md rounded-sm bg-brand-bone p-8 shadow-lg">
+      <h2 class="font-body text-xl font-bold text-brand-ink">Guía de envío</h2>
+      <p class="mt-1 font-body text-sm text-brand-muted">
+        Captura los datos de la paquetería para el pedido {{ pedido.numeroPedido }}.
+      </p>
+
+      <form [formGroup]="guiaForm" (ngSubmit)="confirmarGuia()" class="mt-6 space-y-5">
+        <div>
+          <label for="paqueteria" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+            Paquetería
+          </label>
+          <select id="paqueteria" formControlName="paqueteria" class="input-field">
+            @for (opcion of paqueterias; track opcion) {
+              <option [value]="opcion">{{ opcion }}</option>
+            }
+          </select>
+        </div>
+
+        <div>
+          <label for="numeroGuia" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+            Número de guía
+          </label>
+          <input id="numeroGuia" type="text" formControlName="numeroGuia" class="input-field" />
+          @if (guiaForm.controls.numeroGuia.invalid && guiaForm.controls.numeroGuia.touched) {
+            <p class="mt-1 font-body text-xs text-red-600">El número de guía es requerido.</p>
+          }
+        </div>
+
+        <div>
+          <label for="urlRastreo" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+            URL de rastreo (opcional)
+          </label>
+          <input id="urlRastreo" type="text" formControlName="urlRastreo" class="input-field" placeholder="https://..." />
+        </div>
+
+        <div class="mt-8 flex items-center justify-end gap-4">
+          <button
+            type="button"
+            (click)="cancelarGuia()"
+            class="cursor-pointer font-body text-sm uppercase tracking-wide text-brand-muted hover:text-brand-ink"
+          >
+            Cancelar
+          </button>
+          <button type="submit" class="btn-gold">Marcar como enviado</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

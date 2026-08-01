@@ -1,6 +1,8 @@
 import { ItemCarrito } from './carrito.model';
 
 export type EstadoPedido = 'pendiente' | 'enviado' | 'entregado' | 'cancelado';
+export type EstadoPago = 'pendiente' | 'pagado' | 'reembolsado';
+export type Paqueteria = 'DHL' | 'FedEx' | 'Estafeta' | 'Correos de México' | 'Otro';
 
 export interface DatosEnvio {
   nombreCompleto: string;
@@ -8,6 +10,13 @@ export interface DatosEnvio {
   ciudad: string;
   codigoPostal: string;
   telefono: string;
+}
+
+export interface InfoEnvio {
+  paqueteria?: Paqueteria;
+  numeroGuia?: string;
+  urlRastreo?: string;
+  fechaEnvio?: string;
 }
 
 export interface Pedido {
@@ -18,6 +27,8 @@ export interface Pedido {
   datosEnvio: DatosEnvio;
   metodoPago: 'tarjeta' | 'efectivo';
   estado: EstadoPedido;
+  estadoPago: EstadoPago;
+  infoEnvio?: InfoEnvio;
   fecha: string;
   emailComprador?: string;
 }
