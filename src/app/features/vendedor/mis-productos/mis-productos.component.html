@@ -280,83 +280,13 @@
           <p class="font-body text-xs font-bold tracking-[0.1em] text-brand-gold">VARIANTES</p>
 
           <div>
-            <div class="mb-1 flex items-center justify-between">
-              <label class="block font-body text-xs uppercase tracking-wide text-brand-muted">Tallas disponibles</label>
-              @if (!mostrarAgregarTalla()) {
-                <button
-                  type="button"
-                  (click)="abrirAgregarTalla()"
-                  class="flex cursor-pointer items-center gap-1 font-body text-xs uppercase tracking-wide text-brand-gold hover:text-brand-ink"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  Agregar talla
-                </button>
-              }
-            </div>
-
-            @if (mostrarAgregarTalla()) {
-              <div class="mb-3 flex flex-wrap items-end gap-3 rounded-[2px] border border-brand-muted/30 bg-brand-bone/50 p-3">
-                <div class="min-w-0 flex-1">
-                  <label for="nuevaTallaNombre" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                    Nombre de la talla
-                  </label>
-                  <input
-                    id="nuevaTallaNombre"
-                    type="text"
-                    class="input-field"
-                    placeholder="Ej. XS, 3XL"
-                    [value]="nuevaTallaNombre()"
-                    (input)="nuevaTallaNombre.set($any($event.target).value)"
-                  />
-                </div>
-                <div class="flex gap-2">
-                  <button
-                    type="button"
-                    (click)="agregarTallaPersonalizada()"
-                    [disabled]="!nuevaTallaNombre().trim()"
-                    class="cursor-pointer rounded-[2px] bg-brand-gold px-4 py-3 font-body text-xs font-semibold uppercase tracking-wide text-brand-ink transition-colors hover:bg-brand-ink hover:text-brand-gold disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Guardar
-                  </button>
-                  <button
-                    type="button"
-                    (click)="cancelarAgregarTalla()"
-                    class="cursor-pointer rounded-[2px] border border-brand-muted/50 px-4 py-3 font-body text-xs uppercase tracking-wide text-brand-muted transition-colors hover:text-brand-ink"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            }
-
+            <label class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">Tallas disponibles</label>
             <div formGroupName="tallas" class="flex flex-wrap gap-4">
               @for (talla of tallas(); track talla) {
-                <span class="flex items-center gap-2">
-                  <label class="flex cursor-pointer items-center gap-2 font-body text-sm text-brand-text">
-                    <input type="checkbox" [formControlName]="talla" />
-                    {{ talla }}
-                  </label>
-                  @if (esTallaPersonalizada(talla)) {
-                    <button
-                      type="button"
-                      (click)="eliminarTallaPersonalizada(talla)"
-                      [attr.aria-label]="'Eliminar talla ' + talla"
-                      title="Eliminar talla"
-                      class="flex h-4 w-4 cursor-pointer items-center justify-center text-brand-muted transition-colors hover:text-red-600"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
-                        <path d="M3 6h18" />
-                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                        <line x1="10" y1="11" x2="10" y2="17" />
-                        <line x1="14" y1="11" x2="14" y2="17" />
-                      </svg>
-                    </button>
-                  }
-                </span>
+                <label class="flex cursor-pointer items-center gap-2 font-body text-sm text-brand-text">
+                  <input type="checkbox" [formControlName]="talla" />
+                  {{ talla }}
+                </label>
               }
             </div>
             @if (productoForm.controls.tallas.invalid && productoForm.controls.tallas.touched) {
@@ -365,103 +295,22 @@
           </div>
 
           <div>
-            <div class="mb-1 flex items-center justify-between">
-              <label class="block font-body text-xs uppercase tracking-wide text-brand-muted">
-                Colores disponibles (opcional)
-              </label>
-              @if (!mostrarAgregarColor()) {
-                <button
-                  type="button"
-                  (click)="abrirAgregarColor()"
-                  class="flex cursor-pointer items-center gap-1 font-body text-xs uppercase tracking-wide text-brand-gold hover:text-brand-ink"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  Agregar color
-                </button>
-              }
-            </div>
-
-            @if (mostrarAgregarColor()) {
-              <div class="mb-3 flex flex-wrap items-end gap-3 rounded-[2px] border border-brand-muted/30 bg-brand-bone/50 p-3">
-                <div class="min-w-0 flex-1">
-                  <label for="nuevoColorNombre" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                    Nombre del color
-                  </label>
-                  <input
-                    id="nuevoColorNombre"
-                    type="text"
-                    class="input-field"
-                    placeholder="Ej. Verde olivo"
-                    [value]="nuevoColorNombre()"
-                    (input)="nuevoColorNombre.set($any($event.target).value)"
-                  />
-                </div>
-                <div>
-                  <label for="nuevoColorHex" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                    Tono
-                  </label>
-                  <input
-                    id="nuevoColorHex"
-                    type="color"
-                    class="h-[42px] w-14 cursor-pointer rounded-[2px] border border-brand-muted/50 bg-white p-1"
-                    [value]="nuevoColorHex()"
-                    (input)="nuevoColorHex.set($any($event.target).value)"
-                  />
-                </div>
-                <div class="flex gap-2">
-                  <button
-                    type="button"
-                    (click)="agregarColorPersonalizado()"
-                    [disabled]="!nuevoColorNombre().trim()"
-                    class="cursor-pointer rounded-[2px] bg-brand-gold px-4 py-3 font-body text-xs font-semibold uppercase tracking-wide text-brand-ink transition-colors hover:bg-brand-ink hover:text-brand-gold disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Guardar
-                  </button>
-                  <button
-                    type="button"
-                    (click)="cancelarAgregarColor()"
-                    class="cursor-pointer rounded-[2px] border border-brand-muted/50 px-4 py-3 font-body text-xs uppercase tracking-wide text-brand-muted transition-colors hover:text-brand-ink"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            }
-
+            <label class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              Colores disponibles (opcional)
+            </label>
             <div formGroupName="colores" class="flex flex-wrap gap-3">
               @for (opcion of colores(); track opcion.valor) {
-                <span
-                  class="flex items-center gap-2 rounded-[2px] border border-brand-muted/40 px-3 py-2 font-body text-sm text-brand-text"
+                <label
+                  [attr.title]="opcion.etiqueta"
+                  class="flex cursor-pointer items-center gap-2 rounded-[2px] border border-brand-muted/40 px-3 py-2 font-body text-sm text-brand-text"
                 >
-                  <label [attr.title]="opcion.etiqueta" class="flex cursor-pointer items-center gap-2">
-                    <input type="checkbox" [formControlName]="opcion.valor" />
-                    <span
-                      class="inline-block h-4 w-4 rounded-full border border-brand-muted/40"
-                      [style.backgroundColor]="opcion.hex"
-                    ></span>
-                    {{ opcion.etiqueta }}
-                  </label>
-                  @if (esColorPersonalizado(opcion.valor)) {
-                    <button
-                      type="button"
-                      (click)="eliminarColorPersonalizado(opcion)"
-                      [attr.aria-label]="'Eliminar color ' + opcion.etiqueta"
-                      title="Eliminar color"
-                      class="flex h-4 w-4 cursor-pointer items-center justify-center text-brand-muted transition-colors hover:text-red-600"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
-                        <path d="M3 6h18" />
-                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                        <line x1="10" y1="11" x2="10" y2="17" />
-                        <line x1="14" y1="11" x2="14" y2="17" />
-                      </svg>
-                    </button>
-                  }
-                </span>
+                  <input type="checkbox" [formControlName]="opcion.valor" />
+                  <span
+                    class="inline-block h-4 w-4 rounded-full border border-brand-muted/40"
+                    [style.backgroundColor]="opcion.hex"
+                  ></span>
+                  {{ opcion.etiqueta }}
+                </label>
               }
             </div>
           </div>

@@ -60,13 +60,6 @@ export class MisProductosComponent {
   readonly productosVisibles = computed(() => this.productosFiltrados().slice(0, this.paginaVisible()));
   readonly hayMasProductos = computed(() => this.productosFiltrados().length > this.paginaVisible());
 
-  readonly nuevoColorNombre = signal('');
-  readonly nuevoColorHex = signal('#c9a227');
-  readonly mostrarAgregarColor = signal(false);
-
-  readonly nuevaTallaNombre = signal('');
-  readonly mostrarAgregarTalla = signal(false);
-
   readonly productoForm = this.fb.group({
     nombre: ['', [Validators.required]],
     descripcion: [''],
@@ -241,116 +234,6 @@ export class MisProductosComponent {
 
   etiquetaDeAudiencia(audiencia: Audiencia): string {
     return this.audiencias.find(opcion => opcion.valor === audiencia)?.etiqueta ?? audiencia;
-  }
-
-  abrirAgregarColor(): void {
-    this.nuevoColorNombre.set('');
-    this.nuevoColorHex.set('#c9a227');
-    this.mostrarAgregarColor.set(true);
-  }
-
-  cancelarAgregarColor(): void {
-    this.mostrarAgregarColor.set(false);
-  }
-
-  agregarColorPersonalizado(): void {
-    const nombre = this.nuevoColorNombre().trim();
-    if (!nombre) {
-      return;
-    }
-
-    const nuevo = this.coloresService.agregarColor(nombre, this.nuevoColorHex());
-    this.productoForm.controls.colores.addControl(nuevo.valor, this.fb.control(true));
-    this.mostrarAgregarColor.set(false);
-    this.toastService.exito(`Color "${nuevo.etiqueta}" agregado.`);
-  }
-
-  esColorPersonalizado(valor: string): boolean {
-    return this.coloresService.esPersonalizado(valor);
-  }
-
-  async eliminarColorPersonalizado(opcion: { valor: string; etiqueta: string }): Promise<void> {
-    const productosConColor = this.productos().filter(producto => producto.coloresDisponibles.includes(opcion.valor));
-
-    if (productosConColor.length > 0) {
-      this.toastService.error(
-        `No puedes eliminar "${opcion.etiqueta}": ${productosConColor.length} producto(s) lo usan.`
-      );
-      return;
-    }
-
-    const confirmado = await this.confirmService.confirmar({
-      titulo: 'Eliminar color',
-      mensaje: `¿Seguro que quieres eliminar el color "${opcion.etiqueta}"? Esta acción no se puede deshacer.`,
-      textoConfirmar: 'Eliminar',
-      peligroso: true
-    });
-
-    if (!confirmado) {
-      return;
-    }
-
-    this.coloresService.eliminarColor(opcion.valor);
-    this.productoForm.controls.colores.removeControl(opcion.valor as never);
-    this.toastService.exito(`Color "${opcion.etiqueta}" eliminado.`);
-  }
-
-  abrirAgregarTalla(): void {
-    this.nuevaTallaNombre.set('');
-    this.mostrarAgregarTalla.set(true);
-  }
-
-  cancelarAgregarTalla(): void {
-    this.mostrarAgregarTalla.set(false);
-  }
-
-  agregarTallaPersonalizada(): void {
-    const nombre = this.nuevaTallaNombre().trim();
-    if (!nombre) {
-      return;
-    }
-
-    const resultado = this.tallasService.agregarTalla(nombre);
-    if (!resultado.ok) {
-      this.toastService.error(
-        resultado.motivo === 'duplicada'
-          ? 'Esa talla ya existe.'
-          : 'Formato de talla no válido. Usa letra (S, M, L, XL, 2XL...) o número (28, 30, 32...).'
-      );
-      return;
-    }
-
-    this.productoForm.controls.tallas.addControl(resultado.talla, this.fb.control(false));
-    this.mostrarAgregarTalla.set(false);
-    this.toastService.exito(`Talla "${resultado.talla}" agregada.`);
-  }
-
-  esTallaPersonalizada(talla: string): boolean {
-    return this.tallasService.esPersonalizada(talla);
-  }
-
-  async eliminarTallaPersonalizada(talla: string): Promise<void> {
-    const productosConTalla = this.productos().filter(producto => producto.tallasDisponibles.includes(talla));
-
-    if (productosConTalla.length > 0) {
-      this.toastService.error(`No puedes eliminar "${talla}": ${productosConTalla.length} producto(s) la usan.`);
-      return;
-    }
-
-    const confirmado = await this.confirmService.confirmar({
-      titulo: 'Eliminar talla',
-      mensaje: `¿Seguro que quieres eliminar la talla "${talla}"? Esta acción no se puede deshacer.`,
-      textoConfirmar: 'Eliminar',
-      peligroso: true
-    });
-
-    if (!confirmado) {
-      return;
-    }
-
-    this.tallasService.eliminarTalla(talla);
-    this.productoForm.controls.tallas.removeControl(talla as never);
-    this.toastService.exito(`Talla "${talla}" eliminada.`);
   }
 
   private mapaColores(seleccionados: string[]): Record<string, boolean> {
