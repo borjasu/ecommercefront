@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { PedidoService } from '../../../core/services/pedido.service';
+import { VendorPedidoService } from '../../../core/services/vendor-pedido.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { EstadoPago, Pedido } from '../../../core/models/pedido.model';
 
 type FiltroEstadoPago = 'todos' | EstadoPago;
@@ -17,7 +18,8 @@ interface FiltroOpcion {
     templateUrl: './pagos.component.html'
 })
 export class PagosComponent {
-  private readonly pedidoService = inject(PedidoService);
+  private readonly vendorPedidoService = inject(VendorPedidoService);
+  private readonly toastService = inject(ToastService);
 
   readonly filtros: FiltroOpcion[] = [
     { valor: 'todos', etiqueta: 'Todos' },
@@ -46,7 +48,10 @@ export class PagosComponent {
   }
 
   cambiarEstadoPago(pedido: Pedido, estadoPago: EstadoPago): void {
-    this.pedidoService.actualizarEstadoPago(pedido.id, estadoPago).subscribe(() => this.cargarPedidos());
+    this.vendorPedidoService.actualizarEstadoPago(pedido.id, estadoPago).subscribe({
+      next: () => this.cargarPedidos(),
+      error: () => this.toastService.error('No pudimos actualizar el estado de pago.')
+    });
   }
 
   etiquetaEstadoPago(estadoPago: EstadoPago): string {
@@ -59,6 +64,9 @@ export class PagosComponent {
   }
 
   private cargarPedidos(): void {
-    this.pedidoService.obtenerTodos().subscribe(pedidos => this.pedidos.set(pedidos));
+    this.vendorPedidoService.obtenerTodos().subscribe({
+      next: pedidos => this.pedidos.set(pedidos),
+      error: () => this.toastService.error('No pudimos cargar los pedidos.')
+    });
   }
 }

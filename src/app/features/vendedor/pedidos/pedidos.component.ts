@@ -1,10 +1,12 @@
 import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { PedidoService } from '../../../core/services/pedido.service';
-import { EstadoPago, EstadoPedido, Paqueteria, Pedido } from '../../../core/models/pedido.model';
+import { VendorPedidoService } from '../../../core/services/vendor-pedido.service';
+import { ToastService } from '../../../core/services/toast.service';
+import { EstadoPago, EstadoPedido, Pedido } from '../../../core/models/pedido.model';
 
 type FiltroEstado = 'todos' | EstadoPedido;
+type Paqueteria = 'DHL' | 'FedEx' | 'Estafeta' | 'Correos de México' | 'Otro';
 
 interface FiltroOpcion {
   valor: FiltroEstado;
@@ -20,7 +22,8 @@ const PAQUETERIAS: Paqueteria[] = ['DHL', 'FedEx', 'Estafeta', 'Correos de Méxi
     templateUrl: './pedidos.component.html'
 })
 export class PedidosComponent {
-  private readonly pedidoService = inject(PedidoService);
+  private readonly vendorPedidoService = inject(VendorPedidoService);
+  private readonly toastService = inject(ToastService);
   private readonly fb = inject(FormBuilder);
 
   readonly filtros: FiltroOpcion[] = [
@@ -38,6 +41,7 @@ export class PedidosComponent {
   readonly filtroActual = signal<FiltroEstado>('todos');
   readonly pedidoExpandidoId = signal<string | null>(null);
   readonly pedidoPendienteGuia = signal<Pedido | null>(null);
+  readonly generandoGuia = signal(false);
 
   readonly guiaForm = this.fb.group({
     paqueteria: ['DHL' as Paqueteria, [Validators.required]],
@@ -70,7 +74,10 @@ export class PedidosComponent {
       return;
     }
 
-    this.pedidoService.actualizarEstado(pedido.id, estado).subscribe(() => this.cargarPedidos());
+    this.vendorPedidoService.actualizarEstado(pedido.id, estado).subscribe({
+      next: () => this.cargarPedidos(),
+      error: () => this.toastService.error('No pudimos actualizar el estado del pedido.')
+    });
   }
 
   confirmarGuia(): void {
@@ -82,17 +89,40 @@ export class PedidosComponent {
 
     const { paqueteria, numeroGuia, urlRastreo } = this.guiaForm.getRawValue();
 
-    this.pedidoService
-      .actualizarEstado(pedido.id, 'enviado', {
-        paqueteria: paqueteria as Paqueteria,
+    this.vendorPedidoService
+      .registrarEnvioManual(pedido.id, {
+        paqueteria: paqueteria!,
         numeroGuia: numeroGuia!,
-        urlRastreo: urlRastreo || undefined,
-        fechaEnvio: new Date().toISOString()
+        urlRastreo: urlRastreo || undefined
       })
-      .subscribe(() => {
+      .subscribe({
+        next: () => {
+          this.cargarPedidos();
+          this.pedidoPendienteGuia.set(null);
+        },
+        error: () => this.toastService.error('No pudimos registrar la guía. Verifica los datos.')
+      });
+  }
+
+  generarGuiaAutomatica(): void {
+    const pedido = this.pedidoPendienteGuia();
+    if (!pedido) {
+      return;
+    }
+
+    this.generandoGuia.set(true);
+    this.vendorPedidoService.generarGuiaAutomatica(pedido.id).subscribe({
+      next: () => {
         this.cargarPedidos();
         this.pedidoPendienteGuia.set(null);
-      });
+        this.generandoGuia.set(false);
+        this.toastService.exito('Guía generada automáticamente con la paquetería.');
+      },
+      error: () => {
+        this.generandoGuia.set(false);
+        this.toastService.error('No pudimos generar la guía automática. Captúrala manualmente.');
+      }
+    });
   }
 
   cancelarGuia(): void {
@@ -119,6 +149,9 @@ export class PedidosComponent {
   }
 
   private cargarPedidos(): void {
-    this.pedidoService.obtenerTodos().subscribe(pedidos => this.pedidos.set(pedidos));
+    this.vendorPedidoService.obtenerTodos().subscribe({
+      next: pedidos => this.pedidos.set(pedidos),
+      error: () => this.toastService.error('No pudimos cargar los pedidos.')
+    });
   }
 }
