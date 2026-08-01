@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { API_URL } from '../config/api.config';
 import { EstadoPago, EstadoPedido, Pedido } from '../models/pedido.model';
 
@@ -10,6 +11,18 @@ export interface RegistrarEnvioManual {
   urlRastreo?: string;
 }
 
+interface PaginaDePedidos {
+  data: Pedido[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+// Tope máximo que acepta el backend (ver ListarPedidosVendedorQueryDto). Se pide
+// de una vez para preservar el comportamiento de "traer todos" que usan
+// dashboard/reportes/pedidos/pagos, sin dejar la consulta realmente sin límite.
+const LIMITE_MAXIMO_BACKEND = 200;
+
 /** CRUD de pedidos del lado vendedor (/vendedor/pedidos) — ve y modifica cualquier pedido, a diferencia de PedidoService (comprador). */
 @Injectable({
   providedIn: 'root'
@@ -18,7 +31,10 @@ export class VendorPedidoService {
   private readonly http = inject(HttpClient);
 
   obtenerTodos(): Observable<Pedido[]> {
-    return this.http.get<Pedido[]>(`${API_URL}/vendedor/pedidos`);
+    const params = new HttpParams().set('limit', LIMITE_MAXIMO_BACKEND);
+    return this.http
+      .get<PaginaDePedidos>(`${API_URL}/vendedor/pedidos`, { params })
+      .pipe(map(pagina => pagina.data));
   }
 
   obtenerPorId(id: string): Observable<Pedido> {
