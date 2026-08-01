@@ -115,11 +115,11 @@
           </div>
 
           <div>
-            <label for="valorDescuento" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+            <label for="valor" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
               Valor
             </label>
-            <input id="valorDescuento" type="number" formControlName="valorDescuento" class="input-field" min="0.01" step="0.01" />
-            @if (ofertaForm.controls.valorDescuento.invalid && ofertaForm.controls.valorDescuento.touched) {
+            <input id="valor" type="number" formControlName="valor" class="input-field" min="0.01" step="0.01" />
+            @if (ofertaForm.controls.valor.invalid && ofertaForm.controls.valor.touched) {
               <p class="mt-1 font-body text-xs text-red-600">El valor debe ser mayor a 0.</p>
             }
           </div>
@@ -127,48 +127,55 @@
 
         <div>
           <label class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">Aplica a</label>
-          <div class="flex gap-4">
+          <div class="flex flex-wrap gap-4">
             <label class="flex cursor-pointer items-center gap-2 font-body text-sm text-brand-text">
-              <input type="radio" value="segmento" formControlName="aplicaA" />
-              Categoría / Audiencia
+              <input type="radio" value="categoria" formControlName="aplicaA" />
+              Categoría
             </label>
             <label class="flex cursor-pointer items-center gap-2 font-body text-sm text-brand-text">
-              <input type="radio" value="productos" formControlName="aplicaA" />
-              Productos específicos
+              <input type="radio" value="audiencia" formControlName="aplicaA" />
+              Audiencia
+            </label>
+            <label class="flex cursor-pointer items-center gap-2 font-body text-sm text-brand-text">
+              <input type="radio" value="producto" formControlName="aplicaA" />
+              Un producto específico
             </label>
           </div>
         </div>
 
-        @if (ofertaForm.controls.aplicaA.value === 'segmento') {
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label for="categoria" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                Categoría
-              </label>
-              <select id="categoria" formControlName="categoria" class="input-field">
-                <option value="">Todas</option>
-                @for (opcion of categorias; track opcion.valor) {
-                  <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
-                }
-              </select>
-            </div>
-            <div>
-              <label for="audiencia" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                Audiencia
-              </label>
-              <select id="audiencia" formControlName="audiencia" class="input-field">
-                <option value="">Todas</option>
-                @for (opcion of audiencias; track opcion.valor) {
-                  <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
-                }
-              </select>
-            </div>
+        @if (ofertaForm.controls.aplicaA.value === 'categoria') {
+          <div>
+            <label for="categoria" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              Categoría
+            </label>
+            <select id="categoria" formControlName="categoria" class="input-field">
+              <option value="">Selecciona una categoría</option>
+              @for (opcion of categorias; track opcion.valor) {
+                <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
+              }
+            </select>
+          </div>
+        } @else if (ofertaForm.controls.aplicaA.value === 'audiencia') {
+          <div>
+            <label for="audiencia" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              Audiencia
+            </label>
+            <select id="audiencia" formControlName="audiencia" class="input-field">
+              <option value="">Selecciona una audiencia</option>
+              @for (opcion of audiencias; track opcion.valor) {
+                <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
+              }
+            </select>
           </div>
         } @else {
           <div>
             <div class="mb-1 flex items-center justify-between">
-              <label class="block font-body text-xs uppercase tracking-wide text-brand-muted">Productos</label>
-              <span class="font-body text-xs text-brand-muted">{{ contarProductosSeleccionados() }} seleccionado(s)</span>
+              <label class="block font-body text-xs uppercase tracking-wide text-brand-muted">Producto</label>
+              @if (ofertaForm.controls.productoId.value) {
+                <span class="font-body text-xs text-brand-muted">
+                  Seleccionado: {{ productos().find(p => p.id === ofertaForm.controls.productoId.value)?.nombre }}
+                </span>
+              }
             </div>
 
             <div class="space-y-2">
@@ -215,10 +222,7 @@
               }
             </div>
 
-            <div
-              formGroupName="productos"
-              class="mt-2 max-h-72 space-y-1 overflow-y-auto rounded-sm border border-brand-muted/30 p-2"
-            >
+            <div class="mt-2 max-h-72 space-y-1 overflow-y-auto rounded-sm border border-brand-muted/30 p-2">
               @if (productosFiltrados().length === 0) {
                 <p class="p-3 font-body text-sm text-brand-muted">No hay productos que coincidan con los filtros.</p>
               } @else {
@@ -226,7 +230,13 @@
                   <label
                     class="flex cursor-pointer items-start gap-3 rounded-[2px] px-2 py-2 transition-colors hover:bg-brand-bone/60"
                   >
-                    <input type="checkbox" [formControlName]="producto.id" class="mt-1" />
+                    <input
+                      type="radio"
+                      name="productoId"
+                      class="mt-1"
+                      [checked]="ofertaForm.controls.productoId.value === producto.id"
+                      (change)="seleccionarProducto(producto.id)"
+                    />
                     <img
                       [src]="producto.imagenUrl"
                       [alt]="producto.nombre"

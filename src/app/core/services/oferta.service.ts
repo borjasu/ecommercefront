@@ -1,14 +1,13 @@
-import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { API_URL } from '../config/api.config';
 import { Oferta } from '../models/oferta.model';
 import { Producto } from '../models/producto.model';
-
-const CLAVE_OFERTAS = 'ofertas_data';
 
 export interface PrecioConOferta {
   precioOriginal: number;
   precioFinal: number;
-  oferta?: Oferta;
   porcentajeDescuento?: number;
 }
 
@@ -16,103 +15,30 @@ export interface PrecioConOferta {
   providedIn: 'root'
 })
 export class OfertaService {
-  private ofertas: Oferta[] = this.leerOfertasGuardadas();
+  private readonly http = inject(HttpClient);
 
   obtenerTodos(): Observable<Oferta[]> {
-    return of(this.ofertas);
-  }
-
-  obtenerPorId(id: string): Observable<Oferta | undefined> {
-    return of(this.ofertas.find(oferta => oferta.id === id));
+    return this.http.get<Oferta[]>(`${API_URL}/ofertas`);
   }
 
   crearOferta(datos: Omit<Oferta, 'id'>): Observable<Oferta> {
-    const nuevaOferta: Oferta = {
-      ...datos,
-      id: `oferta-${Date.now()}`
-    };
-
-    this.ofertas = [...this.ofertas, nuevaOferta];
-    this.guardarOfertas();
-
-    return of(nuevaOferta);
+    return this.http.post<Oferta>(`${API_URL}/ofertas`, datos);
   }
 
-  actualizarOferta(id: string, cambios: Partial<Oferta>): Observable<Oferta> {
-    this.ofertas = this.ofertas.map(oferta => (oferta.id === id ? { ...oferta, ...cambios, id } : oferta));
-    this.guardarOfertas();
-
-    const actualizada = this.ofertas.find(oferta => oferta.id === id);
-    return of(actualizada as Oferta);
+  actualizarOferta(id: string, cambios: Partial<Omit<Oferta, 'id'>>): Observable<Oferta> {
+    return this.http.patch<Oferta>(`${API_URL}/ofertas/${id}`, cambios);
   }
 
   eliminarOferta(id: string): Observable<void> {
-    this.ofertas = this.ofertas.filter(oferta => oferta.id !== id);
-    this.guardarOfertas();
-
-    return of(undefined);
+    return this.http.delete<void>(`${API_URL}/ofertas/${id}`);
   }
 
-  /** Busca, entre las ofertas activas y vigentes, la que aplica al producto y da el mayor descuento. */
-  ofertaVigenteParaProducto(producto: Producto): Oferta | undefined {
-    const ahora = new Date();
-
-    const aplicables = this.ofertas.filter(oferta => {
-      if (!oferta.activa) {
-        return false;
-      }
-
-      const inicio = new Date(oferta.fechaInicio);
-      const fin = new Date(oferta.fechaFin);
-      fin.setHours(23, 59, 59, 999);
-      if (ahora < inicio || ahora > fin) {
-        return false;
-      }
-
-      if (oferta.productosAplicables.length > 0) {
-        return oferta.productosAplicables.includes(producto.id);
-      }
-
-      const coincideCategoria = !oferta.categoriaAplicable || oferta.categoriaAplicable === producto.categoria;
-      const coincideAudiencia = !oferta.audienciaAplicable || oferta.audienciaAplicable === producto.audiencia;
-      return (oferta.categoriaAplicable || oferta.audienciaAplicable) != null && coincideCategoria && coincideAudiencia;
-    });
-
-    if (aplicables.length === 0) {
-      return undefined;
-    }
-
-    return aplicables.reduce((mejor, actual) =>
-      this.calcularMontoDescuento(producto.precio, actual) > this.calcularMontoDescuento(producto.precio, mejor)
-        ? actual
-        : mejor
-    );
-  }
-
+  /** El backend ya manda precioFinal/precioOriginal calculados en cada producto que devuelve /productos. */
   calcularPrecio(producto: Producto): PrecioConOferta {
-    const oferta = this.ofertaVigenteParaProducto(producto);
-
-    if (!oferta) {
-      return { precioOriginal: producto.precio, precioFinal: producto.precio };
-    }
-
-    const descuento = this.calcularMontoDescuento(producto.precio, oferta);
-    const precioFinal = Math.max(0, Math.round((producto.precio - descuento) * 100) / 100);
-    const porcentajeDescuento = Math.round((descuento / producto.precio) * 100);
-
-    return { precioOriginal: producto.precio, precioFinal, oferta, porcentajeDescuento };
-  }
-
-  private calcularMontoDescuento(precio: number, oferta: Oferta): number {
-    return oferta.tipoDescuento === 'porcentaje' ? precio * (oferta.valorDescuento / 100) : oferta.valorDescuento;
-  }
-
-  private guardarOfertas(): void {
-    localStorage.setItem(CLAVE_OFERTAS, JSON.stringify(this.ofertas));
-  }
-
-  private leerOfertasGuardadas(): Oferta[] {
-    const guardadas = localStorage.getItem(CLAVE_OFERTAS);
-    return guardadas ? (JSON.parse(guardadas) as Oferta[]) : [];
+    return {
+      precioOriginal: producto.precioOriginal ?? producto.precio,
+      precioFinal: producto.precioFinal ?? producto.precio,
+      porcentajeDescuento: producto.porcentajeDescuento
+    };
   }
 }
