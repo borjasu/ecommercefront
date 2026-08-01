@@ -1,4 +1,7 @@
 import { Injectable, effect, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { tap } from 'rxjs';
+import { API_URL } from '../config/api.config';
 import { AuthService } from './auth.service';
 import { Direccion } from '../models/direccion.model';
 
@@ -6,6 +9,7 @@ import { Direccion } from '../models/direccion.model';
   providedIn: 'root'
 })
 export class DireccionesService {
+  private readonly http = inject(HttpClient);
   private readonly authService = inject(AuthService);
 
   private readonly direcciones = signal<Direccion[]>([]);
@@ -13,60 +17,40 @@ export class DireccionesService {
   readonly listado = this.direcciones.asReadonly();
 
   constructor() {
-    effect(() => {
-      const usuario = this.authService.currentUser();
-      this.direcciones.set(usuario ? this.leerGuardadas(usuario.id) : []);
-    });
-
+    // Se recarga cada vez que cambia la sesión (login/logout) — direcciones
+    // es información del usuario autenticado, no algo que sobreviva sin sesión.
     effect(() => {
       const usuario = this.authService.currentUser();
       if (usuario) {
-        localStorage.setItem(this.clave(usuario.id), JSON.stringify(this.direcciones()));
+        this.cargar();
+      } else {
+        this.direcciones.set([]);
       }
     });
   }
 
   agregar(datos: Omit<Direccion, 'id'>): void {
-    const nueva: Direccion = { ...datos, id: crypto.randomUUID() };
-    this.direcciones.update(actuales => {
-      const base = nueva.predeterminada ? actuales.map(d => ({ ...d, predeterminada: false })) : actuales;
-      return [...base, nueva];
-    });
+    this.http.post<Direccion>(`${API_URL}/direcciones`, datos).subscribe(() => this.cargar());
+  }
+
+  /** Como agregar(), pero devuelve la dirección creada — la usa el checkout para seleccionarla de inmediato. */
+  crearYObtener(datos: Omit<Direccion, 'id'>) {
+    return this.http.post<Direccion>(`${API_URL}/direcciones`, datos).pipe(tap(() => this.cargar()));
   }
 
   actualizar(id: string, cambios: Partial<Omit<Direccion, 'id'>>): void {
-    this.direcciones.update(actuales => {
-      const base = cambios.predeterminada ? actuales.map(d => ({ ...d, predeterminada: false })) : actuales;
-      return base.map(direccion => (direccion.id === id ? { ...direccion, ...cambios } : direccion));
-    });
+    this.http.patch<Direccion>(`${API_URL}/direcciones/${id}`, cambios).subscribe(() => this.cargar());
   }
 
   eliminar(id: string): void {
-    this.direcciones.update(actuales => actuales.filter(direccion => direccion.id !== id));
+    this.http.delete<void>(`${API_URL}/direcciones/${id}`).subscribe(() => this.cargar());
   }
 
   marcarPredeterminada(id: string): void {
-    this.direcciones.update(actuales =>
-      actuales.map(direccion => ({ ...direccion, predeterminada: direccion.id === id }))
-    );
+    this.actualizar(id, { predeterminada: true });
   }
 
-  private clave(usuarioId: string): string {
-    return `direcciones_${usuarioId}`;
-  }
-
-  private leerGuardadas(usuarioId: string): Direccion[] {
-    const guardado = localStorage.getItem(this.clave(usuarioId));
-
-    if (!guardado) {
-      return [];
-    }
-
-    try {
-      const direcciones = JSON.parse(guardado);
-      return Array.isArray(direcciones) ? direcciones : [];
-    } catch {
-      return [];
-    }
+  private cargar(): void {
+    this.http.get<Direccion[]>(`${API_URL}/direcciones`).subscribe(direcciones => this.direcciones.set(direcciones));
   }
 }
