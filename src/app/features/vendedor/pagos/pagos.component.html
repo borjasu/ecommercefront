@@ -1,5 +1,5 @@
-<div class="p-8">
-  <h1 class="font-display text-3xl font-semibold text-brand-ink">Pagos</h1>
+<div class="p-4 sm:p-8">
+  <h1 class="font-body text-3xl font-bold text-brand-ink">Pagos</h1>
   <p class="mt-1 font-body text-sm text-brand-muted">
     Historial simulado de pagos por pedido. Todavía no hay integración con una pasarela real.
   </p>
@@ -24,6 +24,7 @@
     @if (pedidosFiltrados().length === 0) {
       <p class="p-6 font-body text-sm text-brand-muted">No hay pedidos para este filtro.</p>
     } @else {
+      <div class="overflow-x-auto">
       <table class="w-full text-left">
         <thead>
           <tr class="border-b border-brand-muted/20 font-body text-xs uppercase tracking-wide text-brand-muted">
@@ -60,6 +61,7 @@
           }
         </tbody>
       </table>
+      </div>
     }
   </div>
 </div>

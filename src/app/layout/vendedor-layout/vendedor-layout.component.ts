@@ -1,4 +1,5 @@
-import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ElementRef, effect, inject, signal, viewChild, ChangeDetectionStrategy } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink, RouterOutlet, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -8,7 +9,7 @@ import { ConfirmService } from '../../core/services/confirm.service';
 
 @Component({
     selector: 'app-vendedor-layout',
-    imports: [RouterOutlet, RouterLink, RouterLinkActive, ToastContainerComponent, ConfirmModalComponent],
+    imports: [RouterOutlet, RouterLink, RouterLinkActive, NgTemplateOutlet, ToastContainerComponent, ConfirmModalComponent],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './vendedor-layout.component.html'
 })
@@ -19,6 +20,32 @@ export class VendedorLayoutComponent {
   private readonly router = inject(Router);
 
   readonly usuarioActual = this.authService.currentUser;
+  readonly menuAbierto = signal(false);
+
+  readonly drawer = viewChild<ElementRef<HTMLElement>>('drawer');
+
+  constructor() {
+    effect(() => {
+      if (this.menuAbierto()) {
+        setTimeout(() => this.drawer()?.nativeElement.focus());
+      }
+    });
+  }
+
+  abrirMenu(): void {
+    this.menuAbierto.set(true);
+  }
+
+  cerrarMenu(): void {
+    this.menuAbierto.set(false);
+  }
+
+  onDrawerKeydown(evento: KeyboardEvent): void {
+    if (evento.key === 'Escape') {
+      evento.stopPropagation();
+      this.cerrarMenu();
+    }
+  }
 
   async cerrarSesion(): Promise<void> {
     const confirmado = await this.confirmService.confirmar({
@@ -32,6 +59,7 @@ export class VendedorLayoutComponent {
       return;
     }
 
+    this.cerrarMenu();
     this.authService.logout();
     this.toastService.exito('Sesión cerrada.');
     this.router.navigate(['/login']);

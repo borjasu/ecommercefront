@@ -7,7 +7,7 @@ import { PedidoService } from '../../core/services/pedido.service';
 import { DireccionesService } from '../../core/services/direcciones.service';
 import { ItemCarrito } from '../../core/models/carrito.model';
 import { Color } from '../../core/models/producto.model';
-import { COLORES } from '../../shared/constants/colores';
+import { ColoresService } from '../../core/services/colores.service';
 
 type MetodoPago = 'tarjeta' | 'efectivo';
 
@@ -23,6 +23,7 @@ export class CheckoutComponent {
   private readonly cartService = inject(CartService);
   private readonly pedidoService = inject(PedidoService);
   readonly direccionesService = inject(DireccionesService);
+  private readonly coloresService = inject(ColoresService);
   private readonly router = inject(Router);
 
   readonly items = this.cartService.itemsCarrito;
@@ -87,7 +88,7 @@ export class CheckoutComponent {
   }
 
   etiquetaDeColor(color: Color): string {
-    return COLORES.find(opcion => opcion.valor === color)?.etiqueta ?? color;
+    return this.coloresService.etiquetaDe(color);
   }
 
   siguientePaso(): void {

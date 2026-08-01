@@ -8,7 +8,7 @@ import { FavoritosService } from '../../core/services/favoritos.service';
 import { ToastService } from '../../core/services/toast.service';
 import { OfertaService } from '../../core/services/oferta.service';
 import { Audiencia, Categoria, Color, Producto, Talla } from '../../core/models/producto.model';
-import { COLORES } from '../../shared/constants/colores';
+import { ColoresService } from '../../core/services/colores.service';
 import { BreadcrumbComponent, BreadcrumbItem } from '../../shared/components/breadcrumb/breadcrumb.component';
 
 const NOMBRES_CATEGORIA: Record<Categoria, string> = {
@@ -38,6 +38,7 @@ export class ProductoDetalleComponent {
   private readonly cartService = inject(CartService);
   private readonly toastService = inject(ToastService);
   private readonly ofertaService = inject(OfertaService);
+  private readonly coloresService = inject(ColoresService);
   readonly favoritosService = inject(FavoritosService);
 
   readonly producto = toSignal<Producto | undefined>(
@@ -46,8 +47,6 @@ export class ProductoDetalleComponent {
     ),
     { initialValue: undefined }
   );
-
-  readonly colores = COLORES;
 
   readonly tallaSeleccionada = signal<Talla | null>(null);
   readonly colorSeleccionado = signal<Color | null>(null);
@@ -136,11 +135,11 @@ export class ProductoDetalleComponent {
   }
 
   etiquetaDeColor(color: Color): string {
-    return this.colores.find(opcion => opcion.valor === color)?.etiqueta ?? color;
+    return this.coloresService.etiquetaDe(color);
   }
 
   hexDeColor(color: Color): string {
-    return this.colores.find(opcion => opcion.valor === color)?.hex ?? '#000000';
+    return this.coloresService.hexDe(color);
   }
 
   imagenAnterior(): void {

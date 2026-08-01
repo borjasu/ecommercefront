@@ -1,19 +1,20 @@
 import { Component, computed, effect, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
-import { combineLatest } from 'rxjs';
-import { delay, map, startWith, switchMap } from 'rxjs/operators';
+import { combineLatest, of } from 'rxjs';
+import { catchError, delay, map, startWith, switchMap } from 'rxjs/operators';
 import { ProductoService } from '../../core/services/producto.service';
+import { ColoresService } from '../../core/services/colores.service';
+import { TallasService } from '../../core/services/tallas.service';
 import { Audiencia, Categoria, Color, Producto, Talla } from '../../core/models/producto.model';
 import { AUDIENCIAS, CATEGORIAS } from '../../shared/constants/categorias';
-import { COLORES } from '../../shared/constants/colores';
 import { BreadcrumbComponent, BreadcrumbItem } from '../../shared/components/breadcrumb/breadcrumb.component';
 import { ProductoCardComponent } from '../../shared/components/producto-card/producto-card.component';
 import { ProductoCardSkeletonComponent } from '../../shared/components/producto-card-skeleton/producto-card-skeleton.component';
 
-const TALLAS: Talla[] = ['S', 'M', 'L', 'XL'];
 const RETRASO_CARGA_MS = 400;
+const TAMANO_PAGINA = 12;
 
 type OrdenPrecio = 'ninguno' | 'asc' | 'desc';
 
@@ -23,6 +24,7 @@ interface ResultadoCatalogo {
   categoria: Categoria | null;
   termino: string | null;
   cargando: boolean;
+  error: boolean;
 }
 
 @Component({
@@ -35,26 +37,38 @@ interface ResultadoCatalogo {
 export class CatalogoComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly productoService = inject(ProductoService);
+  private readonly coloresService = inject(ColoresService);
+  private readonly tallasService = inject(TallasService);
 
-  readonly tallas = TALLAS;
+  readonly tallas = this.tallasService.listado;
   readonly categorias = CATEGORIAS;
-  readonly colores = COLORES;
+  readonly colores = this.coloresService.listado;
+
+  private readonly intentoRecarga = signal(0);
 
   private readonly resultado = toSignal(
-    combineLatest({ params: this.route.paramMap, query: this.route.queryParamMap }).pipe(
+    combineLatest({
+      params: this.route.paramMap,
+      query: this.route.queryParamMap,
+      intento: toObservable(this.intentoRecarga)
+    }).pipe(
       switchMap(({ params, query }) => {
         const termino = query.get('q');
         if (termino) {
           return this.productoService.buscar(termino).pipe(
             delay(RETRASO_CARGA_MS),
-            map(productos => ({ productos, audiencia: null, categoria: null, termino, cargando: false })),
+            map(productos => ({ productos, audiencia: null, categoria: null, termino, cargando: false, error: false })),
             startWith({
               productos: [],
               audiencia: null,
               categoria: null,
               termino,
-              cargando: true
-            } as ResultadoCatalogo)
+              cargando: true,
+              error: false
+            } as ResultadoCatalogo),
+            catchError(() =>
+              of({ productos: [], audiencia: null, categoria: null, termino, cargando: false, error: true } as ResultadoCatalogo)
+            )
           );
         }
 
@@ -69,8 +83,18 @@ export class CatalogoComponent {
 
         return productos$.pipe(
           delay(RETRASO_CARGA_MS),
-          map(productos => ({ productos, audiencia, categoria, termino: null as string | null, cargando: false })),
-          startWith({ productos: [], audiencia, categoria, termino: null, cargando: true } as ResultadoCatalogo)
+          map(productos => ({
+            productos,
+            audiencia,
+            categoria,
+            termino: null as string | null,
+            cargando: false,
+            error: false
+          })),
+          startWith({ productos: [], audiencia, categoria, termino: null, cargando: true, error: false } as ResultadoCatalogo),
+          catchError(() =>
+            of({ productos: [], audiencia, categoria, termino: null, cargando: false, error: true } as ResultadoCatalogo)
+          )
         );
       })
     ),
@@ -80,7 +104,8 @@ export class CatalogoComponent {
         audiencia: null,
         categoria: null,
         termino: null,
-        cargando: true
+        cargando: true,
+        error: false
       } as ResultadoCatalogo
     }
   );
@@ -90,6 +115,7 @@ export class CatalogoComponent {
   readonly categoriaActual = computed(() => this.resultado().categoria);
   readonly terminoBusqueda = computed(() => this.resultado().termino);
   readonly cargando = computed(() => this.resultado().cargando);
+  readonly error = computed(() => this.resultado().error);
 
   readonly filtroTallas = signal<Set<Talla>>(new Set());
   readonly filtroCategorias = signal<Set<Categoria>>(new Set());
@@ -160,6 +186,12 @@ export class CatalogoComponent {
     return [...filtrados].sort((a, b) => (orden === 'asc' ? a.precio - b.precio : b.precio - a.precio));
   });
 
+  readonly paginaVisible = signal(TAMANO_PAGINA);
+
+  readonly productosVisibles = computed(() => this.productos().slice(0, this.paginaVisible()));
+
+  readonly hayMasProductos = computed(() => this.productos().length > this.paginaVisible());
+
   readonly mensajeVacio = computed(() =>
     this.terminoBusqueda()
       ? `No encontramos productos que coincidan con "${this.terminoBusqueda()}".`
@@ -210,6 +242,19 @@ export class CatalogoComponent {
       const categoria = this.categoriaActual();
       this.filtroCategorias.set(categoria ? new Set([categoria]) : new Set());
     });
+
+    effect(() => {
+      this.productos();
+      this.paginaVisible.set(TAMANO_PAGINA);
+    });
+  }
+
+  cargarMasProductos(): void {
+    this.paginaVisible.update(pagina => pagina + TAMANO_PAGINA);
+  }
+
+  reintentar(): void {
+    this.intentoRecarga.update(intento => intento + 1);
   }
 
   toggleTalla(talla: Talla): void {

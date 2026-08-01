@@ -5,7 +5,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ItemCarrito } from '../../core/models/carrito.model';
 import { Color } from '../../core/models/producto.model';
-import { COLORES } from '../../shared/constants/colores';
+import { ColoresService } from '../../core/services/colores.service';
 
 @Component({
     selector: 'app-carrito',
@@ -17,6 +17,7 @@ export class CarritoComponent {
   private readonly cartService = inject(CartService);
   private readonly toastService = inject(ToastService);
   private readonly confirmService = inject(ConfirmService);
+  private readonly coloresService = inject(ColoresService);
 
   readonly items = this.cartService.itemsCarrito;
   readonly total = this.cartService.total;
@@ -68,10 +69,10 @@ export class CarritoComponent {
   }
 
   etiquetaDeColor(color: Color): string {
-    return COLORES.find(opcion => opcion.valor === color)?.etiqueta ?? color;
+    return this.coloresService.etiquetaDe(color);
   }
 
   hexDeColor(color: Color): string {
-    return COLORES.find(opcion => opcion.valor === color)?.hex ?? '#000000';
+    return this.coloresService.hexDe(color);
   }
 }

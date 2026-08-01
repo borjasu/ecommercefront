@@ -1,32 +1,33 @@
-<div class="p-8">
-  <h1 class="font-display text-3xl font-semibold text-brand-ink">Dashboard</h1>
+<div class="p-4 sm:p-8">
+  <h1 class="font-body text-3xl font-bold text-brand-ink">Dashboard</h1>
   <p class="mt-1 font-body text-sm text-brand-muted">Resumen general de tu tienda.</p>
 
   <div class="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
     <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
       <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Productos activos</p>
-      <p class="mt-2 font-display text-3xl font-semibold text-brand-ink">{{ totalProductos() }}</p>
+      <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-ink">{{ totalProductos() }}</p>
     </div>
     <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
       <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Pedidos recibidos</p>
-      <p class="mt-2 font-display text-3xl font-semibold text-brand-ink">{{ totalPedidos() }}</p>
+      <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-ink">{{ totalPedidos() }}</p>
     </div>
     <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
       <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Pendientes de envío</p>
-      <p class="mt-2 font-display text-3xl font-semibold text-brand-ink">{{ pedidosPendientes() }}</p>
+      <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-ink">{{ pedidosPendientes() }}</p>
     </div>
     <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
       <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Ingresos totales</p>
-      <p class="mt-2 font-display text-3xl font-semibold text-brand-gold">${{ ingresosTotales() }}</p>
+      <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-gold">${{ ingresosTotales() }}</p>
     </div>
   </div>
 
   <div class="mt-10">
-    <h2 class="font-display text-xl font-semibold text-brand-ink">Pedidos recientes</h2>
+    <h2 class="font-body text-xl font-bold text-brand-ink">Pedidos recientes</h2>
     <div class="mt-4 overflow-hidden rounded-sm border border-brand-muted/30 bg-white/60 shadow-sm">
       @if (pedidosRecientes().length === 0) {
         <p class="p-6 font-body text-sm text-brand-muted">Todavía no hay pedidos.</p>
       } @else {
+        <div class="overflow-x-auto">
         <table class="w-full text-left">
           <thead>
             <tr class="border-b border-brand-muted/20 font-body text-xs uppercase tracking-wide text-brand-muted">
@@ -51,6 +52,7 @@
             }
           </tbody>
         </table>
+        </div>
       }
     </div>
   </div>

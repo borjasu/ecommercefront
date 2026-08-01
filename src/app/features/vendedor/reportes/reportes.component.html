@@ -1,5 +1,5 @@
-<div class="p-8">
-  <h1 class="font-display text-3xl font-semibold text-brand-ink">Reportes</h1>
+<div class="p-4 sm:p-8">
+  <h1 class="font-body text-3xl font-bold text-brand-ink">Reportes</h1>
   <p class="mt-1 font-body text-sm text-brand-muted">Analiza el desempeño de ventas de tu tienda.</p>
 
   <div class="mt-6 flex flex-wrap items-center justify-between gap-4">
@@ -39,21 +39,21 @@
   <div class="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-3">
     <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
       <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Ingresos en el periodo</p>
-      <p class="mt-2 font-display text-3xl font-semibold text-brand-gold">${{ ingresosTotales() }}</p>
+      <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-gold">${{ ingresosTotales() }}</p>
     </div>
     <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
       <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Pedidos en el periodo</p>
-      <p class="mt-2 font-display text-3xl font-semibold text-brand-ink">{{ totalPedidos() }}</p>
+      <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-ink">{{ totalPedidos() }}</p>
     </div>
     <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
       <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Ticket promedio</p>
-      <p class="mt-2 font-display text-3xl font-semibold text-brand-ink">${{ ticketPromedio() }}</p>
+      <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-ink">${{ ticketPromedio() }}</p>
     </div>
   </div>
 
   <div class="mt-10">
-    <div class="flex items-center justify-between">
-      <h2 class="font-display text-xl font-semibold text-brand-ink">Ventas por periodo</h2>
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <h2 class="font-body text-xl font-bold text-brand-ink">Ventas por periodo</h2>
       <div class="flex items-center gap-1 rounded-[2px] border border-brand-muted/40 p-1">
         @for (opcion of opcionesGranularidad; track opcion.valor) {
           <button
@@ -92,11 +92,12 @@
   </div>
 
   <div class="mt-10">
-    <h2 class="font-display text-xl font-semibold text-brand-ink">Productos más vendidos</h2>
+    <h2 class="font-body text-xl font-bold text-brand-ink">Productos más vendidos</h2>
     <div class="mt-4 overflow-hidden rounded-sm border border-brand-muted/30 bg-white/60 shadow-sm">
       @if (productosMasVendidos().length === 0) {
         <p class="p-6 font-body text-sm text-brand-muted">No hay ventas registradas en este periodo.</p>
       } @else {
+        <div class="overflow-x-auto">
         <table class="w-full text-left">
           <thead>
             <tr class="border-b border-brand-muted/20 font-body text-xs uppercase tracking-wide text-brand-muted">
@@ -115,6 +116,7 @@
             }
           </tbody>
         </table>
+        </div>
       }
     </div>
   </div>

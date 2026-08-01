@@ -13,8 +13,8 @@ import { CartService } from '../../../core/services/cart.service';
 import { FavoritosService } from '../../../core/services/favoritos.service';
 import { SelectorProductoModalService } from '../../../core/services/selector-producto-modal.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { ColoresService } from '../../../core/services/colores.service';
 import { Color, Talla } from '../../../core/models/producto.model';
-import { COLORES } from '../../constants/colores';
 
 const CANTIDAD_MINIMA = 1;
 const CANTIDAD_MAXIMA = 20;
@@ -30,8 +30,7 @@ export class AgregarCarritoModalComponent {
   private readonly toastService = inject(ToastService);
   readonly modalService = inject(SelectorProductoModalService);
   readonly favoritosService = inject(FavoritosService);
-
-  readonly colores = COLORES;
+  private readonly coloresService = inject(ColoresService);
 
   readonly tallaSeleccionada = signal<Talla | null>(null);
   readonly colorSeleccionado = signal<Color | null>(null);
@@ -93,11 +92,11 @@ export class AgregarCarritoModalComponent {
   }
 
   etiquetaDeColor(color: Color): string {
-    return this.colores.find(opcion => opcion.valor === color)?.etiqueta ?? color;
+    return this.coloresService.etiquetaDe(color);
   }
 
   hexDeColor(color: Color): string {
-    return this.colores.find(opcion => opcion.valor === color)?.hex ?? '#000000';
+    return this.coloresService.hexDe(color);
   }
 
   decrementarCantidad(): void {

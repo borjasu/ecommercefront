@@ -1,5 +1,5 @@
-<div class="p-8">
-  <h1 class="font-display text-3xl font-semibold text-brand-ink">Pedidos</h1>
+<div class="p-4 sm:p-8">
+  <h1 class="font-body text-3xl font-bold text-brand-ink">Pedidos</h1>
   <p class="mt-1 font-body text-sm text-brand-muted">Consulta y gestiona los pedidos de tus clientes.</p>
 
   <div class="mt-6 flex flex-wrap gap-2">
@@ -22,6 +22,7 @@
     @if (pedidosFiltrados().length === 0) {
       <p class="p-6 font-body text-sm text-brand-muted">No hay pedidos para este filtro.</p>
     } @else {
+      <div class="overflow-x-auto">
       <table class="w-full text-left">
         <thead>
           <tr class="border-b border-brand-muted/20 font-body text-xs uppercase tracking-wide text-brand-muted">
@@ -127,6 +128,7 @@
           }
         </tbody>
       </table>
+      </div>
     }
   </div>
 </div>
@@ -134,7 +136,7 @@
 @if (pedidoPendienteGuia(); as pedido) {
   <div class="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
     <div class="w-full max-w-md rounded-sm bg-brand-bone p-8 shadow-lg">
-      <h2 class="font-display text-xl font-semibold text-brand-ink">Guía de envío</h2>
+      <h2 class="font-body text-xl font-bold text-brand-ink">Guía de envío</h2>
       <p class="mt-1 font-body text-sm text-brand-muted">
         Captura los datos de la paquetería para el pedido {{ pedido.numeroPedido }}.
       </p>
