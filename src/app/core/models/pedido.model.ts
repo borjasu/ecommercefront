@@ -62,5 +62,8 @@ export interface Pedido {
   estadoPago: EstadoPago;
   infoEnvio: InfoEnvio;
   datosFiscales: DatosFiscales;
+  // true si el job de limpieza lo canceló por nunca pagarse (no una
+  // cancelación manual del vendedor) — ver OrdersCleanupService en el backend.
+  canceladoPorAbandono: boolean;
   fecha: string;
 }

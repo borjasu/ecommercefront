@@ -30,8 +30,17 @@ const LIMITE_MAXIMO_BACKEND = 200;
 export class VendorPedidoService {
   private readonly http = inject(HttpClient);
 
-  obtenerTodos(): Observable<Pedido[]> {
-    const params = new HttpParams().set('limit', LIMITE_MAXIMO_BACKEND);
+  /**
+   * Por default el backend excluye los pedidos cancelados automáticamente por
+   * abandono (nunca se pagaron, ver OrdersCleanupService) — no ensucian el
+   * panel principal, dashboard, reportes ni pagos. Pasa soloAbandonados:true
+   * únicamente para la pestaña dedicada que los muestra aparte.
+   */
+  obtenerTodos(soloAbandonados = false): Observable<Pedido[]> {
+    let params = new HttpParams().set('limit', LIMITE_MAXIMO_BACKEND);
+    if (soloAbandonados) {
+      params = params.set('soloAbandonados', 'true');
+    }
     return this.http
       .get<PaginaDePedidos>(`${API_URL}/vendedor/pedidos`, { params })
       .pipe(map(pagina => pagina.data));

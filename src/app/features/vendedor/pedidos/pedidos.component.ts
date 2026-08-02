@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { VendorPedidoService } from '../../../core/services/vendor-pedido.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { EstadoPago, EstadoPedido, Pedido } from '../../../core/models/pedido.model';
+import { etiquetaDeRastreo } from '../../../shared/constants/rastreo';
 
 type FiltroEstado = 'todos' | EstadoPedido;
 type Paqueteria = 'DHL' | 'FedEx' | 'Estafeta' | 'Correos de México' | 'Otro';
@@ -39,9 +40,14 @@ export class PedidosComponent {
 
   readonly pedidos = signal<Pedido[]>([]);
   readonly filtroActual = signal<FiltroEstado>('todos');
+  // Vista aparte del filtro por estado: pedidos que el job de limpieza
+  // canceló solo por nunca pagarse (nunca fueron pedidos reales) — el
+  // backend ya los excluye de la vista principal por default.
+  readonly vistaAbandonados = signal(false);
   readonly pedidoExpandidoId = signal<string | null>(null);
   readonly pedidoPendienteGuia = signal<Pedido | null>(null);
   readonly generandoGuia = signal(false);
+  readonly actualizandoRastreoId = signal<string | null>(null);
 
   readonly guiaForm = this.fb.group({
     paqueteria: ['DHL' as Paqueteria, [Validators.required]],
@@ -54,6 +60,11 @@ export class PedidosComponent {
   );
 
   readonly pedidosFiltrados = computed(() => {
+    // En la vista de abandonados todos son 'cancelado' por definición — el
+    // filtro por estado no aplica ahí, solo en la vista principal.
+    if (this.vistaAbandonados()) {
+      return this.pedidosOrdenados();
+    }
     const filtro = this.filtroActual();
     const pedidos = this.pedidosOrdenados();
     return filtro === 'todos' ? pedidos : pedidos.filter(pedido => pedido.estado === filtro);
@@ -148,8 +159,37 @@ export class PedidosComponent {
     return etiquetas[estadoPago];
   }
 
+  etiquetaRastreo(estado: string | null): string | null {
+    return etiquetaDeRastreo(estado);
+  }
+
+  actualizarRastreo(pedido: Pedido): void {
+    this.actualizandoRastreoId.set(pedido.id);
+    this.vendorPedidoService.obtenerRastreo(pedido.id).subscribe({
+      next: ({ trackingStatus }) => {
+        this.pedidos.update(lista =>
+          lista.map(p => (p.id === pedido.id ? { ...p, infoEnvio: { ...p.infoEnvio, trackingStatus } } : p))
+        );
+        this.actualizandoRastreoId.set(null);
+      },
+      error: () => {
+        this.toastService.error('No pudimos actualizar el rastreo. Intenta de nuevo.');
+        this.actualizandoRastreoId.set(null);
+      }
+    });
+  }
+
+  cambiarVista(abandonados: boolean): void {
+    if (this.vistaAbandonados() === abandonados) {
+      return;
+    }
+    this.vistaAbandonados.set(abandonados);
+    this.filtroActual.set('todos');
+    this.cargarPedidos();
+  }
+
   private cargarPedidos(): void {
-    this.vendorPedidoService.obtenerTodos().subscribe({
+    this.vendorPedidoService.obtenerTodos(this.vistaAbandonados()).subscribe({
       next: pedidos => this.pedidos.set(pedidos),
       error: () => this.toastService.error('No pudimos cargar los pedidos.')
     });
