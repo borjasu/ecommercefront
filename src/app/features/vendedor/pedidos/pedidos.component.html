@@ -2,21 +2,53 @@
   <h1 class="font-body text-3xl font-bold text-brand-ink">Pedidos</h1>
   <p class="mt-1 font-body text-sm text-brand-muted">Consulta y gestiona los pedidos de tus clientes.</p>
 
-  <div class="mt-6 flex flex-wrap gap-2">
-    @for (filtro of filtros; track filtro.valor) {
-      <button
-        type="button"
-        (click)="filtroActual.set(filtro.valor)"
-        [class]="
-          filtroActual() === filtro.valor
-            ? 'cursor-pointer rounded-sm border border-brand-gold bg-brand-gold px-4 py-2 font-body text-sm font-semibold uppercase tracking-wide text-brand-ink'
-            : 'cursor-pointer rounded-sm border border-brand-muted px-4 py-2 font-body text-sm uppercase tracking-wide text-brand-text transition-colors duration-150 hover:border-brand-gold'
-        "
-      >
-        {{ filtro.etiqueta }}
-      </button>
-    }
+  <div class="mt-6 flex flex-wrap items-center gap-4 border-b border-brand-muted/20 pb-4">
+    <button
+      type="button"
+      (click)="cambiarVista(false)"
+      [class]="
+        !vistaAbandonados()
+          ? 'cursor-pointer font-body text-sm font-semibold uppercase tracking-wide text-brand-ink border-b-2 border-brand-gold pb-1'
+          : 'cursor-pointer font-body text-sm uppercase tracking-wide text-brand-muted pb-1 hover:text-brand-ink'
+      "
+    >
+      Pedidos
+    </button>
+    <button
+      type="button"
+      (click)="cambiarVista(true)"
+      [class]="
+        vistaAbandonados()
+          ? 'cursor-pointer font-body text-sm font-semibold uppercase tracking-wide text-brand-ink border-b-2 border-brand-gold pb-1'
+          : 'cursor-pointer font-body text-sm uppercase tracking-wide text-brand-muted pb-1 hover:text-brand-ink'
+      "
+      title="Pedidos que nunca se pagaron y el sistema canceló automáticamente — no son ventas reales."
+    >
+      Abandonados
+    </button>
   </div>
+
+  @if (vistaAbandonados()) {
+    <p class="mt-4 font-body text-sm text-brand-muted">
+      Pedidos que nunca se pagaron y el sistema canceló automáticamente tras varias horas sin confirmarse. No representan ventas ni se cuentan en reportes.
+    </p>
+  } @else {
+    <div class="mt-6 flex flex-wrap gap-2">
+      @for (filtro of filtros; track filtro.valor) {
+        <button
+          type="button"
+          (click)="filtroActual.set(filtro.valor)"
+          [class]="
+            filtroActual() === filtro.valor
+              ? 'cursor-pointer rounded-sm border border-brand-gold bg-brand-gold px-4 py-2 font-body text-sm font-semibold uppercase tracking-wide text-brand-ink'
+              : 'cursor-pointer rounded-sm border border-brand-muted px-4 py-2 font-body text-sm uppercase tracking-wide text-brand-text transition-colors duration-150 hover:border-brand-gold'
+          "
+        >
+          {{ filtro.etiqueta }}
+        </button>
+      }
+    </div>
+  }
 
   <div class="mt-6 overflow-hidden rounded-sm border border-brand-muted/30 bg-white/60 shadow-sm">
     @if (pedidosFiltrados().length === 0) {
@@ -31,7 +63,9 @@
             <th class="px-6 py-3">Cliente</th>
             <th class="px-6 py-3">Total</th>
             <th class="px-6 py-3">Estado</th>
-            <th class="px-6 py-3">Cambiar estado</th>
+            @if (!vistaAbandonados()) {
+              <th class="px-6 py-3">Cambiar estado</th>
+            }
           </tr>
         </thead>
         <tbody class="divide-y divide-brand-muted/20">
@@ -40,25 +74,31 @@
               <td class="px-6 py-4 font-body text-sm text-brand-text">{{ pedido.numeroPedido }}</td>
               <td class="px-6 py-4 font-body text-sm text-brand-muted">{{ pedido.fecha | date: 'dd/MM/yyyy HH:mm' }}</td>
               <td class="px-6 py-4 font-body text-sm text-brand-text">{{ pedido.datosEnvio.nombreCompleto }}</td>
-              <td class="px-6 py-4 font-body text-sm font-semibold text-brand-gold">${{ pedido.total }}</td>
+              <td class="px-6 py-4 font-body text-sm font-semibold text-brand-muted line-through">${{ pedido.total }}</td>
               <td class="px-6 py-4">
-                <span class="badge">{{ etiquetaEstado(pedido.estado) }}</span>
+                @if (vistaAbandonados()) {
+                  <span class="badge">Abandonado (sin pago)</span>
+                } @else {
+                  <span class="badge">{{ etiquetaEstado(pedido.estado) }}</span>
+                }
               </td>
-              <td class="px-6 py-4" (click)="$event.stopPropagation()">
-                <select
-                  [value]="pedido.estado"
-                  (change)="cambiarEstado(pedido, $any($event.target).value)"
-                  class="input-field !py-1.5 text-sm"
-                >
-                  @for (estado of estados; track estado) {
-                    <option [value]="estado">{{ etiquetaEstado(estado) }}</option>
-                  }
-                </select>
-              </td>
+              @if (!vistaAbandonados()) {
+                <td class="px-6 py-4" (click)="$event.stopPropagation()">
+                  <select
+                    [value]="pedido.estado"
+                    (change)="cambiarEstado(pedido, $any($event.target).value)"
+                    class="input-field !py-1.5 text-sm"
+                  >
+                    @for (estado of estados; track estado) {
+                      <option [value]="estado">{{ etiquetaEstado(estado) }}</option>
+                    }
+                  </select>
+                </td>
+              }
             </tr>
             @if (pedidoExpandidoId() === pedido.id) {
               <tr>
-                <td colspan="6" class="bg-brand-bone/40 px-6 py-6">
+                <td [attr.colspan]="vistaAbandonados() ? 5 : 6" class="bg-brand-bone/40 px-6 py-6">
                   <div class="grid grid-cols-1 gap-8 md:grid-cols-2">
                     <div>
                       <h3 class="font-body text-xs uppercase tracking-wide text-brand-muted">Artículos</h3>
@@ -77,7 +117,7 @@
                               </p>
                             </div>
                             <p class="font-body text-sm font-semibold text-brand-gold">
-                              ${{ item.producto.precio * item.cantidad }}
+                              ${{ item.precioUnitario * item.cantidad }}
                             </p>
                           </div>
                         }
@@ -103,22 +143,35 @@
                         <h3 class="mt-6 font-body text-xs uppercase tracking-wide text-brand-muted">Guía de rastreo</h3>
                         <div class="mt-2 space-y-1 font-body text-sm text-brand-text">
                           <p>{{ pedido.infoEnvio?.paqueteria }} · {{ pedido.infoEnvio?.numeroGuia }}</p>
-                          @if (pedido.infoEnvio?.urlRastreo) {
-                            <a
-                              [href]="pedido.infoEnvio?.urlRastreo"
-                              target="_blank"
-                              rel="noopener"
-                              class="text-brand-gold hover:underline"
-                            >
-                              Ver rastreo
-                            </a>
+                          @if (etiquetaRastreo(pedido.infoEnvio?.trackingStatus ?? null); as etiqueta) {
+                            <p class="font-semibold text-brand-gold">{{ etiqueta }}</p>
                           }
+                          <div class="flex items-center gap-3">
+                            @if (pedido.infoEnvio?.urlRastreo) {
+                              <a
+                                [href]="pedido.infoEnvio?.urlRastreo"
+                                target="_blank"
+                                rel="noopener"
+                                class="text-brand-gold hover:underline"
+                              >
+                                Ver rastreo
+                              </a>
+                            }
+                            <button
+                              type="button"
+                              (click)="actualizarRastreo(pedido)"
+                              [disabled]="actualizandoRastreoId() === pedido.id"
+                              class="cursor-pointer text-xs uppercase tracking-wide text-brand-muted hover:text-brand-ink disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {{ actualizandoRastreoId() === pedido.id ? 'Actualizando…' : 'Actualizar estado' }}
+                            </button>
+                          </div>
                         </div>
                       }
 
-                      @if (pedido.emailComprador) {
+                      @if (pedido.usuario?.email) {
                         <h3 class="mt-6 font-body text-xs uppercase tracking-wide text-brand-muted">Correo del cliente</h3>
-                        <p class="mt-2 font-body text-sm text-brand-text">{{ pedido.emailComprador }}</p>
+                        <p class="mt-2 font-body text-sm text-brand-text">{{ pedido.usuario?.email }}</p>
                       }
                     </div>
                   </div>
@@ -181,6 +234,17 @@
           <button type="submit" class="btn-gold">Marcar como enviado</button>
         </div>
       </form>
+
+      <div class="mt-6 border-t border-brand-muted/20 pt-6">
+        <button
+          type="button"
+          [disabled]="generandoGuia()"
+          (click)="generarGuiaAutomatica()"
+          class="w-full cursor-pointer rounded-sm border border-brand-gold px-4 py-2 font-body text-sm uppercase tracking-wide text-brand-gold transition-colors hover:bg-brand-gold hover:text-brand-ink disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {{ generandoGuia() ? 'Generando guía…' : 'O generar guía automática con Skydropx' }}
+        </button>
+      </div>
     </div>
   </div>
 }

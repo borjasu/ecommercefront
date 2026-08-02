@@ -1,5 +1,5 @@
 import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
-import { PedidoService } from '../../../core/services/pedido.service';
+import { VendorPedidoService } from '../../../core/services/vendor-pedido.service';
 import { Pedido } from '../../../core/models/pedido.model';
 
 type Granularidad = 'dia' | 'semana' | 'mes';
@@ -35,7 +35,7 @@ function inicioDeSemana(fecha: Date): Date {
     templateUrl: './reportes.component.html'
 })
 export class ReportesComponent {
-  private readonly pedidoService = inject(PedidoService);
+  private readonly vendorPedidoService = inject(VendorPedidoService);
 
   readonly presets: { valor: Preset; etiqueta: string }[] = [
     { valor: '7', etiqueta: 'Últimos 7 días' },
@@ -104,7 +104,7 @@ export class ReportesComponent {
     for (const pedido of this.pedidosValidos()) {
       for (const item of pedido.items) {
         const existente = acumulado.get(item.producto.id);
-        const ingresos = item.producto.precio * item.cantidad;
+        const ingresos = item.precioUnitario * item.cantidad;
 
         if (existente) {
           existente.cantidad += item.cantidad;
@@ -126,7 +126,7 @@ export class ReportesComponent {
   });
 
   constructor() {
-    this.pedidoService.obtenerTodos().subscribe(pedidos => this.pedidos.set(pedidos));
+    this.vendorPedidoService.obtenerTodos().subscribe(pedidos => this.pedidos.set(pedidos));
   }
 
   aplicarPreset(preset: Preset): void {

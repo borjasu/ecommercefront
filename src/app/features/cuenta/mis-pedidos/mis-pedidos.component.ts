@@ -1,12 +1,10 @@
-import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { delay } from 'rxjs';
-import { AuthService } from '../../../core/services/auth.service';
 import { PedidoService } from '../../../core/services/pedido.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { EstadoPedido, Pedido } from '../../../core/models/pedido.model';
-
-const RETRASO_CARGA_MS = 400;
+import { etiquetaDeRastreo } from '../../../shared/constants/rastreo';
 
 @Component({
     selector: 'app-mis-pedidos',
@@ -15,28 +13,21 @@ const RETRASO_CARGA_MS = 400;
     templateUrl: './mis-pedidos.component.html'
 })
 export class MisPedidosComponent {
-  private readonly authService = inject(AuthService);
   private readonly pedidoService = inject(PedidoService);
+  private readonly toastService = inject(ToastService);
 
-  private readonly todosLosPedidos = signal<Pedido[]>([]);
+  readonly pedidos = signal<Pedido[]>([]);
   readonly pedidoExpandidoId = signal<string | null>(null);
   readonly cargando = signal(true);
-
-  readonly pedidos = computed(() => {
-    const email = this.authService.currentUser()?.email;
-    return this.todosLosPedidos()
-      .filter(pedido => pedido.emailComprador === email)
-      .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-  });
+  readonly error = signal(false);
+  readonly actualizandoRastreoId = signal<string | null>(null);
 
   constructor() {
-    this.pedidoService
-      .obtenerTodos()
-      .pipe(delay(RETRASO_CARGA_MS))
-      .subscribe(pedidos => {
-        this.todosLosPedidos.set(pedidos);
-        this.cargando.set(false);
-      });
+    this.cargar();
+  }
+
+  reintentar(): void {
+    this.cargar();
   }
 
   toggleDetalle(pedido: Pedido): void {
@@ -51,5 +42,42 @@ export class MisPedidosComponent {
       cancelado: 'Cancelado'
     };
     return etiquetas[estado];
+  }
+
+  etiquetaRastreo(estado: string | null): string | null {
+    return etiquetaDeRastreo(estado);
+  }
+
+  actualizarRastreo(pedido: Pedido): void {
+    this.actualizandoRastreoId.set(pedido.id);
+    this.pedidoService.obtenerRastreo(pedido.id).subscribe({
+      next: ({ trackingStatus }) => {
+        this.pedidos.update(lista =>
+          lista.map(p => (p.id === pedido.id ? { ...p, infoEnvio: { ...p.infoEnvio, trackingStatus } } : p))
+        );
+        this.actualizandoRastreoId.set(null);
+      },
+      error: () => {
+        this.toastService.error('No pudimos actualizar el rastreo. Intenta de nuevo.');
+        this.actualizandoRastreoId.set(null);
+      }
+    });
+  }
+
+  private cargar(): void {
+    this.cargando.set(true);
+    this.error.set(false);
+    // El backend ya filtra por el usuario de la cookie de sesión — nunca hace
+    // falta (ni sería seguro) filtrar por email del lado del cliente.
+    this.pedidoService.obtenerTodos().subscribe({
+      next: pedidos => {
+        this.pedidos.set(pedidos);
+        this.cargando.set(false);
+      },
+      error: () => {
+        this.error.set(true);
+        this.cargando.set(false);
+      }
+    });
   }
 }

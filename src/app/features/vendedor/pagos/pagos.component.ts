@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { PedidoService } from '../../../core/services/pedido.service';
+import { VendorPedidoService } from '../../../core/services/vendor-pedido.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { EstadoPago, Pedido } from '../../../core/models/pedido.model';
 
 type FiltroEstadoPago = 'todos' | EstadoPago;
@@ -17,7 +18,8 @@ interface FiltroOpcion {
     templateUrl: './pagos.component.html'
 })
 export class PagosComponent {
-  private readonly pedidoService = inject(PedidoService);
+  private readonly vendorPedidoService = inject(VendorPedidoService);
+  private readonly toastService = inject(ToastService);
 
   readonly filtros: FiltroOpcion[] = [
     { valor: 'todos', etiqueta: 'Todos' },
@@ -41,12 +43,33 @@ export class PagosComponent {
     return filtro === 'todos' ? pedidos : pedidos.filter(pedido => pedido.estadoPago === filtro);
   });
 
+  // Dinero real vs. solo referencia: totalPagado es la ÚNICA cifra que suma
+  // montos (nunca incluye pendiente/reembolsado) — pendientesCount y
+  // reembolsadosCount son conteos de pedidos, no dinero, para no dar la
+  // impresión de que ese monto ya entró a caja.
+  readonly totalPagado = computed(
+    () =>
+      Math.round(
+        this.pedidos()
+          .filter(pedido => pedido.estadoPago === 'pagado')
+          .reduce((suma, pedido) => suma + pedido.total, 0) * 100
+      ) / 100
+  );
+
+  readonly pendientesCount = computed(() => this.pedidos().filter(pedido => pedido.estadoPago === 'pendiente').length);
+  readonly reembolsadosCount = computed(
+    () => this.pedidos().filter(pedido => pedido.estadoPago === 'reembolsado').length
+  );
+
   constructor() {
     this.cargarPedidos();
   }
 
   cambiarEstadoPago(pedido: Pedido, estadoPago: EstadoPago): void {
-    this.pedidoService.actualizarEstadoPago(pedido.id, estadoPago).subscribe(() => this.cargarPedidos());
+    this.vendorPedidoService.actualizarEstadoPago(pedido.id, estadoPago).subscribe({
+      next: () => this.cargarPedidos(),
+      error: () => this.toastService.error('No pudimos actualizar el estado de pago.')
+    });
   }
 
   etiquetaEstadoPago(estadoPago: EstadoPago): string {
@@ -59,6 +82,9 @@ export class PagosComponent {
   }
 
   private cargarPedidos(): void {
-    this.pedidoService.obtenerTodos().subscribe(pedidos => this.pedidos.set(pedidos));
+    this.vendorPedidoService.obtenerTodos().subscribe({
+      next: pedidos => this.pedidos.set(pedidos),
+      error: () => this.toastService.error('No pudimos cargar los pedidos.')
+    });
   }
 }

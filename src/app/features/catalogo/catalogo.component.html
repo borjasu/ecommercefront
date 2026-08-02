@@ -11,22 +11,6 @@
   </div>
 
   <div class="mt-6">
-    <label for="orden-precio" class="font-body text-xs font-semibold uppercase tracking-wide text-brand-muted">
-      Ordenar por
-    </label>
-    <select
-      id="orden-precio"
-      class="input-field mt-2"
-      [value]="ordenPrecio()"
-      (change)="onOrdenChange($any($event.target).value)"
-    >
-      <option value="ninguno">Relevancia</option>
-      <option value="asc">Precio: menor a mayor</option>
-      <option value="desc">Precio: mayor a menor</option>
-    </select>
-  </div>
-
-  <div class="mt-6">
     <p class="font-body text-xs font-semibold uppercase tracking-wide text-brand-muted">Categoría</p>
     <ul class="mt-3 space-y-2">
       @for (categoria of categorias; track categoria.valor) {
@@ -131,35 +115,53 @@
   </div>
 
   <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-    <button
-      type="button"
-      (click)="alternarFiltros()"
-      [attr.aria-expanded]="filtrosVisibles()"
-      aria-controls="panel-filtros-catalogo"
-      class="relative inline-flex cursor-pointer items-center gap-2 rounded-[2px] border border-brand-muted px-4 py-2 font-body text-sm uppercase tracking-wide text-brand-text transition-colors hover:border-brand-gold hover:text-brand-gold"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        class="h-4 w-4"
-        aria-hidden="true"
+    <div class="flex flex-wrap items-center gap-4">
+      <button
+        type="button"
+        (click)="alternarFiltros()"
+        [attr.aria-expanded]="filtrosVisibles()"
+        aria-controls="panel-filtros-catalogo"
+        class="relative inline-flex cursor-pointer items-center gap-2 rounded-[2px] border border-brand-muted px-4 py-2 font-body text-sm uppercase tracking-wide text-brand-text transition-colors hover:border-brand-gold hover:text-brand-gold"
       >
-        <polygon points="3 4 21 4 14 12.5 14 19 10 21 10 12.5 3 4" />
-      </svg>
-      Filtros
-      @if (filtrosActivosCount() > 0) {
-        <span
-          class="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-gold px-1 font-body text-[11px] font-semibold text-brand-ink"
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="h-4 w-4"
+          aria-hidden="true"
         >
-          {{ filtrosActivosCount() }}
-        </span>
-      }
-    </button>
+          <polygon points="3 4 21 4 14 12.5 14 19 10 21 10 12.5 3 4" />
+        </svg>
+        Filtros
+        @if (filtrosActivosCount() > 0) {
+          <span
+            class="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-gold px-1 font-body text-[11px] font-semibold text-brand-ink"
+          >
+            {{ filtrosActivosCount() }}
+          </span>
+        }
+      </button>
+
+      <div class="flex items-center gap-2">
+        <label for="orden-precio" class="font-body text-xs uppercase tracking-wide text-brand-muted">
+          Ordenar por
+        </label>
+        <select
+          id="orden-precio"
+          class="input-field w-auto py-2"
+          [value]="ordenPrecio()"
+          (change)="onOrdenChange($any($event.target).value)"
+        >
+          <option value="ninguno">Relevancia</option>
+          <option value="asc">Precio: menor a mayor</option>
+          <option value="desc">Precio: mayor a menor</option>
+        </select>
+      </div>
+    </div>
 
     <div class="flex items-center gap-1 rounded-[2px] border border-brand-muted/40 p-1">
       <button

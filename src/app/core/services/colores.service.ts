@@ -1,4 +1,6 @@
-import { Injectable, computed, effect, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { API_URL } from '../config/api.config';
 import { Color } from '../models/producto.model';
 
 export interface ColorOpcion {
@@ -7,84 +9,49 @@ export interface ColorOpcion {
   hex: string;
 }
 
-const CLAVE_COLORES_PERSONALIZADOS = 'colores_personalizados';
+interface ColorApi {
+  id: string;
+  nombre: string;
+  valorHex: string | null;
+  activo: boolean;
+}
 
-const COLORES_BASE: ColorOpcion[] = [
-  { valor: 'negro', etiqueta: 'Negro', hex: '#14110d' },
-  { valor: 'azul', etiqueta: 'Azul', hex: '#2b3a55' },
-  { valor: 'gris', etiqueta: 'Gris', hex: '#8a8a8a' },
-  { valor: 'beige', etiqueta: 'Beige', hex: '#d9c9a3' },
-  { valor: 'blanco', etiqueta: 'Blanco', hex: '#f5f5f0' },
-  { valor: 'cafe', etiqueta: 'Café', hex: '#6b4226' }
-];
+const HEX_FALLBACK = '#9c9c9c';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ColoresService {
-  private readonly personalizados = signal<ColorOpcion[]>(this.leerGuardados());
+  private readonly http = inject(HttpClient);
 
-  readonly listado = computed(() => [...COLORES_BASE, ...this.personalizados()]);
+  private readonly colores = signal<ColorOpcion[]>([]);
 
+  readonly listado = this.colores.asReadonly();
+
+  // Catálogo dinámico (backend real, ver modules/catalogos) — público y casi
+  // estático, se carga una sola vez por sesión de la app (el servicio es
+  // providedIn: 'root', no depende del login).
   constructor() {
-    effect(() => {
-      localStorage.setItem(CLAVE_COLORES_PERSONALIZADOS, JSON.stringify(this.personalizados()));
+    this.http.get<ColorApi[]>(`${API_URL}/colores`).subscribe(colores => {
+      this.colores.set(
+        colores.map(color => ({
+          valor: color.nombre,
+          etiqueta: this.capitalizar(color.nombre),
+          hex: color.valorHex ?? HEX_FALLBACK
+        }))
+      );
     });
   }
 
-  agregarColor(etiqueta: string, hex: string): ColorOpcion {
-    const nuevo: ColorOpcion = { valor: this.generarValor(etiqueta), etiqueta: etiqueta.trim(), hex };
-    this.personalizados.update(actuales => [...actuales, nuevo]);
-    return nuevo;
-  }
-
-  esPersonalizado(valor: Color): boolean {
-    return this.personalizados().some(opcion => opcion.valor === valor);
-  }
-
-  eliminarColor(valor: Color): void {
-    this.personalizados.update(actuales => actuales.filter(opcion => opcion.valor !== valor));
-  }
-
   etiquetaDe(valor: Color): string {
-    return this.listado().find(opcion => opcion.valor === valor)?.etiqueta ?? valor;
+    return this.colores().find(opcion => opcion.valor === valor)?.etiqueta ?? valor;
   }
 
   hexDe(valor: Color): string {
-    return this.listado().find(opcion => opcion.valor === valor)?.hex ?? '#9c9c9c';
+    return this.colores().find(opcion => opcion.valor === valor)?.hex ?? HEX_FALLBACK;
   }
 
-  private generarValor(etiqueta: string): string {
-    const base =
-      etiqueta
-        .trim()
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '') || 'color';
-
-    let valor = base;
-    let contador = 1;
-    while (this.listado().some(opcion => opcion.valor === valor)) {
-      contador += 1;
-      valor = `${base}-${contador}`;
-    }
-    return valor;
-  }
-
-  private leerGuardados(): ColorOpcion[] {
-    const guardado = localStorage.getItem(CLAVE_COLORES_PERSONALIZADOS);
-
-    if (!guardado) {
-      return [];
-    }
-
-    try {
-      const colores = JSON.parse(guardado);
-      return Array.isArray(colores) ? colores : [];
-    } catch {
-      return [];
-    }
+  private capitalizar(texto: string): string {
+    return texto.length > 0 ? texto.charAt(0).toUpperCase() + texto.slice(1) : texto;
   }
 }

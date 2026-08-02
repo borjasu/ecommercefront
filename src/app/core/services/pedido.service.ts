@@ -1,77 +1,51 @@
-import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
-import { EstadoPago, EstadoPedido, InfoEnvio, Pedido } from '../models/pedido.model';
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { API_URL } from '../config/api.config';
+import { MetodoPago, Pedido } from '../models/pedido.model';
+import { ItemParaCotizar } from '../models/envio.model';
 
-const CLAVE_PEDIDOS = 'pedidos_data';
+export interface DatosFiscalesRequest {
+  rfc: string;
+  razonSocial: string;
+  regimenFiscal: string;
+}
+
+export interface CrearPedidoRequest {
+  items: ItemParaCotizar[];
+  direccionId: string;
+  cotizacionId: string;
+  rateId: string;
+  metodoPago: MetodoPago;
+  // Solo se manda si el comprador marcó "Requiero factura fiscal" — omitido
+  // por completo si no, el backend nunca lo exige.
+  datosFiscales?: DatosFiscalesRequest;
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class PedidoService {
-  private pedidos: Pedido[] = this.leerPedidosGuardados();
+  private readonly http = inject(HttpClient);
 
-  crearPedido(datos: Omit<Pedido, 'id' | 'estado' | 'estadoPago' | 'fecha'>): Observable<Pedido> {
-    const nuevoPedido: Pedido = {
-      ...datos,
-      id: crypto.randomUUID(),
-      estado: 'pendiente',
-      estadoPago: 'pendiente',
-      fecha: new Date().toISOString()
-    };
-
-    this.pedidos = [...this.pedidos, nuevoPedido];
-    this.guardarPedidos();
-
-    return of(nuevoPedido);
+  crearPedido(datos: CrearPedidoRequest): Observable<Pedido> {
+    return this.http.post<Pedido>(`${API_URL}/pedidos`, datos);
   }
 
   obtenerTodos(): Observable<Pedido[]> {
-    return of(this.pedidos);
+    return this.http.get<Pedido[]>(`${API_URL}/pedidos`);
   }
 
-  obtenerPorId(id: string): Observable<Pedido | undefined> {
-    return of(this.pedidos.find(pedido => pedido.id === id));
+  obtenerPorId(id: string): Observable<Pedido> {
+    return this.http.get<Pedido>(`${API_URL}/pedidos/${id}`);
   }
 
-  actualizarEstado(id: string, estado: EstadoPedido, infoEnvio?: InfoEnvio): Observable<Pedido> {
-    this.pedidos = this.pedidos.map(pedido =>
-      pedido.id === id
-        ? { ...pedido, estado, ...(infoEnvio ? { infoEnvio: { ...pedido.infoEnvio, ...infoEnvio } } : {}) }
-        : pedido
-    );
-    this.guardarPedidos();
-
-    const actualizado = this.pedidos.find(pedido => pedido.id === id);
-    return of(actualizado as Pedido);
-  }
-
-  actualizarEstadoPago(id: string, estadoPago: EstadoPago): Observable<Pedido> {
-    this.pedidos = this.pedidos.map(pedido => (pedido.id === id ? { ...pedido, estadoPago } : pedido));
-    this.guardarPedidos();
-
-    const actualizado = this.pedidos.find(pedido => pedido.id === id);
-    return of(actualizado as Pedido);
-  }
-
-  private guardarPedidos(): void {
-    localStorage.setItem(CLAVE_PEDIDOS, JSON.stringify(this.pedidos));
-  }
-
-  private leerPedidosGuardados(): Pedido[] {
-    const guardados = localStorage.getItem(CLAVE_PEDIDOS);
-
-    if (!guardados) {
-      return [];
-    }
-
-    const pedidos = (JSON.parse(guardados) as Partial<Pedido>[]).map(
-      pedido =>
-        ({
-          estadoPago: 'pendiente' as EstadoPago,
-          ...pedido
-        }) as Pedido
-    );
-    localStorage.setItem(CLAVE_PEDIDOS, JSON.stringify(pedidos));
-    return pedidos;
+  /**
+   * Respaldo bajo demanda del rastreo (por si el webhook de Skydropx no llega
+   * o no está configurado): consulta contra Skydropx en vivo y devuelve el
+   * estado actualizado.
+   */
+  obtenerRastreo(id: string): Observable<{ trackingStatus: string | null }> {
+    return this.http.get<{ trackingStatus: string | null }>(`${API_URL}/pedidos/${id}/rastreo`);
   }
 }

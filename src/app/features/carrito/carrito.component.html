@@ -75,12 +75,46 @@
       }
     </div>
 
-    <div class="mt-8 flex items-center justify-between border-t border-brand-muted/20 pt-6">
-      <div>
-        <p class="font-body text-lg font-semibold text-brand-ink">Total</p>
-        <p class="font-body text-xs text-brand-muted">{{ totalArticulos() }} artículos</p>
+    <div class="mt-8 border-t border-brand-muted/20 pt-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="font-body text-lg font-semibold text-brand-ink">Subtotal</p>
+          <p class="font-body text-xs text-brand-muted">{{ totalArticulos() }} artículos</p>
+        </div>
+        <p class="font-body text-lg font-semibold text-brand-gold">${{ total() }}</p>
       </div>
-      <p class="font-body text-lg font-semibold text-brand-gold">${{ total() }}</p>
+
+      @if (puedeEstimarEnvio()) {
+        @if (envioEstimadoService.cargando()) {
+          <div class="mt-4 flex items-center gap-3 rounded-sm border border-brand-muted/20 p-4">
+            <div class="h-4 w-4 animate-spin rounded-full border-2 border-brand-gold border-t-transparent"></div>
+            <p class="font-body text-sm text-brand-muted">Estimando envío…</p>
+          </div>
+        } @else if (envioEstimadoService.estimado(); as envio) {
+          <div class="mt-4">
+            <app-opcion-envio-card
+              etiquetaSuperior="Envío estimado a {{ envio.ciudad }}"
+              [paqueteria]="envio.opcion.paqueteria"
+              [servicio]="envio.opcion.servicio"
+              [tiempoEstimado]="envio.opcion.tiempoEstimado"
+              [costo]="envio.opcion.costo"
+            />
+          </div>
+          <p class="mt-2 font-body text-xs text-brand-muted">
+            Es solo un estimado — el costo final y todas las opciones de paquetería se confirman en el checkout.
+          </p>
+          <div class="mt-4 flex items-center justify-between border-t border-brand-muted/20 pt-4">
+            <p class="font-body text-base font-semibold text-brand-ink">Total estimado</p>
+            <p class="font-body text-base font-semibold text-brand-gold">${{ totalConEnvioEstimado() }}</p>
+          </div>
+        } @else if (envioEstimadoService.error()) {
+          <p class="mt-4 font-body text-xs text-brand-muted">No pudimos estimar el envío en este momento.</p>
+        }
+      } @else {
+        <p class="mt-4 font-body text-xs text-brand-muted">
+          Inicia sesión y agrega una dirección para ver el costo de envío estimado.
+        </p>
+      }
     </div>
 
     <a routerLink="/checkout" class="btn-gold mt-8 inline-flex">Ir a pagar</a>

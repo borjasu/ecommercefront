@@ -18,4 +18,10 @@ export interface Producto {
   imagenes?: string[];
   etiqueta?: Etiqueta;
   destacado: boolean;
+  // El backend ya calcula el precio con la oferta vigente aplicada en cada
+  // respuesta de /productos — opcionales porque no todo objeto Producto en la
+  // app viene directo de esa respuesta (p. ej. snapshots dentro de un pedido).
+  precioOriginal?: number;
+  precioFinal?: number;
+  porcentajeDescuento?: number;
 }

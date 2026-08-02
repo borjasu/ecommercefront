@@ -6,7 +6,6 @@ import { combineLatest, of } from 'rxjs';
 import { catchError, delay, map, startWith, switchMap } from 'rxjs/operators';
 import { ProductoService } from '../../core/services/producto.service';
 import { ColoresService } from '../../core/services/colores.service';
-import { TallasService } from '../../core/services/tallas.service';
 import { Audiencia, Categoria, Color, Producto, Talla } from '../../core/models/producto.model';
 import { AUDIENCIAS, CATEGORIAS } from '../../shared/constants/categorias';
 import { BreadcrumbComponent, BreadcrumbItem } from '../../shared/components/breadcrumb/breadcrumb.component';
@@ -38,11 +37,21 @@ export class CatalogoComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly productoService = inject(ProductoService);
   private readonly coloresService = inject(ColoresService);
-  private readonly tallasService = inject(TallasService);
 
-  readonly tallas = this.tallasService.listado;
   readonly categorias = CATEGORIAS;
-  readonly colores = this.coloresService.listado;
+
+  // Solo talla/color que EXISTEN de verdad entre productos activos ahora
+  // mismo (no la lista completa del catálogo dinámico) — así el panel de
+  // filtros nunca ofrece una opción que de todos modos daría cero resultados.
+  private readonly filtrosDisponibles = toSignal(this.productoService.obtenerFiltrosDisponibles(), {
+    initialValue: { tallas: [] as string[], colores: [] as string[], precioMin: 0, precioMax: 0 }
+  });
+
+  readonly tallas = computed(() => this.filtrosDisponibles().tallas);
+  readonly colores = computed(() => {
+    const nombresDisponibles = new Set(this.filtrosDisponibles().colores);
+    return this.coloresService.listado().filter(opcion => nombresDisponibles.has(opcion.valor));
+  });
 
   private readonly intentoRecarga = signal(0);
 

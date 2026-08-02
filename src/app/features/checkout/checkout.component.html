@@ -1,8 +1,17 @@
-<div class="mx-auto max-w-5xl px-6 py-12">
+<div class="mx-auto max-w-3xl px-6 py-12">
   @if (numeroPedido(); as numero) {
     <div class="mx-auto max-w-md py-16 text-center">
-      <p class="font-body text-sm uppercase tracking-wide text-brand-gold">Pedido confirmado</p>
-      <h1 class="mt-2 font-display text-3xl font-semibold text-brand-ink">¡Gracias por tu compra!</h1>
+      @if (resultadoPagoFinal() === 'pendiente') {
+        <p class="font-body text-sm uppercase tracking-wide text-brand-gold">Pedido registrado</p>
+        <h1 class="mt-2 font-display text-3xl font-semibold text-brand-ink">Tu pago está en proceso</h1>
+        <p class="mt-4 font-body text-sm text-brand-muted">
+          Si elegiste pagar en efectivo (OXXO) o por transferencia, completa el pago con la ficha/referencia que te
+          dio Mercado Pago. En cuanto se confirme, tu pedido pasará a pagado automáticamente.
+        </p>
+      } @else {
+        <p class="font-body text-sm uppercase tracking-wide text-brand-gold">Pedido confirmado</p>
+        <h1 class="mt-2 font-display text-3xl font-semibold text-brand-ink">¡Gracias por tu compra!</h1>
+      }
       <p class="mt-4 font-body text-sm text-brand-muted">Tu número de pedido es</p>
       <p class="mt-1 font-display text-2xl font-semibold text-brand-ink">{{ numero }}</p>
       <a routerLink="/catalogo" class="btn-gold mt-8 inline-flex">Volver al catálogo</a>
@@ -10,256 +19,358 @@
   } @else {
     <h1 class="font-display text-3xl font-semibold text-brand-ink">Checkout</h1>
 
-    <div class="mt-8 flex items-center justify-center">
-      @for (paso of [1, 2, 3]; track paso) {
-        <div class="flex items-center">
-          <div
-            class="flex h-9 w-9 items-center justify-center rounded-full border font-body text-sm font-semibold"
-            [class.bg-brand-gold]="paso <= pasoActual()"
-            [class.border-brand-gold]="paso <= pasoActual()"
-            [class.text-brand-ink]="paso <= pasoActual()"
-            [class.border-brand-muted]="paso > pasoActual()"
-            [class.text-brand-muted]="paso > pasoActual()"
-          >
-            {{ paso }}
-          </div>
-          @if (paso < 3) {
-            <div class="h-px w-10 bg-brand-muted/30"></div>
+    <div class="mt-8 flex flex-col gap-4">
+      <!-- 1. Contacto — ya resuelto por sesión, solo se muestra -->
+      <section class="rounded-sm border border-brand-muted/20 p-6">
+        <div class="flex items-center justify-between">
+          <h2 class="font-display text-lg font-semibold text-brand-ink">1. Contacto</h2>
+        </div>
+        <p class="mt-2 font-body text-sm text-brand-text">{{ usuario()?.email }}</p>
+      </section>
+
+      <!-- 2. Dirección -->
+      <section class="rounded-sm border border-brand-muted/20 p-6">
+        <div class="flex items-center justify-between">
+          <h2 class="font-display text-lg font-semibold text-brand-ink">2. Dirección</h2>
+          @if (direccionConfirmada() && !pedidoActual()) {
+            <button type="button" (click)="cambiarDireccion()" class="cursor-pointer font-body text-xs uppercase tracking-wide text-brand-gold hover:underline">
+              Cambiar
+            </button>
           }
         </div>
-      }
-    </div>
 
-    <div class="mx-auto mt-10 max-w-2xl">
-      @if (pasoActual() === 1) {
-        <h2 class="font-display text-xl font-semibold text-brand-ink">Resumen del pedido</h2>
-        <div class="mt-6 flex flex-col divide-y divide-brand-muted/20">
-          @for (item of items(); track item.producto.id + item.talla + (item.color ?? '')) {
-            <div class="flex items-center gap-4 py-4">
-              <img
-                [src]="item.producto.imagenUrl"
-                [alt]="item.producto.nombre"
-                class="h-20 w-16 rounded-xl object-cover"
-              />
-              <div class="flex-1">
-                <p class="font-body text-sm text-brand-text">{{ item.producto.nombre }}</p>
-                <p class="mt-1 font-body text-xs uppercase tracking-wide text-brand-muted">
-                  Talla {{ item.talla }}
-                  @if (item.color) {
-                    · Color {{ etiquetaDeColor(item.color) }}
-                  }
-                  · Cantidad {{ item.cantidad }}
-                </p>
-              </div>
-              <p class="font-body text-sm font-semibold text-brand-gold">${{ subtotalLinea(item) }}</p>
+        @if (direccionConfirmada()) {
+          @if (direccionElegida(); as direccion) {
+            <div class="mt-2 font-body text-sm text-brand-text">
+              <p class="font-semibold">{{ direccion.alias }} — {{ direccion.nombreCompleto }}</p>
+              <p class="text-brand-muted">
+                {{ direccion.direccion }}, {{ direccion.ciudad }}, CP {{ direccion.codigoPostal }} · Tel:
+                {{ direccion.telefono }}
+              </p>
             </div>
           }
-        </div>
-        <div class="mt-6 flex items-center justify-between border-t border-brand-muted/20 pt-6">
-          <p class="font-body text-lg font-semibold text-brand-ink">Total</p>
-          <p class="font-body text-lg font-semibold text-brand-gold">${{ total() }}</p>
-        </div>
-      }
-
-      @if (pasoActual() === 2) {
-        <h2 class="font-display text-xl font-semibold text-brand-ink">Datos de envío</h2>
-
-        @if (direccionesService.listado().length > 0) {
-          <div class="mt-6">
-            <label for="direccionGuardada" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-              Usar una dirección guardada
-            </label>
-            <select
-              id="direccionGuardada"
-              class="input-field"
-              [value]="direccionSeleccionadaId() ?? ''"
-              (change)="usarDireccionGuardada($any($event.target).value)"
-            >
-              <option value="" disabled>Selecciona una dirección</option>
+        } @else {
+          @if (direccionesService.listado().length > 0) {
+            <div class="mt-4 space-y-3">
               @for (direccion of direccionesService.listado(); track direccion.id) {
-                <option [value]="direccion.id">{{ direccion.alias }} — {{ direccion.direccion }}, {{ direccion.ciudad }}</option>
-              }
-            </select>
-            <p class="mt-1 font-body text-xs text-brand-muted">
-              Se completan los campos de abajo; puedes ajustarlos antes de continuar.
-            </p>
-          </div>
-        }
-
-        <form [formGroup]="envioForm" class="mt-6 space-y-5">
-          <div>
-            <label for="nombreCompleto" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-              Nombre completo
-            </label>
-            <input
-              id="nombreCompleto"
-              type="text"
-              formControlName="nombreCompleto"
-              class="input-field"
-              autocomplete="name"
-            />
-            @if (envioForm.controls.nombreCompleto.invalid && envioForm.controls.nombreCompleto.touched) {
-              <p class="mt-1 font-body text-xs text-red-600">El nombre es requerido.</p>
-            }
-          </div>
-
-          <div>
-            <label for="email" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-              Correo electrónico
-            </label>
-            <input
-              id="email"
-              type="email"
-              formControlName="email"
-              class="input-field disabled:cursor-not-allowed disabled:opacity-60"
-            />
-          </div>
-
-          <div>
-            <label for="direccion" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-              Dirección
-            </label>
-            <input
-              id="direccion"
-              type="text"
-              formControlName="direccion"
-              class="input-field"
-              autocomplete="street-address"
-            />
-            @if (envioForm.controls.direccion.invalid && envioForm.controls.direccion.touched) {
-              <p class="mt-1 font-body text-xs text-red-600">La dirección es requerida.</p>
-            }
-          </div>
-
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label for="ciudad" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                Ciudad
-              </label>
-              <input
-                id="ciudad"
-                type="text"
-                formControlName="ciudad"
-                class="input-field"
-                autocomplete="address-level2"
-              />
-              @if (envioForm.controls.ciudad.invalid && envioForm.controls.ciudad.touched) {
-                <p class="mt-1 font-body text-xs text-red-600">La ciudad es requerida.</p>
-              }
-            </div>
-            <div>
-              <label for="codigoPostal" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                Código postal
-              </label>
-              <input
-                id="codigoPostal"
-                type="text"
-                inputmode="numeric"
-                formControlName="codigoPostal"
-                class="input-field"
-                autocomplete="postal-code"
-              />
-              @if (envioForm.controls.codigoPostal.invalid && envioForm.controls.codigoPostal.touched) {
-                <p class="mt-1 font-body text-xs text-red-600">Ingresa un código postal válido.</p>
-              }
-            </div>
-          </div>
-
-          <div>
-            <label for="telefono" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-              Teléfono
-            </label>
-            <input id="telefono" type="tel" formControlName="telefono" class="input-field" autocomplete="tel" />
-            @if (envioForm.controls.telefono.invalid && envioForm.controls.telefono.touched) {
-              <p class="mt-1 font-body text-xs text-red-600">Ingresa un teléfono válido.</p>
-            }
-          </div>
-        </form>
-      }
-
-      @if (pasoActual() === 3) {
-        <h2 class="font-display text-xl font-semibold text-brand-ink">Método de pago</h2>
-        <div class="mt-6 space-y-3">
-          <label class="flex cursor-pointer items-center gap-3 rounded-sm border border-brand-muted/30 p-4">
-            <input
-              type="radio"
-              name="metodoPago"
-              value="tarjeta"
-              [checked]="metodoPago() === 'tarjeta'"
-              (change)="metodoPago.set('tarjeta')"
-            />
-            <span class="font-body text-sm text-brand-text">Tarjeta de crédito/débito</span>
-          </label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-sm border border-brand-muted/30 p-4">
-            <input
-              type="radio"
-              name="metodoPago"
-              value="efectivo"
-              [checked]="metodoPago() === 'efectivo'"
-              (change)="metodoPago.set('efectivo')"
-            />
-            <span class="font-body text-sm text-brand-text">Efectivo/Transferencia</span>
-          </label>
-        </div>
-
-        @if (metodoPago() === 'tarjeta') {
-          <form [formGroup]="tarjetaForm" class="mt-6 space-y-5">
-            <div>
-              <label for="numeroTarjeta" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                Número de tarjeta
-              </label>
-              <input
-                id="numeroTarjeta"
-                type="text"
-                formControlName="numero"
-                class="input-field"
-                placeholder="0000 0000 0000 0000"
-              />
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label for="vencimiento" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                  Vencimiento
+                <label
+                  class="flex cursor-pointer items-start gap-3 rounded-sm border p-4 transition-colors"
+                  [class.border-brand-gold]="direccionSeleccionadaId() === direccion.id"
+                  [class.border-brand-muted]="direccionSeleccionadaId() !== direccion.id"
+                >
+                  <input
+                    type="radio"
+                    name="direccion"
+                    class="mt-1"
+                    [checked]="direccionSeleccionadaId() === direccion.id"
+                    (change)="seleccionarDireccion(direccion.id)"
+                  />
+                  <span class="flex-1">
+                    <span class="block font-body text-sm font-semibold text-brand-text">{{ direccion.alias }}</span>
+                    <span class="mt-1 block font-body text-xs text-brand-muted">
+                      {{ direccion.nombreCompleto }} · {{ direccion.direccion }}, {{ direccion.ciudad }}, CP
+                      {{ direccion.codigoPostal }} · Tel: {{ direccion.telefono }}
+                    </span>
+                  </span>
                 </label>
-                <input
-                  id="vencimiento"
-                  type="text"
-                  formControlName="vencimiento"
-                  class="input-field"
-                  placeholder="MM/AA"
-                />
-              </div>
-              <div>
-                <label for="cvv" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">CVV</label>
-                <input id="cvv" type="text" formControlName="cvv" class="input-field" placeholder="123" />
-              </div>
+              }
             </div>
-            <p class="font-body text-xs text-brand-muted">
-              Simulación visual: estos datos no se validan ni se envían a ninguna pasarela de pago.
-            </p>
-          </form>
-        }
-      }
+          }
 
-      <div class="mt-10 flex items-center justify-between">
-        @if (pasoActual() > 1) {
+          @if (!mostrarNuevaDireccion()) {
+            <button
+              type="button"
+              (click)="abrirNuevaDireccion()"
+              class="mt-4 cursor-pointer font-body text-sm uppercase tracking-wide text-brand-gold hover:underline"
+            >
+              + Agregar nueva dirección
+            </button>
+          } @else {
+            <form [formGroup]="nuevaDireccionForm" class="mt-4 space-y-5 rounded-sm border border-brand-muted/20 p-5">
+              <div>
+                <label for="alias" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                  Alias (ej. Casa, Oficina)
+                </label>
+                <input id="alias" type="text" formControlName="alias" class="input-field" />
+              </div>
+
+              <div>
+                <label for="nombreCompleto" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                  Nombre completo
+                </label>
+                <input id="nombreCompleto" type="text" formControlName="nombreCompleto" class="input-field" autocomplete="name" />
+                @if (nuevaDireccionForm.controls.nombreCompleto.invalid && nuevaDireccionForm.controls.nombreCompleto.touched) {
+                  <p class="mt-1 font-body text-xs text-red-600">El nombre es requerido.</p>
+                }
+              </div>
+
+              <div>
+                <label for="direccion" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                  Dirección
+                </label>
+                <input id="direccion" type="text" formControlName="direccion" class="input-field" autocomplete="street-address" />
+                @if (nuevaDireccionForm.controls.direccion.invalid && nuevaDireccionForm.controls.direccion.touched) {
+                  <p class="mt-1 font-body text-xs text-red-600">La dirección es requerida.</p>
+                }
+              </div>
+
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label for="ciudad" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                    Ciudad
+                  </label>
+                  <input id="ciudad" type="text" formControlName="ciudad" class="input-field" autocomplete="address-level2" />
+                  @if (nuevaDireccionForm.controls.ciudad.invalid && nuevaDireccionForm.controls.ciudad.touched) {
+                    <p class="mt-1 font-body text-xs text-red-600">La ciudad es requerida.</p>
+                  }
+                </div>
+                <div>
+                  <label for="codigoPostal" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                    Código postal
+                  </label>
+                  <input
+                    id="codigoPostal"
+                    type="text"
+                    inputmode="numeric"
+                    formControlName="codigoPostal"
+                    class="input-field"
+                    autocomplete="postal-code"
+                  />
+                  @if (nuevaDireccionForm.controls.codigoPostal.invalid && nuevaDireccionForm.controls.codigoPostal.touched) {
+                    <p class="mt-1 font-body text-xs text-red-600">Ingresa un código postal válido.</p>
+                  }
+                </div>
+              </div>
+
+              <div>
+                <label for="telefono" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                  Teléfono
+                </label>
+                <input id="telefono" type="tel" formControlName="telefono" class="input-field" autocomplete="tel" />
+                @if (nuevaDireccionForm.controls.telefono.invalid && nuevaDireccionForm.controls.telefono.touched) {
+                  <p class="mt-1 font-body text-xs text-red-600">Ingresa un teléfono válido.</p>
+                }
+              </div>
+
+              <div class="flex items-center gap-4">
+                <button type="button" (click)="guardarNuevaDireccion()" class="btn-gold">Guardar dirección</button>
+                <button
+                  type="button"
+                  (click)="cancelarNuevaDireccion()"
+                  class="cursor-pointer font-body text-sm uppercase tracking-wide text-brand-muted hover:text-brand-ink"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          }
+
           <button
             type="button"
-            (click)="pasoAnterior()"
-            class="cursor-pointer font-body text-sm uppercase tracking-wide text-brand-muted hover:text-brand-ink"
+            [disabled]="!direccionSeleccionadaId()"
+            (click)="confirmarDireccion()"
+            class="btn-gold mt-6 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Atrás
+            Continuar
           </button>
-        } @else {
-          <span></span>
         }
+      </section>
 
-        @if (pasoActual() < 3) {
-          <button type="button" (click)="siguientePaso()" class="btn-gold">Siguiente</button>
-        } @else {
-          <button type="button" (click)="confirmarPedido()" class="btn-gold">Confirmar pedido</button>
-        }
-      </div>
+      <!-- 3. Opciones de entrega -->
+      @if (direccionConfirmada()) {
+        <section class="rounded-sm border border-brand-muted/20 p-6">
+          <div class="flex items-center justify-between">
+            <h2 class="font-display text-lg font-semibold text-brand-ink">3. Opciones de entrega</h2>
+            @if (entregaConfirmada() && !pedidoActual()) {
+              <button type="button" (click)="cambiarEntrega()" class="cursor-pointer font-body text-xs uppercase tracking-wide text-brand-gold hover:underline">
+                Cambiar
+              </button>
+            }
+          </div>
+
+          @if (entregaConfirmada()) {
+            @if (opcionEntregaElegida(); as opcion) {
+              <div class="mt-3">
+                <app-opcion-envio-card
+                  [paqueteria]="opcion.paqueteria"
+                  [servicio]="opcion.servicio"
+                  [tiempoEstimado]="opcion.tiempoEstimado"
+                  [costo]="opcion.costo"
+                  [seleccionable]="false"
+                  [seleccionado]="true"
+                />
+              </div>
+            }
+          } @else {
+            @if (cotizando()) {
+              <div class="mt-6 flex flex-col items-center gap-3 py-10 text-center">
+                <div class="h-8 w-8 animate-spin rounded-full border-2 border-brand-gold border-t-transparent"></div>
+                <p class="font-body text-sm text-brand-muted">Cotizando opciones de envío con la paquetería…</p>
+              </div>
+            } @else if (errorCotizacion()) {
+              <div class="mt-6 flex flex-col items-center gap-4 py-10 text-center">
+                <p class="font-body text-sm text-brand-muted">{{ errorCotizacion() }}</p>
+                <button type="button" (click)="reintentarCotizacion()" class="btn-gold">Reintentar</button>
+              </div>
+            } @else {
+              <div class="mt-4 space-y-3">
+                @for (opcion of opcionesEnvio(); track opcion.rateId) {
+                  <app-opcion-envio-card
+                    [paqueteria]="opcion.paqueteria"
+                    [servicio]="opcion.servicio"
+                    [tiempoEstimado]="opcion.tiempoEstimado"
+                    [costo]="opcion.costo"
+                    [seleccionable]="true"
+                    [seleccionado]="rateSeleccionado() === opcion.rateId"
+                    (elegir)="seleccionarEntrega(opcion.rateId)"
+                  />
+                }
+              </div>
+            }
+          }
+        </section>
+      }
+
+      <!-- 4. Facturación (opcional) -->
+      @if (entregaConfirmada()) {
+        <section class="rounded-sm border border-brand-muted/20 p-6">
+          <div class="flex items-center justify-between">
+            <h2 class="font-display text-lg font-semibold text-brand-ink">4. Facturación (opcional)</h2>
+            @if (facturacionConfirmada() && !pedidoActual()) {
+              <button type="button" (click)="cambiarFacturacion()" class="cursor-pointer font-body text-xs uppercase tracking-wide text-brand-gold hover:underline">
+                Cambiar
+              </button>
+            }
+          </div>
+
+          @if (facturacionConfirmada()) {
+            @if (requiereFactura()) {
+              <div class="mt-2 font-body text-sm text-brand-text">
+                <p>{{ facturaForm.value.razonSocial }} · RFC {{ facturaForm.value.rfc }}</p>
+                <p class="text-brand-muted">Régimen fiscal {{ facturaForm.value.regimenFiscal }}</p>
+              </div>
+            } @else {
+              <p class="mt-2 font-body text-sm text-brand-muted">Sin factura fiscal.</p>
+            }
+          } @else {
+            <label class="mt-4 flex cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                [checked]="requiereFactura()"
+                (change)="requiereFactura.set($any($event.target).checked)"
+                class="h-4 w-4 cursor-pointer accent-brand-gold"
+              />
+              <span class="font-body text-sm text-brand-text">Requiero factura fiscal</span>
+            </label>
+
+            @if (requiereFactura()) {
+              <form [formGroup]="facturaForm" class="mt-4 space-y-5 rounded-sm border border-brand-muted/20 p-5">
+                <div>
+                  <label for="rfc" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">RFC</label>
+                  <input id="rfc" type="text" formControlName="rfc" class="input-field uppercase" maxlength="13" />
+                  @if (facturaForm.controls.rfc.invalid && facturaForm.controls.rfc.touched) {
+                    <p class="mt-1 font-body text-xs text-red-600">Ingresa un RFC válido.</p>
+                  }
+                </div>
+                <div>
+                  <label for="razonSocial" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                    Razón social
+                  </label>
+                  <input id="razonSocial" type="text" formControlName="razonSocial" class="input-field" />
+                  @if (facturaForm.controls.razonSocial.invalid && facturaForm.controls.razonSocial.touched) {
+                    <p class="mt-1 font-body text-xs text-red-600">La razón social es requerida.</p>
+                  }
+                </div>
+                <div>
+                  <label for="regimenFiscal" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                    Régimen fiscal
+                  </label>
+                  <select id="regimenFiscal" formControlName="regimenFiscal" class="input-field">
+                    <option value="" disabled>Selecciona un régimen</option>
+                    @for (regimen of regimenesFiscales; track regimen.valor) {
+                      <option [value]="regimen.valor">{{ regimen.etiqueta }}</option>
+                    }
+                  </select>
+                  @if (facturaForm.controls.regimenFiscal.invalid && facturaForm.controls.regimenFiscal.touched) {
+                    <p class="mt-1 font-body text-xs text-red-600">Selecciona un régimen fiscal.</p>
+                  }
+                </div>
+              </form>
+            }
+
+            <button type="button" (click)="confirmarFacturacion()" class="btn-gold mt-6">Continuar</button>
+          }
+        </section>
+      }
+
+      <!-- 5. Resumen del pedido -->
+      @if (facturacionConfirmada()) {
+        <section class="rounded-sm border border-brand-muted/20 p-6">
+          <h2 class="font-display text-lg font-semibold text-brand-ink">5. Resumen del pedido</h2>
+          <div class="mt-4 flex flex-col divide-y divide-brand-muted/20">
+            @for (item of items(); track item.producto.id + item.talla + (item.color ?? '')) {
+              <div class="flex items-center gap-4 py-4">
+                <img [src]="item.producto.imagenUrl" [alt]="item.producto.nombre" class="h-20 w-16 rounded-xl object-cover" />
+                <div class="flex-1">
+                  <p class="font-body text-sm text-brand-text">{{ item.producto.nombre }}</p>
+                  <p class="mt-1 font-body text-xs uppercase tracking-wide text-brand-muted">
+                    Talla {{ item.talla }}
+                    @if (item.color) {
+                      · Color {{ etiquetaDeColor(item.color) }}
+                    }
+                    · Cantidad {{ item.cantidad }}
+                  </p>
+                </div>
+                <p class="font-body text-sm font-semibold text-brand-gold">${{ subtotalLinea(item) }}</p>
+              </div>
+            }
+          </div>
+          <div class="mt-4 flex flex-col gap-1 border-t border-brand-muted/20 pt-4 font-body text-sm text-brand-text">
+            <div class="flex items-center justify-between">
+              <p>Subtotal</p>
+              <p>${{ subtotal() }}</p>
+            </div>
+            <div class="flex items-center justify-between">
+              <p>Envío</p>
+              <p>${{ costoEnvio() }}</p>
+            </div>
+            <div class="mt-2 flex items-center justify-between border-t border-brand-muted/20 pt-2 text-base font-semibold text-brand-ink">
+              <p>Total</p>
+              <p class="text-brand-gold">${{ totalConEnvio() }}</p>
+            </div>
+          </div>
+        </section>
+      }
+
+      <!-- 6. Pago — Payment Brick inline, misma página -->
+      @if (facturacionConfirmada()) {
+        <section class="rounded-sm border border-brand-muted/20 p-6">
+          <h2 class="font-display text-lg font-semibold text-brand-ink">6. Pago</h2>
+
+          @if (!preferenceId()) {
+            <div class="mt-8 flex flex-col items-center gap-3 py-6 text-center">
+              <div class="h-8 w-8 animate-spin rounded-full border-2 border-brand-gold border-t-transparent"></div>
+              <p class="font-body text-sm text-brand-muted">Preparando tu pago…</p>
+            </div>
+          } @else {
+            @if (!brickListo()) {
+              <div class="mt-8 flex flex-col items-center gap-3 py-6 text-center">
+                <div class="h-8 w-8 animate-spin rounded-full border-2 border-brand-gold border-t-transparent"></div>
+                <p class="font-body text-sm text-brand-muted">Cargando el formulario de pago…</p>
+              </div>
+            }
+            <p class="mt-4 font-body text-xs text-brand-muted">
+              Elige tarjeta, débito, pago en OXXO o transferencia dentro del formulario seguro de Mercado Pago. Nunca
+              vemos ni guardamos los datos de tu tarjeta.
+            </p>
+            <div id="paymentBrick_container" class="mt-6"></div>
+          }
+
+          @if (errorPago()) {
+            <p class="mt-4 font-body text-sm text-red-600">{{ errorPago() }}</p>
+          }
+        </section>
+      }
     </div>
   }
 </div>

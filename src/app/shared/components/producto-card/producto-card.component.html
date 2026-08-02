@@ -1,4 +1,4 @@
-<article class="flex flex-col">
+<article class="flex h-full flex-col">
   <div class="relative overflow-hidden rounded-xl bg-white">
     <a [routerLink]="['/producto', producto().id]" class="relative block">
       @if (producto().etiqueta) {
@@ -9,7 +9,7 @@
           </span>
         </span>
       }
-      @if (precioInfo().oferta) {
+      @if (precioInfo().porcentajeDescuento) {
         <span
           class="absolute left-3 z-10 rounded-[2px] bg-brand-oxide px-2 py-1 font-body text-xs font-semibold uppercase tracking-wider text-white"
           [class.top-1]="!producto().etiqueta"
@@ -47,10 +47,13 @@
   </div>
 
   <div class="mt-4 flex flex-col gap-1">
-    <a [routerLink]="['/producto', producto().id]" class="font-body text-sm text-brand-text hover:text-brand-gold">
+    <a
+      [routerLink]="['/producto', producto().id]"
+      class="line-clamp-2 font-body text-sm text-brand-text hover:text-brand-gold"
+    >
       {{ producto().nombre }}
     </a>
-    @if (precioInfo().oferta) {
+    @if (precioInfo().porcentajeDescuento) {
       <p class="flex items-center gap-2 font-body text-sm">
         <span class="text-brand-muted line-through">${{ precioInfo().precioOriginal }}</span>
         <span class="font-semibold text-brand-oxide">${{ precioInfo().precioFinal }}</span>
@@ -60,5 +63,5 @@
     }
   </div>
 
-  <button type="button" class="btn-gold mt-3 w-full truncate" (click)="abrirModal()">AGREGAR</button>
+  <button type="button" class="btn-gold mt-auto w-full truncate" (click)="abrirModal()">AGREGAR</button>
 </article>

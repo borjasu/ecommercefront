@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@a
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ProductoService } from '../../../core/services/producto.service';
-import { PedidoService } from '../../../core/services/pedido.service';
+import { VendorPedidoService } from '../../../core/services/vendor-pedido.service';
 import { EstadoPedido, Pedido } from '../../../core/models/pedido.model';
 
 @Component({
@@ -13,7 +13,7 @@ import { EstadoPedido, Pedido } from '../../../core/models/pedido.model';
 })
 export class DashboardComponent {
   private readonly productoService = inject(ProductoService);
-  private readonly pedidoService = inject(PedidoService);
+  private readonly vendorPedidoService = inject(VendorPedidoService);
 
   readonly totalProductos = signal(0);
   readonly pedidos = signal<Pedido[]>([]);
@@ -38,7 +38,7 @@ export class DashboardComponent {
 
   constructor() {
     this.productoService.obtenerTodos().subscribe(productos => this.totalProductos.set(productos.length));
-    this.pedidoService.obtenerTodos().subscribe(pedidos => this.pedidos.set(pedidos));
+    this.vendorPedidoService.obtenerTodos().subscribe(pedidos => this.pedidos.set(pedidos));
   }
 
   etiquetaEstado(estado: EstadoPedido): string {
