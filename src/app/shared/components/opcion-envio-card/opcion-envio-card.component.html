@@ -1,0 +1,38 @@
+<div
+  class="flex items-center justify-between gap-4 rounded-sm border bg-white/60 p-4 transition-[border-color,box-shadow] duration-200"
+  [class.cursor-pointer]="seleccionable()"
+  [class.border-brand-gold]="seleccionado()"
+  [class.shadow-sm]="seleccionado()"
+  [class.border-brand-muted]="!seleccionado()"
+  (click)="onClick()"
+>
+  <div class="flex items-start gap-3">
+    @if (seleccionable()) {
+      <span
+        class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-200"
+        [class.border-brand-gold]="seleccionado()"
+        [class.bg-brand-gold]="seleccionado()"
+        [class.border-brand-muted]="!seleccionado()"
+      >
+        @if (seleccionado()) {
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3 text-brand-ink" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        }
+      </span>
+    }
+    <div>
+      @if (etiquetaSuperior(); as etiqueta) {
+        <p class="font-body text-xs uppercase tracking-wide text-brand-muted">{{ etiqueta }}</p>
+      }
+      <p class="font-body text-sm font-semibold text-brand-text">{{ paqueteria() }}</p>
+      <p class="mt-0.5 font-body text-xs text-brand-muted">
+        @if (servicio()) {
+          {{ servicio() }} ·
+        }
+        Entrega estimada: {{ tiempoEstimado() }}
+      </p>
+    </div>
+  </div>
+  <p class="whitespace-nowrap font-body text-sm font-semibold text-brand-gold">${{ costo() }}</p>
+</div>
