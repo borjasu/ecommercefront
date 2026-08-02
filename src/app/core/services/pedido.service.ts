@@ -30,4 +30,13 @@ export class PedidoService {
   obtenerPorId(id: string): Observable<Pedido> {
     return this.http.get<Pedido>(`${API_URL}/pedidos/${id}`);
   }
+
+  /**
+   * Respaldo bajo demanda del rastreo (por si el webhook de Skydropx no llega
+   * o no está configurado): consulta contra Skydropx en vivo y devuelve el
+   * estado actualizado.
+   */
+  obtenerRastreo(id: string): Observable<{ trackingStatus: string | null }> {
+    return this.http.get<{ trackingStatus: string | null }>(`${API_URL}/pedidos/${id}/rastreo`);
+  }
 }

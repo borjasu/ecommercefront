@@ -88,16 +88,29 @@
                   <h3 class="mt-6 font-body text-xs uppercase tracking-wide text-brand-muted">Guía de rastreo</h3>
                   <div class="mt-2 space-y-1 font-body text-sm text-brand-text">
                     <p>{{ pedido.infoEnvio?.paqueteria }} · {{ pedido.infoEnvio?.numeroGuia }}</p>
-                    @if (pedido.infoEnvio?.urlRastreo) {
-                      <a
-                        [href]="pedido.infoEnvio?.urlRastreo"
-                        target="_blank"
-                        rel="noopener"
-                        class="text-brand-gold hover:underline"
-                      >
-                        Ver rastreo
-                      </a>
+                    @if (etiquetaRastreo(pedido.infoEnvio?.trackingStatus ?? null); as etiqueta) {
+                      <p class="font-semibold text-brand-gold">{{ etiqueta }}</p>
                     }
+                    <div class="flex items-center gap-3">
+                      @if (pedido.infoEnvio?.urlRastreo) {
+                        <a
+                          [href]="pedido.infoEnvio?.urlRastreo"
+                          target="_blank"
+                          rel="noopener"
+                          class="text-brand-gold hover:underline"
+                        >
+                          Ver rastreo
+                        </a>
+                      }
+                      <button
+                        type="button"
+                        (click)="actualizarRastreo(pedido)"
+                        [disabled]="actualizandoRastreoId() === pedido.id"
+                        class="cursor-pointer text-xs uppercase tracking-wide text-brand-muted hover:text-brand-ink disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {{ actualizandoRastreoId() === pedido.id ? 'Actualizando…' : 'Actualizar estado' }}
+                      </button>
+                    </div>
                   </div>
                 }
               </div>

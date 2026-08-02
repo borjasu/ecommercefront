@@ -12,6 +12,12 @@ export interface DatosEnvio {
   telefono: string;
 }
 
+// Texto libre tal como lo manda Skydropx (created/picked_up/in_transit/...) —
+// ver InfoEnvio.trackingStatus del lado backend para el porqué no es un
+// union type cerrado: no hay documentación oficial confirmada con la lista
+// completa y exacta de valores.
+export type EstadoRastreo = string;
+
 export interface InfoEnvio {
   paqueteria: string | null;
   idEnvioSkydropx: string | null;
@@ -19,6 +25,7 @@ export interface InfoEnvio {
   urlEtiqueta: string | null;
   urlRastreo: string | null;
   fechaEnvio: string | null;
+  trackingStatus: EstadoRastreo | null;
 }
 
 export interface ItemPedido {

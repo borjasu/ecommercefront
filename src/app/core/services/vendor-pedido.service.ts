@@ -57,4 +57,14 @@ export class VendorPedidoService {
   generarGuiaAutomatica(id: string): Observable<Pedido> {
     return this.http.post<Pedido>(`${API_URL}/vendedor/pedidos/${id}/generar-guia`, {});
   }
+
+  /**
+   * Respaldo bajo demanda del rastreo (por si el webhook de Skydropx no llega
+   * o no está configurado) — mismo endpoint que usa el comprador
+   * (GET /pedidos/:id/rastreo, no /vendedor/pedidos/...): el backend resuelve
+   * el acceso por rol, el vendedor puede consultar cualquier pedido.
+   */
+  obtenerRastreo(id: string): Observable<{ trackingStatus: string | null }> {
+    return this.http.get<{ trackingStatus: string | null }>(`${API_URL}/pedidos/${id}/rastreo`);
+  }
 }

@@ -2,7 +2,9 @@ import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/cor
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { PedidoService } from '../../../core/services/pedido.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { EstadoPedido, Pedido } from '../../../core/models/pedido.model';
+import { etiquetaDeRastreo } from '../../../shared/constants/rastreo';
 
 @Component({
     selector: 'app-mis-pedidos',
@@ -12,11 +14,13 @@ import { EstadoPedido, Pedido } from '../../../core/models/pedido.model';
 })
 export class MisPedidosComponent {
   private readonly pedidoService = inject(PedidoService);
+  private readonly toastService = inject(ToastService);
 
   readonly pedidos = signal<Pedido[]>([]);
   readonly pedidoExpandidoId = signal<string | null>(null);
   readonly cargando = signal(true);
   readonly error = signal(false);
+  readonly actualizandoRastreoId = signal<string | null>(null);
 
   constructor() {
     this.cargar();
@@ -38,6 +42,26 @@ export class MisPedidosComponent {
       cancelado: 'Cancelado'
     };
     return etiquetas[estado];
+  }
+
+  etiquetaRastreo(estado: string | null): string | null {
+    return etiquetaDeRastreo(estado);
+  }
+
+  actualizarRastreo(pedido: Pedido): void {
+    this.actualizandoRastreoId.set(pedido.id);
+    this.pedidoService.obtenerRastreo(pedido.id).subscribe({
+      next: ({ trackingStatus }) => {
+        this.pedidos.update(lista =>
+          lista.map(p => (p.id === pedido.id ? { ...p, infoEnvio: { ...p.infoEnvio, trackingStatus } } : p))
+        );
+        this.actualizandoRastreoId.set(null);
+      },
+      error: () => {
+        this.toastService.error('No pudimos actualizar el rastreo. Intenta de nuevo.');
+        this.actualizandoRastreoId.set(null);
+      }
+    });
   }
 
   private cargar(): void {
