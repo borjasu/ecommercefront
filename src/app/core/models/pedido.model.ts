@@ -28,6 +28,14 @@ export interface InfoEnvio {
   trackingStatus: EstadoRastreo | null;
 }
 
+// Todo nullable: la factura fiscal es opcional, un pedido sin factura no
+// tiene ninguno de estos tres datos.
+export interface DatosFiscales {
+  rfc: string | null;
+  razonSocial: string | null;
+  regimenFiscal: string | null;
+}
+
 export interface ItemPedido {
   id: string;
   productoId: string;
@@ -53,5 +61,6 @@ export interface Pedido {
   estado: EstadoPedido;
   estadoPago: EstadoPago;
   infoEnvio: InfoEnvio;
+  datosFiscales: DatosFiscales;
   fecha: string;
 }

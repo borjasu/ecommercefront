@@ -5,12 +5,21 @@ import { API_URL } from '../config/api.config';
 import { MetodoPago, Pedido } from '../models/pedido.model';
 import { ItemParaCotizar } from '../models/envio.model';
 
+export interface DatosFiscalesRequest {
+  rfc: string;
+  razonSocial: string;
+  regimenFiscal: string;
+}
+
 export interface CrearPedidoRequest {
   items: ItemParaCotizar[];
   direccionId: string;
   cotizacionId: string;
   rateId: string;
   metodoPago: MetodoPago;
+  // Solo se manda si el comprador marcó "Requiero factura fiscal" — omitido
+  // por completo si no, el backend nunca lo exige.
+  datosFiscales?: DatosFiscalesRequest;
 }
 
 @Injectable({
