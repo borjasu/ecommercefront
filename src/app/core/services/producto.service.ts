@@ -17,6 +17,13 @@ interface PaginaDeProductos {
   limit: number;
 }
 
+export interface FiltrosDisponibles {
+  tallas: string[];
+  colores: string[];
+  precioMin: number;
+  precioMax: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -41,6 +48,11 @@ export class ProductoService {
 
   obtenerDestacados(): Observable<Producto[]> {
     return this.http.get<Producto[]>(`${API_URL}/productos/destacados`);
+  }
+
+  /** Solo talla/color/rango de precio que EXISTEN entre productos activos ahora mismo. */
+  obtenerFiltrosDisponibles(): Observable<FiltrosDisponibles> {
+    return this.http.get<FiltrosDisponibles>(`${API_URL}/productos/filtros-disponibles`);
   }
 
   obtenerPorId(id: string): Observable<Producto | undefined> {
