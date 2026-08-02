@@ -43,6 +43,24 @@ export class PagosComponent {
     return filtro === 'todos' ? pedidos : pedidos.filter(pedido => pedido.estadoPago === filtro);
   });
 
+  // Dinero real vs. solo referencia: totalPagado es la ÚNICA cifra que suma
+  // montos (nunca incluye pendiente/reembolsado) — pendientesCount y
+  // reembolsadosCount son conteos de pedidos, no dinero, para no dar la
+  // impresión de que ese monto ya entró a caja.
+  readonly totalPagado = computed(
+    () =>
+      Math.round(
+        this.pedidos()
+          .filter(pedido => pedido.estadoPago === 'pagado')
+          .reduce((suma, pedido) => suma + pedido.total, 0) * 100
+      ) / 100
+  );
+
+  readonly pendientesCount = computed(() => this.pedidos().filter(pedido => pedido.estadoPago === 'pendiente').length);
+  readonly reembolsadosCount = computed(
+    () => this.pedidos().filter(pedido => pedido.estadoPago === 'reembolsado').length
+  );
+
   constructor() {
     this.cargarPedidos();
   }
