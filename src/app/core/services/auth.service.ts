@@ -1,10 +1,32 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { NavigationEnd, Router } from '@angular/router';
 import { Observable, of, throwError } from 'rxjs';
 import { Usuario } from '../models/usuario.model';
+import { ToastService } from './toast.service';
 
 const CLAVE_SESION = 'session_user';
 const CLAVE_USUARIOS_REGISTRADOS = 'usuarios_registrados';
 const CLAVE_OVERRIDES = 'usuarios_overrides';
+
+// Diagnóstico (antes de este cambio): AuthService no tenía ningún mecanismo
+// de expiración — `session_user` guardaba el Usuario tal cual y solo se
+// borraba con logout() explícito. La sesión "se sentía" corta no por un
+// timer sino porque no existía ninguno: cualquier otra causa de pérdida
+// (recarga, guard mal configurado) se descartó al revisar authGuard/roleGuard
+// y CartService, que sí persisten correctamente en localStorage. Se
+// implementa aquí la duración de 1 hora pedida, con renovación por
+// actividad: cada navegación dentro de la SPA con sesión activa reinicia el
+// conteo (guardado como `expiraEn`, un timestamp absoluto, junto al usuario),
+// así que en la práctica expira tras 1 hora SIN navegar, no 1 hora fija
+// desde el login — evita cortar un checkout a medio llenar.
+const DURACION_SESION_MS = 60 * 60 * 1000;
+const AVISO_ANTES_DE_EXPIRAR_MS = 5 * 60 * 1000;
+const INTERVALO_CHEQUEO_MS = 15 * 1000;
+
+interface SesionAlmacenada {
+  usuario: Usuario;
+  expiraEn: number;
+}
 
 // Único vendedor del sistema: no es un marketplace, así que esta cuenta
 // viene precargada y nunca se crea desde el formulario de registro público.
@@ -28,7 +50,28 @@ export interface ResultadoCambioPassword {
   providedIn: 'root'
 })
 export class AuthService {
-  readonly currentUser = signal<Usuario | null>(this.leerSesionGuardada());
+  private readonly router = inject(Router);
+  private readonly toastService = inject(ToastService);
+
+  readonly currentUser = signal<Usuario | null>(null);
+
+  private expiraEn: number | null = null;
+  private avisoMostrado = false;
+
+  constructor() {
+    this.restaurarSesion();
+
+    // Renueva la sesión con cada navegación dentro de la SPA mientras haya
+    // un usuario activo: es la señal de "actividad" más simple disponible
+    // sin instrumentar clics/teclas por toda la app.
+    this.router.events.subscribe(evento => {
+      if (evento instanceof NavigationEnd && this.currentUser()) {
+        this.renovarSesion();
+      }
+    });
+
+    setInterval(() => this.verificarExpiracion(), INTERVALO_CHEQUEO_MS);
+  }
 
   login(email: string, password: string): Observable<Usuario | null> {
     const usuario = this.todosLosUsuarios().find(
@@ -36,7 +79,7 @@ export class AuthService {
     ) ?? null;
 
     if (usuario) {
-      this.guardarSesion(usuario);
+      this.guardarSesion(usuario, Date.now() + DURACION_SESION_MS);
     }
 
     return of(usuario);
@@ -64,7 +107,7 @@ export class AuthService {
     registrados.push(nuevoUsuario);
     localStorage.setItem(CLAVE_USUARIOS_REGISTRADOS, JSON.stringify(registrados));
 
-    this.guardarSesion(nuevoUsuario);
+    this.guardarSesion(nuevoUsuario, Date.now() + DURACION_SESION_MS);
 
     return of(nuevoUsuario);
   }
@@ -87,6 +130,37 @@ export class AuthService {
   logout(): void {
     localStorage.removeItem(CLAVE_SESION);
     this.currentUser.set(null);
+    this.expiraEn = null;
+    this.avisoMostrado = false;
+  }
+
+  /** Extiende la sesión activa 1 hora más a partir de ahora. */
+  renovarSesion(): void {
+    const usuario = this.currentUser();
+    if (!usuario) {
+      return;
+    }
+    this.guardarSesion(usuario, Date.now() + DURACION_SESION_MS);
+  }
+
+  private verificarExpiracion(): void {
+    if (!this.currentUser() || this.expiraEn == null) {
+      return;
+    }
+
+    const restante = this.expiraEn - Date.now();
+
+    if (restante <= 0) {
+      this.logout();
+      this.toastService.error('Tu sesión expiró por inactividad.');
+      this.router.navigate(['/login'], { queryParams: { motivo: 'sesion-expirada' } });
+      return;
+    }
+
+    if (restante <= AVISO_ANTES_DE_EXPIRAR_MS && !this.avisoMostrado) {
+      this.avisoMostrado = true;
+      this.toastService.mostrar('Tu sesión expirará pronto. Sigue navegando para mantenerla activa.', 'info');
+    }
   }
 
   private actualizarUsuario(id: string, cambios: Partial<Usuario>): Usuario {
@@ -97,20 +171,47 @@ export class AuthService {
     const actualizado = this.todosLosUsuarios().find(u => u.id === id) as Usuario;
 
     if (this.currentUser()?.id === id) {
-      this.guardarSesion(actualizado);
+      // Conserva la expiración vigente: actualizar el perfil no cuenta como
+      // la "actividad de navegación" que renueva la sesión.
+      this.guardarSesion(actualizado, this.expiraEn ?? Date.now() + DURACION_SESION_MS);
     }
 
     return actualizado;
   }
 
-  private guardarSesion(usuario: Usuario): void {
-    localStorage.setItem(CLAVE_SESION, JSON.stringify(usuario));
+  private guardarSesion(usuario: Usuario, expiraEn: number): void {
+    this.expiraEn = expiraEn;
+    this.avisoMostrado = false;
+    localStorage.setItem(CLAVE_SESION, JSON.stringify({ usuario, expiraEn } satisfies SesionAlmacenada));
     this.currentUser.set(usuario);
   }
 
-  private leerSesionGuardada(): Usuario | null {
-    const guardado = localStorage.getItem(CLAVE_SESION);
-    return guardado ? (JSON.parse(guardado) as Usuario) : null;
+  private restaurarSesion(): void {
+    const crudo = localStorage.getItem(CLAVE_SESION);
+    if (!crudo) {
+      return;
+    }
+
+    try {
+      const datos = JSON.parse(crudo);
+      // Compatibilidad con el formato anterior (Usuario guardado directo, sin
+      // expiración): se le da una expiración nueva de 1 hora en vez de cerrar
+      // la sesión de golpe con esta actualización.
+      const sesion: SesionAlmacenada =
+        datos && typeof datos === 'object' && 'usuario' in datos && 'expiraEn' in datos
+          ? (datos as SesionAlmacenada)
+          : { usuario: datos as Usuario, expiraEn: Date.now() + DURACION_SESION_MS };
+
+      if (!sesion.usuario || sesion.expiraEn <= Date.now()) {
+        localStorage.removeItem(CLAVE_SESION);
+        return;
+      }
+
+      this.expiraEn = sesion.expiraEn;
+      this.currentUser.set(sesion.usuario);
+    } catch {
+      localStorage.removeItem(CLAVE_SESION);
+    }
   }
 
   private leerUsuariosRegistrados(): Usuario[] {

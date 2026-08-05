@@ -1,6 +1,6 @@
 import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
@@ -14,8 +14,12 @@ export class LoginComponent {
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   errorMensaje = '';
+  // AuthService redirige aquí con ?motivo=sesion-expirada cuando cierra la
+  // sesión automáticamente por expiración (ver verificarExpiracion()).
+  readonly sesionExpirada = this.route.snapshot.queryParamMap.get('motivo') === 'sesion-expirada';
 
   readonly form = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
