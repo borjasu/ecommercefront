@@ -2,6 +2,9 @@ import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/cor
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { soloDigitos } from '../../../shared/utils/texto.util';
+
+const LARGO_TELEFONO = 10;
 
 function passwordsNuevasIgualesValidator(control: AbstractControl): ValidationErrors | null {
   const nueva = control.get('passwordNueva')?.value;
@@ -27,8 +30,15 @@ export class DatosPersonalesComponent {
 
   readonly datosForm = this.fb.group({
     nombre: [this.usuarioActual()?.nombre ?? '', [Validators.required]],
-    telefono: [this.usuarioActual()?.telefono ?? '']
+    // Opcional (no todos los usuarios lo llenan), pero si se captura debe ser
+    // un teléfono completo de 10 dígitos, igual que en checkout/direcciones.
+    telefono: [this.usuarioActual()?.telefono ?? '', [Validators.pattern(/^\d{10}$/)]]
   });
+
+  onTelefonoInput(evento: Event): void {
+    const valor = (evento.target as HTMLInputElement).value;
+    this.datosForm.patchValue({ telefono: soloDigitos(valor, LARGO_TELEFONO) });
+  }
 
   readonly passwordForm = this.fb.group(
     {

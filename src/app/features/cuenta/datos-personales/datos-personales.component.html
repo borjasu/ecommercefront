@@ -32,7 +32,19 @@
         <label for="telefono" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
           Teléfono
         </label>
-        <input id="telefono" type="tel" formControlName="telefono" class="input-field" autocomplete="tel" />
+        <input
+          id="telefono"
+          type="tel"
+          inputmode="numeric"
+          maxlength="10"
+          formControlName="telefono"
+          (input)="onTelefonoInput($event)"
+          class="input-field"
+          autocomplete="tel"
+        />
+        @if (datosForm.controls.telefono.invalid && datosForm.controls.telefono.touched) {
+          <p class="mt-1 font-body text-xs text-red-600">Ingresa un teléfono a 10 dígitos.</p>
+        }
       </div>
 
       @if (datosGuardados()) {
