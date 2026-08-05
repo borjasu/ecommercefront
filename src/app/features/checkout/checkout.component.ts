@@ -9,6 +9,10 @@ import { ToastService } from '../../core/services/toast.service';
 import { ItemCarrito } from '../../core/models/carrito.model';
 import { Color, DetalleStockInsuficiente } from '../../core/models/producto.model';
 import { ColoresService } from '../../core/services/colores.service';
+import { formatearNumeroTarjeta, formatearVencimientoTarjeta, soloDigitos } from '../../shared/utils/texto.util';
+
+const LARGO_TELEFONO = 10;
+const LARGO_CVV = 4;
 
 type MetodoPago = 'tarjeta' | 'efectivo';
 
@@ -42,7 +46,7 @@ export class CheckoutComponent {
     direccion: ['', [Validators.required]],
     ciudad: ['', [Validators.required]],
     codigoPostal: ['', [Validators.required, Validators.pattern(/^\d{4,6}$/)]],
-    telefono: ['', [Validators.required, Validators.pattern(/^[\d\s+()-]{7,15}$/)]]
+    telefono: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]]
   });
 
   // Datos de tarjeta simulados: no hay validación de Luhn ni conexión a ninguna
@@ -87,6 +91,26 @@ export class CheckoutComponent {
 
   subtotalLinea(item: ItemCarrito): number {
     return item.producto.precio * item.cantidad;
+  }
+
+  onTelefonoInput(evento: Event): void {
+    const valor = (evento.target as HTMLInputElement).value;
+    this.envioForm.patchValue({ telefono: soloDigitos(valor, LARGO_TELEFONO) });
+  }
+
+  onVencimientoInput(evento: Event): void {
+    const valor = (evento.target as HTMLInputElement).value;
+    this.tarjetaForm.patchValue({ vencimiento: formatearVencimientoTarjeta(valor) });
+  }
+
+  onNumeroTarjetaInput(evento: Event): void {
+    const valor = (evento.target as HTMLInputElement).value;
+    this.tarjetaForm.patchValue({ numero: formatearNumeroTarjeta(valor) });
+  }
+
+  onCvvInput(evento: Event): void {
+    const valor = (evento.target as HTMLInputElement).value;
+    this.tarjetaForm.patchValue({ cvv: soloDigitos(valor, LARGO_CVV) });
   }
 
   etiquetaDeColor(color: Color): string {

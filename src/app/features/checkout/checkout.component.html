@@ -169,9 +169,18 @@
             <label for="telefono" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
               Teléfono
             </label>
-            <input id="telefono" type="tel" formControlName="telefono" class="input-field" autocomplete="tel" />
+            <input
+              id="telefono"
+              type="tel"
+              inputmode="numeric"
+              maxlength="10"
+              formControlName="telefono"
+              (input)="onTelefonoInput($event)"
+              class="input-field"
+              autocomplete="tel"
+            />
             @if (envioForm.controls.telefono.invalid && envioForm.controls.telefono.touched) {
-              <p class="mt-1 font-body text-xs text-red-600">Ingresa un teléfono válido.</p>
+              <p class="mt-1 font-body text-xs text-red-600">Ingresa un teléfono a 10 dígitos.</p>
             }
           </div>
         </form>
@@ -211,7 +220,10 @@
               <input
                 id="numeroTarjeta"
                 type="text"
+                inputmode="numeric"
+                maxlength="19"
                 formControlName="numero"
+                (input)="onNumeroTarjetaInput($event)"
                 class="input-field"
                 placeholder="0000 0000 0000 0000"
               />
@@ -224,14 +236,26 @@
                 <input
                   id="vencimiento"
                   type="text"
+                  inputmode="numeric"
+                  maxlength="5"
                   formControlName="vencimiento"
+                  (input)="onVencimientoInput($event)"
                   class="input-field"
                   placeholder="MM/AA"
                 />
               </div>
               <div>
                 <label for="cvv" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">CVV</label>
-                <input id="cvv" type="text" formControlName="cvv" class="input-field" placeholder="123" />
+                <input
+                  id="cvv"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="4"
+                  formControlName="cvv"
+                  (input)="onCvvInput($event)"
+                  class="input-field"
+                  placeholder="123"
+                />
               </div>
             </div>
             <p class="font-body text-xs text-brand-muted">
