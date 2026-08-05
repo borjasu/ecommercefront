@@ -10,6 +10,7 @@ import { OfertaService } from '../../core/services/oferta.service';
 import { Audiencia, Categoria, Color, Producto, Talla } from '../../core/models/producto.model';
 import { ColoresService } from '../../core/services/colores.service';
 import { BreadcrumbComponent, BreadcrumbItem } from '../../shared/components/breadcrumb/breadcrumb.component';
+import { colorAgotado, tallaAgotada } from '../../shared/utils/inventario.util';
 
 const NOMBRES_CATEGORIA: Record<Categoria, string> = {
   pantalon: 'Pantalón',
@@ -77,7 +78,10 @@ export class ProductoDetalleComponent {
   readonly puedeAgregar = computed(() => {
     const talla = this.tallaSeleccionada();
     const requiereColor = this.coloresDisponibles().length > 0;
-    return !!talla && (!requiereColor || !!this.colorSeleccionado());
+    if (!talla || (requiereColor && !this.colorSeleccionado())) {
+      return false;
+    }
+    return !this.tallaAgotada(talla);
   });
 
   readonly nombreCategoria = computed(() => {
@@ -116,7 +120,20 @@ export class ProductoDetalleComponent {
   }
 
   seleccionarTalla(talla: Talla): void {
+    if (this.tallaAgotada(talla)) {
+      return;
+    }
     this.tallaSeleccionada.set(talla);
+  }
+
+  tallaAgotada(talla: Talla): boolean {
+    const producto = this.producto();
+    return !!producto && tallaAgotada(producto, talla, this.colorSeleccionado());
+  }
+
+  colorAgotado(color: Color): boolean {
+    const producto = this.producto();
+    return !!producto && colorAgotado(producto, color, this.tallaSeleccionada());
   }
 
   alternarFavorito(): void {
@@ -131,6 +148,9 @@ export class ProductoDetalleComponent {
   }
 
   seleccionarColor(color: Color): void {
+    if (this.colorAgotado(color)) {
+      return;
+    }
     this.colorSeleccionado.set(color);
   }
 

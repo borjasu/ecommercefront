@@ -161,12 +161,14 @@
                 <button
                   type="button"
                   (click)="seleccionarColor(color)"
-                  [attr.title]="etiquetaDeColor(color)"
-                  [attr.aria-label]="'Color ' + etiquetaDeColor(color)"
+                  [disabled]="colorAgotado(color)"
+                  [attr.title]="etiquetaDeColor(color) + (colorAgotado(color) ? ' (agotado)' : '')"
+                  [attr.aria-label]="'Color ' + etiquetaDeColor(color) + (colorAgotado(color) ? ', agotado' : '')"
                   [attr.aria-pressed]="colorSeleccionado() === color"
-                  class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 transition-colors"
+                  class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 transition-colors disabled:cursor-not-allowed"
                   [class.border-brand-gold]="colorSeleccionado() === color"
                   [class.border-transparent]="colorSeleccionado() !== color"
+                  [class.color-swatch-agotado]="colorAgotado(color)"
                 >
                   <span
                     class="block h-7 w-7 rounded-full border border-brand-muted/30"
@@ -184,7 +186,11 @@
             @for (talla of producto.tallasDisponibles; track talla) {
               <button
                 type="button"
-                [class]="tallaSeleccionada() === talla ? 'talla-btn-active' : 'talla-btn'"
+                [class]="
+                  tallaAgotada(talla) ? 'talla-btn-agotada' : (tallaSeleccionada() === talla ? 'talla-btn-active' : 'talla-btn')
+                "
+                [disabled]="tallaAgotada(talla)"
+                [attr.title]="tallaAgotada(talla) ? 'Talla ' + talla + ' agotada' : null"
                 (click)="seleccionarTalla(talla)"
               >
                 {{ talla }}
