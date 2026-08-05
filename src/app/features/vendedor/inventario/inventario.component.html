@@ -1,0 +1,238 @@
+<div class="p-4 sm:p-8">
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h1 class="font-body text-3xl font-bold text-brand-ink">Inventario</h1>
+      <p class="mt-1 font-body text-sm text-brand-muted">
+        Ajusta el stock por talla y color de tus productos existentes.
+      </p>
+    </div>
+  </div>
+
+  <div class="mt-6 flex flex-wrap items-center gap-4">
+    <input
+      type="text"
+      class="input-field max-w-xs"
+      placeholder="Buscar producto…"
+      [value]="busqueda()"
+      (input)="busqueda.set($any($event.target).value)"
+    />
+    <label class="flex cursor-pointer items-center gap-2 font-body text-sm text-brand-text">
+      <input type="checkbox" [checked]="soloSinStock()" (change)="soloSinStock.set($any($event.target).checked)" />
+      Solo sin stock
+    </label>
+  </div>
+
+  <div class="mt-6 overflow-hidden rounded-sm border border-brand-muted/30 bg-white/60 shadow-sm">
+    @if (cargando()) {
+      <div class="divide-y divide-brand-muted/20 p-6">
+        @for (indice of [1, 2, 3, 4]; track indice) {
+          <div class="flex animate-pulse items-center gap-4 py-3">
+            <div class="h-14 w-11 shrink-0 rounded-sm bg-brand-muted/10"></div>
+            <div class="h-4 w-48 rounded-sm bg-brand-muted/10"></div>
+          </div>
+        }
+      </div>
+    } @else if (productosFiltrados().length === 0) {
+      <p class="p-6 font-body text-sm text-brand-muted">
+        {{ productos().length === 0 ? 'Todavía no hay productos.' : 'No hay productos que coincidan.' }}
+      </p>
+    } @else {
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead>
+            <tr class="border-b border-brand-muted/20 font-body text-xs uppercase tracking-wide text-brand-muted">
+              <th class="px-6 py-3"></th>
+              <th class="px-6 py-3">Nombre</th>
+              <th class="px-6 py-3">Tallas</th>
+              <th class="px-6 py-3">Colores</th>
+              <th class="px-6 py-3">Stock total</th>
+              <th class="px-6 py-3">Estado</th>
+              <th class="px-6 py-3">Acciones</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-brand-muted/20">
+            @for (producto of productosFiltrados(); track producto.id) {
+              <tr>
+                <td class="px-6 py-3">
+                  <img [src]="producto.imagenUrl" [alt]="producto.nombre" class="h-14 w-11 rounded-sm object-cover" />
+                </td>
+                <td class="px-6 py-3 font-body text-sm text-brand-text">{{ producto.nombre }}</td>
+                <td class="px-6 py-3 font-body text-sm text-brand-muted">{{ producto.tallasDisponibles.join(', ') }}</td>
+                <td class="px-6 py-3 font-body text-sm text-brand-muted">
+                  {{ producto.coloresDisponibles.length > 0 ? producto.coloresDisponibles.length + ' color(es)' : '—' }}
+                </td>
+                <td class="px-6 py-3 font-body text-sm font-semibold text-brand-text">{{ stockTotal(producto) }}</td>
+                <td class="px-6 py-3">
+                  @if (stockTotal(producto) > 0) {
+                    <span class="inline-flex items-center gap-1.5 font-body text-xs font-semibold uppercase tracking-wide text-green-700">
+                      <span class="h-2 w-2 rounded-full bg-green-600"></span> En stock
+                    </span>
+                  } @else {
+                    <span class="inline-flex items-center gap-1.5 font-body text-xs font-semibold uppercase tracking-wide text-brand-oxide">
+                      <span class="h-2 w-2 rounded-full bg-brand-oxide"></span> Sin stock
+                    </span>
+                  }
+                </td>
+                <td class="px-6 py-3">
+                  <button
+                    type="button"
+                    (click)="abrirGestion(producto)"
+                    class="cursor-pointer rounded-[2px] border border-brand-muted px-4 py-2 font-body text-xs uppercase tracking-wide text-brand-text transition-colors hover:border-brand-gold hover:text-brand-gold"
+                  >
+                    Gestionar stock
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>
+
+@if (productoSeleccionado(); as producto) {
+  <div class="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4" (click)="cerrarGestion()">
+    <div
+      class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-sm bg-brand-bone p-8 shadow-lg"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h2 class="font-body text-xl font-bold text-brand-ink">{{ producto.nombre }}</h2>
+          <p class="mt-1 font-body text-xs uppercase tracking-wide text-brand-muted">SKU: {{ producto.sku }}</p>
+        </div>
+        <button
+          type="button"
+          (click)="cerrarGestion()"
+          class="cursor-pointer text-brand-muted hover:text-brand-gold"
+          aria-label="Cerrar"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div class="mt-6 space-y-8">
+        <div>
+          <p class="font-body text-xs font-bold tracking-[0.1em] text-brand-gold">DESGLOSE DE STOCK</p>
+          <div class="mt-3 overflow-x-auto">
+            <table class="w-full text-left">
+              <thead>
+                <tr class="border-b border-brand-muted/20 font-body text-xs uppercase tracking-wide text-brand-muted">
+                  <th class="py-2 pr-4">Talla</th>
+                  @if (producto.coloresDisponibles.length > 0) {
+                    @for (color of producto.coloresDisponibles; track color) {
+                      <th class="py-2 pr-4">
+                        <span class="inline-flex items-center gap-1.5">
+                          <span
+                            class="inline-block h-3 w-3 rounded-full border border-brand-muted/40"
+                            [style.backgroundColor]="hexDeColor(color)"
+                          ></span>
+                          {{ etiquetaDeColor(color) }}
+                        </span>
+                      </th>
+                    }
+                  } @else {
+                    <th class="py-2 pr-4">Cantidad</th>
+                  }
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-brand-muted/10">
+                @for (talla of producto.tallasDisponibles; track talla) {
+                  <tr>
+                    <td class="py-2 pr-4 font-body text-sm font-semibold text-brand-text">{{ talla }}</td>
+                    @if (producto.coloresDisponibles.length > 0) {
+                      @for (color of producto.coloresDisponibles; track color) {
+                        <td class="py-2 pr-4">
+                          <input
+                            type="number"
+                            min="0"
+                            class="input-field w-20 py-1.5 text-center"
+                            [value]="cantidadDe(producto, talla, color)"
+                            (change)="actualizarCantidad(producto, talla, color, $any($event.target).value)"
+                          />
+                        </td>
+                      }
+                    } @else {
+                      <td class="py-2 pr-4">
+                        <input
+                          type="number"
+                          min="0"
+                          class="input-field w-20 py-1.5 text-center"
+                          [value]="cantidadDe(producto, talla, sinColor)"
+                          (change)="actualizarCantidad(producto, talla, sinColor, $any($event.target).value)"
+                        />
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-6 border-t border-brand-muted/20 pt-6 sm:grid-cols-2">
+          <div>
+            <p class="mb-2 font-body text-xs uppercase tracking-wide text-brand-muted">Agregar talla al producto</p>
+            @if (tallasParaAgregar(producto).length > 0) {
+              <div class="flex gap-2">
+                <select
+                  class="input-field"
+                  [value]="tallaParaAgregar()"
+                  (change)="tallaParaAgregar.set($any($event.target).value)"
+                >
+                  <option value="">Selecciona una talla</option>
+                  @for (talla of tallasParaAgregar(producto); track talla) {
+                    <option [value]="talla">{{ talla }}</option>
+                  }
+                </select>
+                <button
+                  type="button"
+                  [disabled]="!tallaParaAgregar()"
+                  (click)="agregarTalla(producto)"
+                  class="btn-gold shrink-0 px-4 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Agregar
+                </button>
+              </div>
+            } @else {
+              <p class="font-body text-xs text-brand-muted">
+                Ya tiene todas las tallas disponibles. Crea una nueva desde "Mis Productos".
+              </p>
+            }
+          </div>
+
+          <div>
+            <p class="mb-2 font-body text-xs uppercase tracking-wide text-brand-muted">Agregar color al producto</p>
+            @if (coloresParaAgregar(producto).length > 0) {
+              <div class="flex gap-2">
+                <select
+                  class="input-field"
+                  [value]="colorParaAgregar()"
+                  (change)="colorParaAgregar.set($any($event.target).value)"
+                >
+                  <option value="">Selecciona un color</option>
+                  @for (opcion of coloresParaAgregar(producto); track opcion.valor) {
+                    <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
+                  }
+                </select>
+                <button
+                  type="button"
+                  [disabled]="!colorParaAgregar()"
+                  (click)="agregarColor(producto)"
+                  class="btn-gold shrink-0 px-4 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Agregar
+                </button>
+              </div>
+            } @else {
+              <p class="font-body text-xs text-brand-muted">
+                Ya tiene todos los colores disponibles. Crea uno nuevo desde "Mis Productos".
+              </p>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
