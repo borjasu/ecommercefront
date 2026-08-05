@@ -15,6 +15,7 @@ import { SelectorProductoModalService } from '../../../core/services/selector-pr
 import { ToastService } from '../../../core/services/toast.service';
 import { ColoresService } from '../../../core/services/colores.service';
 import { Color, Talla } from '../../../core/models/producto.model';
+import { colorAgotado, tallaAgotada } from '../../utils/inventario.util';
 
 const CANTIDAD_MINIMA = 1;
 const CANTIDAD_MAXIMA = 20;
@@ -53,7 +54,10 @@ export class AgregarCarritoModalComponent {
   readonly puedeAgregar = computed(() => {
     const talla = this.tallaSeleccionada();
     const requiereColor = this.coloresDisponibles().length > 0;
-    return !!talla && (!requiereColor || !!this.colorSeleccionado());
+    if (!talla || (requiereColor && !this.colorSeleccionado())) {
+      return false;
+    }
+    return !this.tallaAgotada(talla);
   });
 
   constructor() {
@@ -84,11 +88,27 @@ export class AgregarCarritoModalComponent {
   }
 
   seleccionarTalla(talla: Talla): void {
+    if (this.tallaAgotada(talla)) {
+      return;
+    }
     this.tallaSeleccionada.set(talla);
   }
 
   seleccionarColor(color: Color): void {
+    if (this.colorAgotado(color)) {
+      return;
+    }
     this.colorSeleccionado.set(color);
+  }
+
+  tallaAgotada(talla: Talla): boolean {
+    const producto = this.modalService.productoActivo();
+    return !!producto && tallaAgotada(producto, talla, this.colorSeleccionado());
+  }
+
+  colorAgotado(color: Color): boolean {
+    const producto = this.modalService.productoActivo();
+    return !!producto && colorAgotado(producto, color, this.tallaSeleccionada());
   }
 
   etiquetaDeColor(color: Color): string {

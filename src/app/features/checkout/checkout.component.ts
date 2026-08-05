@@ -5,8 +5,9 @@ import { AuthService } from '../../core/services/auth.service';
 import { CartService } from '../../core/services/cart.service';
 import { PedidoService } from '../../core/services/pedido.service';
 import { DireccionesService } from '../../core/services/direcciones.service';
+import { ToastService } from '../../core/services/toast.service';
 import { ItemCarrito } from '../../core/models/carrito.model';
-import { Color } from '../../core/models/producto.model';
+import { Color, DetalleStockInsuficiente } from '../../core/models/producto.model';
 import { ColoresService } from '../../core/services/colores.service';
 
 type MetodoPago = 'tarjeta' | 'efectivo';
@@ -24,6 +25,7 @@ export class CheckoutComponent {
   private readonly pedidoService = inject(PedidoService);
   readonly direccionesService = inject(DireccionesService);
   private readonly coloresService = inject(ColoresService);
+  private readonly toastService = inject(ToastService);
   private readonly router = inject(Router);
 
   readonly items = this.cartService.itemsCarrito;
@@ -122,10 +124,25 @@ export class CheckoutComponent {
         metodoPago: this.metodoPago(),
         emailComprador: this.authService.currentUser()?.email
       })
-      .subscribe(pedido => {
-        this.numeroPedido.set(pedido.numeroPedido);
+      .subscribe(resultado => {
+        if (!resultado.ok) {
+          this.toastService.error(this.mensajeStockInsuficiente(resultado.detalles));
+          return;
+        }
+
+        this.numeroPedido.set(resultado.pedido.numeroPedido);
         this.cartService.vaciarCarrito();
       });
+  }
+
+  private mensajeStockInsuficiente(detalles: DetalleStockInsuficiente[]): string {
+    if (detalles.length === 1) {
+      const detalle = detalles[0];
+      const colorTexto = detalle.color ? `, color ${this.coloresService.etiquetaDe(detalle.color)}` : '';
+      return `Ya no hay suficiente stock de "${detalle.productoNombre}" (talla ${detalle.talla}${colorTexto}). Disponible: ${detalle.disponible}.`;
+    }
+
+    return `${detalles.length} artículos de tu bolsa ya no tienen stock suficiente. Ajusta las cantidades e intenta de nuevo.`;
   }
 
   private generarNumeroPedido(): string {

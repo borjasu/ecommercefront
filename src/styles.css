@@ -68,6 +68,31 @@
     @apply inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-[2px] border border-brand-gold bg-brand-gold font-body text-sm font-semibold text-brand-ink;
   }
 
+  /* Talla sin stock para la combinación actual: tachada y no clickeable
+     (el <button> también lleva [disabled], esto es solo el estilo). */
+  .talla-btn-agotada {
+    @apply inline-flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-[2px] border border-brand-muted/30 font-body text-sm text-brand-muted/60 line-through;
+  }
+
+  /* Modificador para el swatch circular de color (ver producto-detalle y
+     agregar-carrito-modal): atenúa el color y le cruza una línea diagonal,
+     el mismo lenguaje visual de "agotado" que .talla-btn-agotada. */
+  .color-swatch-agotado {
+    position: relative;
+    opacity: 0.45;
+  }
+
+  .color-swatch-agotado::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 150%;
+    height: 2px;
+    background: var(--color-brand-oxide);
+    transform: translate(-50%, -50%) rotate(-45deg);
+  }
+
   .input-field {
     @apply w-full rounded-[2px] border border-brand-muted/50 bg-white px-4 py-3 font-body text-sm text-brand-text placeholder:text-brand-muted focus:border-brand-gold focus:outline-none;
   }
