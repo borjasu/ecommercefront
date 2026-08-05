@@ -1,4 +1,5 @@
 import { ItemCarrito } from './carrito.model';
+import { DetalleStockInsuficiente } from './producto.model';
 
 export type EstadoPedido = 'pendiente' | 'enviado' | 'entregado' | 'cancelado';
 export type EstadoPago = 'pendiente' | 'pagado' | 'reembolsado';
@@ -32,3 +33,10 @@ export interface Pedido {
   fecha: string;
   emailComprador?: string;
 }
+
+// PedidoService.crearPedido ahora valida stock por variante antes de crear el
+// pedido (ver ProductoService.verificarStockDisponible); si falta stock no
+// crea el pedido y regresa el detalle en vez de lanzar un pedido inválido.
+export type ResultadoCrearPedido =
+  | { ok: true; pedido: Pedido }
+  | { ok: false; detalles: DetalleStockInsuficiente[] };
