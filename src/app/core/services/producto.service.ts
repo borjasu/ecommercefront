@@ -1,11 +1,43 @@
 import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { Audiencia, Categoria, Color, Producto } from '../models/producto.model';
+import {
+  Audiencia,
+  Categoria,
+  Color,
+  DetalleStockInsuficiente,
+  ItemStockSolicitado,
+  Producto,
+  ResultadoVerificacionStock,
+  SIN_COLOR,
+  Talla,
+  VarianteStock
+} from '../models/producto.model';
 
 const CLAVE_PRODUCTOS = 'productos_data';
 
-const PRODUCTOS_SEED: Producto[] = [
+// Stock por defecto que reciben las variantes generadas para productos
+// existentes que todavía no tenían `variantes` (datos guardados antes de que
+// existiera este campo, o los productos semilla). Así el catálogo no aparece
+// agotado de golpe tras esta actualización; el vendedor ajusta desde
+// Inventario. Las variantes creadas explícitamente (producto nuevo, o talla/
+// color agregados desde el formulario/Inventario) sí arrancan en 0: ver
+// `sincronizarVariantes`.
+const STOCK_POR_DEFECTO_MIGRACION = 15;
+
+function construirVariantes(tallas: Talla[], colores: Color[], cantidad: number): VarianteStock[] {
+  const coloresEfectivos = colores.length > 0 ? colores : [SIN_COLOR];
+  return tallas.flatMap(talla => coloresEfectivos.map(color => ({ talla, color, cantidad })));
+}
+
+function construirStockPorTalla(tallas: Talla[], variantes: VarianteStock[]): { talla: Talla; cantidad: number }[] {
+  return tallas.map(talla => ({
+    talla,
+    cantidad: variantes.filter(variante => variante.talla === talla).reduce((total, v) => total + v.cantidad, 0)
+  }));
+}
+
+const PRODUCTOS_SEED_BASE: Omit<Producto, 'variantes' | 'stockPorTalla'>[] = [
   {
     id: 'p1',
     sku: 'FJ-PAN-001',
@@ -237,6 +269,15 @@ const PRODUCTOS_SEED: Producto[] = [
   }
 ];
 
+const PRODUCTOS_SEED: Producto[] = PRODUCTOS_SEED_BASE.map(producto => {
+  const variantes = construirVariantes(producto.tallasDisponibles, producto.coloresDisponibles, STOCK_POR_DEFECTO_MIGRACION);
+  return {
+    ...producto,
+    variantes,
+    stockPorTalla: construirStockPorTalla(producto.tallasDisponibles, variantes)
+  };
+});
+
 @Injectable({
   providedIn: 'root'
 })
@@ -281,11 +322,18 @@ export class ProductoService {
     );
   }
 
-  crearProducto(producto: Omit<Producto, 'id' | 'sku'>): Observable<Producto> {
+  crearProducto(producto: Omit<Producto, 'id' | 'sku' | 'variantes' | 'stockPorTalla'>): Observable<Producto> {
+    // Las cantidades de una variante nueva arrancan en 0: "crear producto"
+    // define qué tallas/colores existen, pero asignar existencias es
+    // responsabilidad de la sección Inventario (ver punto 2 del pedido).
+    const variantes = this.sincronizarVariantes(producto.tallasDisponibles, producto.coloresDisponibles, []);
+
     const nuevoProducto: Producto = {
       ...producto,
       id: `prod-${Date.now()}`,
-      sku: `FJ-${producto.categoria.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`
+      sku: `FJ-${producto.categoria.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`,
+      variantes,
+      stockPorTalla: construirStockPorTalla(producto.tallasDisponibles, variantes)
     };
 
     this.productos = [...this.productos, nuevoProducto];
@@ -295,9 +343,29 @@ export class ProductoService {
   }
 
   actualizarProducto(id: string, cambios: Partial<Producto>): Observable<Producto> {
-    this.productos = this.productos.map(producto =>
-      producto.id === id ? { ...producto, ...cambios, id } : producto
-    );
+    this.productos = this.productos.map(producto => {
+      if (producto.id !== id) {
+        return producto;
+      }
+
+      const actualizado: Producto = { ...producto, ...cambios, id };
+      const tocaTallasOColores = cambios.tallasDisponibles !== undefined || cambios.coloresDisponibles !== undefined;
+
+      // Si el formulario de "Mis Productos" cambió las tallas/colores del
+      // producto, las variantes se resincronizan para reflejar la nueva
+      // cuadrícula talla×color, preservando la cantidad de las combinaciones
+      // que ya existían (no se resetea el stock por editar otro campo).
+      if (tocaTallasOColores && cambios.variantes === undefined) {
+        actualizado.variantes = this.sincronizarVariantes(
+          actualizado.tallasDisponibles,
+          actualizado.coloresDisponibles,
+          producto.variantes
+        );
+      }
+
+      actualizado.stockPorTalla = construirStockPorTalla(actualizado.tallasDisponibles, actualizado.variantes);
+      return actualizado;
+    });
     this.guardarProductos();
 
     const actualizado = this.productos.find(producto => producto.id === id);
@@ -311,6 +379,136 @@ export class ProductoService {
     return of(undefined);
   }
 
+  // --- Inventario: gestión de stock de productos existentes --------------
+
+  agregarColorAProducto(productoId: string, color: Color): Observable<Producto> {
+    this.productos = this.productos.map(producto => {
+      if (producto.id !== productoId || producto.coloresDisponibles.includes(color)) {
+        return producto;
+      }
+
+      const coloresDisponibles = [...producto.coloresDisponibles, color];
+      const variantes = this.sincronizarVariantes(producto.tallasDisponibles, coloresDisponibles, producto.variantes);
+      return {
+        ...producto,
+        coloresDisponibles,
+        variantes,
+        stockPorTalla: construirStockPorTalla(producto.tallasDisponibles, variantes)
+      };
+    });
+    this.guardarProductos();
+
+    return of(this.productos.find(producto => producto.id === productoId) as Producto);
+  }
+
+  agregarTallaAProducto(productoId: string, talla: Talla): Observable<Producto> {
+    this.productos = this.productos.map(producto => {
+      if (producto.id !== productoId || producto.tallasDisponibles.includes(talla)) {
+        return producto;
+      }
+
+      const tallasDisponibles = [...producto.tallasDisponibles, talla];
+      const variantes = this.sincronizarVariantes(tallasDisponibles, producto.coloresDisponibles, producto.variantes);
+      return {
+        ...producto,
+        tallasDisponibles,
+        variantes,
+        stockPorTalla: construirStockPorTalla(tallasDisponibles, variantes)
+      };
+    });
+    this.guardarProductos();
+
+    return of(this.productos.find(producto => producto.id === productoId) as Producto);
+  }
+
+  actualizarStockVariante(productoId: string, talla: Talla, color: Color, cantidad: number): Observable<Producto> {
+    const cantidadSegura = Math.max(0, Math.floor(cantidad) || 0);
+
+    this.productos = this.productos.map(producto => {
+      if (producto.id !== productoId) {
+        return producto;
+      }
+
+      const variantes = producto.variantes.map(variante =>
+        variante.talla === talla && variante.color === color ? { ...variante, cantidad: cantidadSegura } : variante
+      );
+      return { ...producto, variantes, stockPorTalla: construirStockPorTalla(producto.tallasDisponibles, variantes) };
+    });
+    this.guardarProductos();
+
+    return of(this.productos.find(producto => producto.id === productoId) as Producto);
+  }
+
+  // --- Descuento de stock al confirmar un pedido --------------------------
+
+  // No permite que el stock quede negativo: si alguna línea del pedido pide
+  // más piezas de las disponibles en esa variante, se rechaza el pedido
+  // completo (no se descuenta nada) y se informa qué líneas fallaron, para
+  // que el comprador ajuste su bolsa en vez de recibir un pedido a medias.
+  verificarStockDisponible(items: ItemStockSolicitado[]): ResultadoVerificacionStock {
+    const detalles: DetalleStockInsuficiente[] = [];
+
+    for (const item of items) {
+      const producto = this.productos.find(p => p.id === item.productoId);
+      const color = item.color ?? SIN_COLOR;
+      const variante = producto?.variantes.find(v => v.talla === item.talla && v.color === color);
+      const disponible = variante?.cantidad ?? 0;
+
+      if (disponible < item.cantidad) {
+        detalles.push({
+          productoId: item.productoId,
+          productoNombre: producto?.nombre ?? item.productoId,
+          talla: item.talla,
+          color,
+          disponible,
+          solicitado: item.cantidad
+        });
+      }
+    }
+
+    return detalles.length > 0 ? { ok: false, detalles } : { ok: true };
+  }
+
+  descontarStock(items: ItemStockSolicitado[]): void {
+    this.productos = this.productos.map(producto => {
+      const ajustes = items.filter(item => item.productoId === producto.id);
+      if (ajustes.length === 0) {
+        return producto;
+      }
+
+      const variantes = producto.variantes.map(variante => {
+        const ajuste = ajustes.find(
+          item => item.talla === variante.talla && (item.color ?? SIN_COLOR) === variante.color
+        );
+        return ajuste ? { ...variante, cantidad: Math.max(0, variante.cantidad - ajuste.cantidad) } : variante;
+      });
+
+      return { ...producto, variantes, stockPorTalla: construirStockPorTalla(producto.tallasDisponibles, variantes) };
+    });
+    this.guardarProductos();
+  }
+
+  // Reconstruye la lista de variantes para que exista exactamente una entrada
+  // por cada combinación talla×color de las listas dadas, preservando la
+  // cantidad de las combinaciones que ya existían en `existentes` y usando
+  // `cantidadPorDefecto` (0 salvo en la migración de datos antiguos) para las
+  // combinaciones nuevas.
+  private sincronizarVariantes(
+    tallas: Talla[],
+    colores: Color[],
+    existentes: VarianteStock[],
+    cantidadPorDefecto = 0
+  ): VarianteStock[] {
+    const coloresEfectivos = colores.length > 0 ? colores : [SIN_COLOR];
+
+    return tallas.flatMap(talla =>
+      coloresEfectivos.map(color => {
+        const previa = existentes.find(v => v.talla === talla && v.color === color);
+        return { talla, color, cantidad: previa?.cantidad ?? cantidadPorDefecto };
+      })
+    );
+  }
+
   private guardarProductos(): void {
     localStorage.setItem(CLAVE_PRODUCTOS, JSON.stringify(this.productos));
   }
@@ -321,15 +519,34 @@ export class ProductoService {
     if (guardados) {
       const productos = (JSON.parse(guardados) as Partial<Producto>[]).map(producto => {
         const seedCoincidente = PRODUCTOS_SEED.find(seed => seed.id === producto.id);
+        const tallasDisponibles = producto.tallasDisponibles ?? seedCoincidente?.tallasDisponibles ?? [];
+        const coloresDisponibles =
+          producto.coloresDisponibles ?? seedCoincidente?.coloresDisponibles ?? ([] as Color[]);
 
-        return {
+        const base = {
           audiencia: 'hombre' as Audiencia,
           destacado: false,
           sku: seedCoincidente?.sku ?? `FJ-${(producto.id ?? 'SIN-ID').toUpperCase()}`,
           imagenes: seedCoincidente?.imagenes,
-          coloresDisponibles: seedCoincidente?.coloresDisponibles ?? ([] as Color[]),
-          ...producto
+          coloresDisponibles,
+          ...producto,
+          tallasDisponibles
         } as Producto;
+
+        // Migración: productos guardados antes de existir `variantes` (o con
+        // el arreglo vacío) reciben stock por defecto derivado de sus tallas
+        // y colores actuales, para que el catálogo no aparezca agotado de
+        // golpe tras esta actualización.
+        if (!base.variantes || base.variantes.length === 0) {
+          base.variantes =
+            seedCoincidente?.variantes && seedCoincidente.variantes.length > 0
+              ? seedCoincidente.variantes
+              : construirVariantes(tallasDisponibles, coloresDisponibles, STOCK_POR_DEFECTO_MIGRACION);
+        }
+
+        base.stockPorTalla = construirStockPorTalla(tallasDisponibles, base.variantes);
+
+        return base;
       });
       localStorage.setItem(CLAVE_PRODUCTOS, JSON.stringify(productos));
       return productos;
