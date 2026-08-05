@@ -5,6 +5,7 @@ import { delay } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { PedidoService } from '../../../core/services/pedido.service';
 import { EstadoPedido, Pedido } from '../../../core/models/pedido.model';
+import { claseBadgeEstadoPedido, etiquetaEstadoPedido } from '../../../shared/utils/pedido-estado.util';
 
 const RETRASO_CARGA_MS = 400;
 
@@ -44,12 +45,10 @@ export class MisPedidosComponent {
   }
 
   etiquetaEstado(estado: EstadoPedido): string {
-    const etiquetas: Record<EstadoPedido, string> = {
-      pendiente: 'Pendiente',
-      enviado: 'Enviado',
-      entregado: 'Entregado',
-      cancelado: 'Cancelado'
-    };
-    return etiquetas[estado];
+    return etiquetaEstadoPedido(estado);
+  }
+
+  claseEstado(estado: EstadoPedido): string {
+    return claseBadgeEstadoPedido(estado);
   }
 }

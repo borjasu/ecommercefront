@@ -3,6 +3,7 @@ import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { PedidoService } from '../../../core/services/pedido.service';
 import { EstadoPago, EstadoPedido, Paqueteria, Pedido } from '../../../core/models/pedido.model';
+import { claseBadgeEstadoPedido, etiquetaEstadoPedido } from '../../../shared/utils/pedido-estado.util';
 
 type FiltroEstado = 'todos' | EstadoPedido;
 
@@ -100,13 +101,11 @@ export class PedidosComponent {
   }
 
   etiquetaEstado(estado: EstadoPedido): string {
-    const etiquetas: Record<EstadoPedido, string> = {
-      pendiente: 'Pendiente',
-      enviado: 'Enviado',
-      entregado: 'Entregado',
-      cancelado: 'Cancelado'
-    };
-    return etiquetas[estado];
+    return etiquetaEstadoPedido(estado);
+  }
+
+  claseEstado(estado: EstadoPedido): string {
+    return claseBadgeEstadoPedido(estado);
   }
 
   etiquetaEstadoPago(estadoPago: EstadoPago): string {

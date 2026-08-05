@@ -27,7 +27,7 @@
               <p class="font-body text-sm font-semibold text-brand-text">{{ pedido.numeroPedido }}</p>
               <p class="mt-0.5 font-body text-xs text-brand-muted">{{ pedido.fecha | date: 'dd/MM/yyyy HH:mm' }}</p>
             </div>
-            <span class="badge">{{ etiquetaEstado(pedido.estado) }}</span>
+            <span [class]="claseEstado(pedido.estado)">{{ etiquetaEstado(pedido.estado) }}</span>
             <p class="font-body text-sm font-semibold text-brand-gold">${{ pedido.total }}</p>
           </div>
 

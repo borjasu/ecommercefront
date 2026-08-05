@@ -42,7 +42,7 @@
               <td class="px-6 py-4 font-body text-sm text-brand-text">{{ pedido.datosEnvio.nombreCompleto }}</td>
               <td class="px-6 py-4 font-body text-sm font-semibold text-brand-gold">${{ pedido.total }}</td>
               <td class="px-6 py-4">
-                <span class="badge">{{ etiquetaEstado(pedido.estado) }}</span>
+                <span [class]="claseEstado(pedido.estado)">{{ etiquetaEstado(pedido.estado) }}</span>
               </td>
               <td class="px-6 py-4" (click)="$event.stopPropagation()">
                 <select
