@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { ProductoService } from '../../../core/services/producto.service';
 import { PedidoService } from '../../../core/services/pedido.service';
 import { EstadoPedido, Pedido } from '../../../core/models/pedido.model';
+import { claseBadgeEstadoPedido, etiquetaEstadoPedido } from '../../../shared/utils/pedido-estado.util';
 
 @Component({
     selector: 'app-dashboard',
@@ -42,12 +43,10 @@ export class DashboardComponent {
   }
 
   etiquetaEstado(estado: EstadoPedido): string {
-    const etiquetas: Record<EstadoPedido, string> = {
-      pendiente: 'Pendiente',
-      enviado: 'Enviado',
-      entregado: 'Entregado',
-      cancelado: 'Cancelado'
-    };
-    return etiquetas[estado];
+    return etiquetaEstadoPedido(estado);
+  }
+
+  claseEstado(estado: EstadoPedido): string {
+    return claseBadgeEstadoPedido(estado);
   }
 }
