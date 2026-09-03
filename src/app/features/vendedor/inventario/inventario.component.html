@@ -149,7 +149,7 @@
                             min="0"
                             class="input-field w-20 py-1.5 text-center"
                             [value]="cantidadDe(producto, talla, color)"
-                            (change)="actualizarCantidad(producto, talla, color, $any($event.target).value)"
+                            (change)="editarCantidad(talla, color, $any($event.target).value)"
                           />
                         </td>
                       }
@@ -160,7 +160,7 @@
                           min="0"
                           class="input-field w-20 py-1.5 text-center"
                           [value]="cantidadDe(producto, talla, sinColor)"
-                          (change)="actualizarCantidad(producto, talla, sinColor, $any($event.target).value)"
+                          (change)="editarCantidad(talla, sinColor, $any($event.target).value)"
                         />
                       </td>
                     }
@@ -231,6 +231,17 @@
               </p>
             }
           </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-4 border-t border-brand-muted/20 pt-6">
+          <button
+            type="button"
+            (click)="cerrarGestion()"
+            class="cursor-pointer font-body text-sm uppercase tracking-wide text-brand-muted hover:text-brand-ink"
+          >
+            Cancelar
+          </button>
+          <button type="button" (click)="guardarCambios(producto)" class="btn-gold">Guardar cambios</button>
         </div>
       </div>
     </div>

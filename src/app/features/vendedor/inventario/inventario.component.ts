@@ -3,7 +3,7 @@ import { ProductoService } from '../../../core/services/producto.service';
 import { ColoresService, ColorOpcion } from '../../../core/services/colores.service';
 import { TallasService } from '../../../core/services/tallas.service';
 import { ToastService } from '../../../core/services/toast.service';
-import { Color, Producto, SIN_COLOR, Talla } from '../../../core/models/producto.model';
+import { Color, Producto, SIN_COLOR, Talla, VarianteStock } from '../../../core/models/producto.model';
 
 const RETRASO_CARGA_MS = 300;
 
@@ -35,6 +35,12 @@ export class InventarioComponent {
   readonly productoSeleccionadoId = signal<string | null>(null);
   readonly colorParaAgregar = signal('');
   readonly tallaParaAgregar = signal('');
+
+  // Cambios de cantidad capturados en el formulario de gestión pero aún no
+  // confirmados: antes cada input guardaba de inmediato con (change), sin
+  // forma de descartar una edición a medias. Ahora se acumulan aquí y solo
+  // se aplican al backend al presionar "Guardar cambios".
+  readonly cambiosPendientes = signal<VarianteStock[]>([]);
 
   readonly productoSeleccionado = computed(
     () => this.productos().find(producto => producto.id === this.productoSeleccionadoId()) ?? null
@@ -78,6 +84,10 @@ export class InventarioComponent {
   }
 
   cantidadDe(producto: Producto, talla: Talla, color: Color): number {
+    const pendiente = this.cambiosPendientes().find(v => v.talla === talla && v.color === color);
+    if (pendiente) {
+      return pendiente.cantidad;
+    }
     return (producto.variantes ?? []).find(variante => variante.talla === talla && variante.color === color)
       ?.cantidad ?? 0;
   }
@@ -86,17 +96,39 @@ export class InventarioComponent {
     this.productoSeleccionadoId.set(producto.id);
     this.colorParaAgregar.set('');
     this.tallaParaAgregar.set('');
+    this.cambiosPendientes.set([]);
   }
 
+  /** Cierra el formulario sin aplicar cambios de cantidad sin guardar. */
   cerrarGestion(): void {
     this.productoSeleccionadoId.set(null);
+    this.cambiosPendientes.set([]);
   }
 
-  actualizarCantidad(producto: Producto, talla: Talla, color: Color, valorCrudo: string): void {
+  /** Captura la edición localmente; no se guarda hasta "Guardar cambios". */
+  editarCantidad(talla: Talla, color: Color, valorCrudo: string): void {
     const cantidad = Math.max(0, Math.floor(Number(valorCrudo)) || 0);
-    this.productoService.actualizarStockVariante(producto.id, talla, color, cantidad).subscribe(actualizado => {
-      this.reemplazarEnLista(actualizado);
+    this.cambiosPendientes.update(actuales => [
+      ...actuales.filter(v => !(v.talla === talla && v.color === color)),
+      { talla, color, cantidad }
+    ]);
+  }
+
+  guardarCambios(producto: Producto): void {
+    const pendientes = this.cambiosPendientes();
+    if (pendientes.length === 0) {
+      this.cerrarGestion();
+      return;
+    }
+
+    pendientes.forEach(({ talla, color, cantidad }) => {
+      this.productoService.actualizarStockVariante(producto.id, talla, color, cantidad).subscribe(actualizado => {
+        this.reemplazarEnLista(actualizado);
+      });
     });
+
+    this.toastService.exito('Stock actualizado.');
+    this.cerrarGestion();
   }
 
   coloresParaAgregar(producto: Producto): ColorOpcion[] {

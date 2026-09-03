@@ -29,3 +29,17 @@ export function colorAgotado(producto: Producto, color: Color, tallaSeleccionada
 
   return relevantes.length > 0 && relevantes.every(v => v.cantidad <= 0);
 }
+
+// Piezas disponibles para una combinación talla+color específica. A
+// diferencia de tallaAgotada/colorAgotado (que solo responden sí/no), esto da
+// el número exacto que el selector de cantidad debe respetar al agregar al
+// carrito — de ahí el bug reportado: nada limitaba la cantidad al stock real,
+// solo a un tope fijo (20) sin relación con el inventario del producto.
+export function stockDisponible(producto: Producto, talla: Talla, color: Color | null): number {
+  const variantes = producto.variantes ?? [];
+  const relevantes = color
+    ? variantes.filter(v => v.talla === talla && v.color === color)
+    : variantes.filter(v => v.talla === talla);
+
+  return relevantes.reduce((total, variante) => total + variante.cantidad, 0);
+}
