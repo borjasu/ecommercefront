@@ -322,11 +322,15 @@ export class ProductoService {
     );
   }
 
-  crearProducto(producto: Omit<Producto, 'id' | 'sku' | 'variantes' | 'stockPorTalla'>): Observable<Producto> {
-    // Las cantidades de una variante nueva arrancan en 0: "crear producto"
-    // define qué tallas/colores existen, pero asignar existencias es
-    // responsabilidad de la sección Inventario (ver punto 2 del pedido).
-    const variantes = this.sincronizarVariantes(producto.tallasDisponibles, producto.coloresDisponibles, []);
+  crearProducto(producto: Omit<Producto, 'id' | 'sku' | 'stockPorTalla'>): Observable<Producto> {
+    // El formulario de "Nuevo producto" ahora captura el stock inicial por
+    // talla/color junto con el resto de los datos (ver mis-productos), así
+    // que las variantes ya vienen completas con sus cantidades. Si algún
+    // llamador futuro no las incluye, se sincronizan en 0 como antes.
+    const variantes =
+      producto.variantes.length > 0
+        ? producto.variantes
+        : this.sincronizarVariantes(producto.tallasDisponibles, producto.coloresDisponibles, []);
 
     const nuevoProducto: Producto = {
       ...producto,

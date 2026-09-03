@@ -69,16 +69,17 @@
           </button>
 
           <img
-            [src]="imagenes()[indiceImagen()]"
+            [src]="imagenPrincipal()"
             [alt]="producto.nombre + ' — imagen ' + (indiceImagen() + 1) + ' de ' + imagenes().length"
-            class="aspect-[4/5] w-full object-cover"
-            [class.opacity-0]="zoomActivo()"
+            class="aspect-[4/5] w-full object-cover transition-opacity duration-300"
+            [class.opacity-0]="zoomActivo() || !imagenPrincipalLista()"
+            (load)="onImagenPrincipalCargada()"
           />
 
           @if (zoomActivo()) {
             <div
               class="pointer-events-none absolute inset-0 bg-white bg-no-repeat"
-              [style.backgroundImage]="'url(' + imagenes()[indiceImagen()] + ')'"
+              [style.backgroundImage]="'url(' + imagenPrincipal() + ')'"
               [style.backgroundSize]="'200%'"
               [style.backgroundPosition]="zoomPosicion().x + '% ' + zoomPosicion().y + '%'"
             ></div>
@@ -214,12 +215,19 @@
             <button
               type="button"
               (click)="incrementarCantidad()"
+              [disabled]="cantidadSeleccionada() >= cantidadMaxima()"
               aria-label="Aumentar cantidad"
-              class="inline-flex h-12 w-12 cursor-pointer items-center justify-center rounded-sm border border-brand-muted font-body text-base text-brand-text transition-colors duration-150 hover:border-brand-gold"
+              class="inline-flex h-12 w-12 cursor-pointer items-center justify-center rounded-sm border border-brand-muted font-body text-base text-brand-text transition-colors duration-150 hover:border-brand-gold disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-brand-muted"
             >
               +
             </button>
           </div>
+
+          @if (tallaSeleccionada() && cantidadMaxima() < topeGeneralCantidad) {
+            <span class="font-body text-xs text-brand-muted">
+              {{ cantidadMaxima() > 0 ? cantidadMaxima() + ' disponibles' : 'Sin stock disponible' }}
+            </span>
+          }
 
           <button
             type="button"

@@ -10,7 +10,7 @@ import { OfertaService } from '../../core/services/oferta.service';
 import { Audiencia, Categoria, Color, Producto, Talla } from '../../core/models/producto.model';
 import { ColoresService } from '../../core/services/colores.service';
 import { BreadcrumbComponent, BreadcrumbItem } from '../../shared/components/breadcrumb/breadcrumb.component';
-import { colorAgotado, tallaAgotada } from '../../shared/utils/inventario.util';
+import { colorAgotado, stockDisponible, tallaAgotada } from '../../shared/utils/inventario.util';
 
 const NOMBRES_CATEGORIA: Record<Categoria, string> = {
   pantalon: 'Pantalón',
@@ -68,6 +68,29 @@ export class ProductoDetalleComponent {
 
   readonly coloresDisponibles = computed(() => this.producto()?.coloresDisponibles ?? []);
 
+  // Imagen generada por RecoloreoService (backend) para el color elegido, si
+  // el producto tiene una — el emparejamiento es por NOMBRE (etiqueta legible
+  // del catálogo de colores vs `nombreColor` libre que el vendedor puso al
+  // generarla), case-insensitive: es la única forma práctica de conectar
+  // ambos sin acoplar la entidad de imágenes generadas al catálogo Color.
+  // Si el producto no tiene `coloresGenerados` (todo lo mock hoy), esto
+  // siempre es null y el comportamiento es idéntico al actual.
+  readonly imagenColorSeleccionado = computed(() => {
+    const producto = this.producto();
+    const color = this.colorSeleccionado();
+    if (!producto || !color) {
+      return null;
+    }
+    const etiqueta = this.etiquetaDeColor(color).toLowerCase().trim();
+    return (
+      producto.coloresGenerados?.find(c => c.nombreColor.toLowerCase().trim() === etiqueta)
+        ?.imagenUrl ?? null
+    );
+  });
+
+  readonly imagenPrincipal = computed(() => this.imagenColorSeleccionado() ?? this.imagenes()[this.indiceImagen()]);
+  readonly imagenPrincipalLista = signal(true);
+
   readonly precioInfo = computed(() => {
     const producto = this.producto();
     return producto
@@ -81,8 +104,30 @@ export class ProductoDetalleComponent {
     if (!talla || (requiereColor && !this.colorSeleccionado())) {
       return false;
     }
-    return !this.tallaAgotada(talla);
+    return !this.tallaAgotada(talla) && this.cantidadMaxima() > 0;
   });
+
+  // Ver agregar-carrito-modal.component.ts: mismo tope real de piezas
+  // agregables (stock de la combinación elegida menos lo que ya hay en el
+  // carrito), en vez del tope fijo de 20 que no miraba el inventario.
+  readonly cantidadMaxima = computed(() => {
+    const producto = this.producto();
+    const talla = this.tallaSeleccionada();
+    if (!producto || !talla) {
+      return CANTIDAD_MAXIMA;
+    }
+
+    const color = this.colorSeleccionado();
+    if (this.coloresDisponibles().length > 0 && !color) {
+      return CANTIDAD_MAXIMA;
+    }
+
+    const disponible = stockDisponible(producto, talla, color);
+    const yaEnCarrito = this.cartService.cantidadEnCarrito(producto.id, talla, color ?? undefined);
+    return Math.max(0, Math.min(CANTIDAD_MAXIMA, disponible - yaEnCarrito));
+  });
+
+  readonly topeGeneralCantidad = CANTIDAD_MAXIMA;
 
   readonly nombreCategoria = computed(() => {
     const producto = this.producto();
@@ -117,6 +162,29 @@ export class ProductoDetalleComponent {
       this.tallaSeleccionada.set(null);
       this.colorSeleccionado.set(null);
     });
+
+    // Si cambia la talla/color elegidos (y por tanto el stock disponible), la
+    // cantidad ya tecleada se recorta para no quedar apuntando por encima del
+    // nuevo máximo.
+    effect(() => {
+      const maximo = this.cantidadMaxima();
+      if (this.cantidadSeleccionada() > maximo) {
+        this.cantidadSeleccionada.set(Math.max(CANTIDAD_MINIMA, maximo));
+      }
+    });
+
+    // Transición suave al cambiar la imagen principal (galería o color): se
+    // baja la opacidad de inmediato y sube de nuevo cuando la nueva imagen
+    // termina de cargar (ver onImagenPrincipalCargada), en vez de un salto
+    // brusco de una foto a otra.
+    effect(() => {
+      this.imagenPrincipal();
+      this.imagenPrincipalLista.set(false);
+    });
+  }
+
+  onImagenPrincipalCargada(): void {
+    this.imagenPrincipalLista.set(true);
   }
 
   seleccionarTalla(talla: Talla): void {
@@ -205,7 +273,7 @@ export class ProductoDetalleComponent {
   }
 
   incrementarCantidad(): void {
-    this.cantidadSeleccionada.update(cantidad => Math.min(CANTIDAD_MAXIMA, cantidad + 1));
+    this.cantidadSeleccionada.update(cantidad => Math.min(this.cantidadMaxima(), cantidad + 1));
   }
 
   agregarAlCarrito(): void {
@@ -215,9 +283,24 @@ export class ProductoDetalleComponent {
       return;
     }
 
-    this.cartService.agregarItem(producto, talla, this.cantidadSeleccionada(), this.colorSeleccionado() ?? undefined);
+    const agregado = this.cartService.agregarItem(
+      producto,
+      talla,
+      this.cantidadSeleccionada(),
+      this.colorSeleccionado() ?? undefined
+    );
+
+    if (agregado === 0) {
+      this.toastService.error('Ya tienes en tu bolsa todo el stock disponible de esa combinación.');
+      return;
+    }
+
     this.agregado.set(true);
-    this.toastService.exito(`"${producto.nombre}" se agregó a tu bolsa.`);
+    this.toastService.exito(
+      agregado < this.cantidadSeleccionada()
+        ? `Solo agregamos ${agregado} pieza(s) de "${producto.nombre}": es el stock disponible.`
+        : `"${producto.nombre}" se agregó a tu bolsa.`
+    );
     this.cantidadSeleccionada.set(1);
     setTimeout(() => this.agregado.set(false), 1500);
   }

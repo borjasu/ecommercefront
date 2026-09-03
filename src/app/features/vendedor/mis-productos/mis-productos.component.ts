@@ -1,12 +1,24 @@
 import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 import { delay } from 'rxjs';
 import { ProductoService } from '../../../core/services/producto.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { ConfirmService } from '../../../core/services/confirm.service';
 import { ColoresService } from '../../../core/services/colores.service';
 import { TallasService } from '../../../core/services/tallas.service';
-import { Audiencia, Categoria, Etiqueta, Producto } from '../../../core/models/producto.model';
+import { RecoloreoService } from '../../../core/services/recoloreo.service';
+import {
+  Audiencia,
+  Categoria,
+  Color,
+  ColorGenerado,
+  Etiqueta,
+  Producto,
+  SIN_COLOR,
+  Talla,
+  VarianteStock
+} from '../../../core/models/producto.model';
 import { AUDIENCIAS, CATEGORIAS } from '../../../shared/constants/categorias';
 
 const RETRASO_CARGA_MS = 400;
@@ -32,6 +44,7 @@ export class MisProductosComponent {
   private readonly confirmService = inject(ConfirmService);
   private readonly coloresService = inject(ColoresService);
   private readonly tallasService = inject(TallasService);
+  private readonly recoloreoService = inject(RecoloreoService);
 
   readonly categorias = CATEGORIAS;
   readonly audiencias = AUDIENCIAS;
@@ -66,6 +79,24 @@ export class MisProductosComponent {
 
   readonly nuevaTallaNombre = signal('');
   readonly mostrarAgregarTalla = signal(false);
+
+  // Stock inicial por combinación talla×color, capturado en el mismo
+  // formulario (antes solo se podía asignar desde Inventario, así que todo
+  // producto nuevo arrancaba con existencias en 0). Se guarda aparte del
+  // FormGroup porque las combinaciones dependen de qué tallas/colores están
+  // marcados en ese momento, no de un set fijo de controles.
+  readonly cantidadesIniciales = signal<VarianteStock[]>([]);
+
+  // Recoloreo automático (ver RecoloreoService, ecommerceback): a diferencia
+  // del resto de este componente, ES una llamada de red real — el único uso
+  // de HttpClient del proyecto por ahora. Deliberadamente separado de
+  // productoForm (no se guarda junto con "Guardar producto": cada color
+  // generado ya queda persistido en el backend en el momento de generarlo).
+  readonly coloresGenerados = signal<ColorGenerado[]>([]);
+  readonly nuevoColorGeneradoNombre = signal('');
+  readonly nuevoColorGeneradoHex = signal('#c9a227');
+  readonly generandoColor = signal(false);
+  readonly errorGenerarColor = signal<string | null>(null);
 
   readonly productoForm = this.fb.group({
     nombre: ['', [Validators.required]],
@@ -113,6 +144,9 @@ export class MisProductosComponent {
 
   abrirFormularioNuevo(): void {
     this.productoEditando.set(null);
+    this.coloresGenerados.set([]);
+    this.cantidadesIniciales.set([]);
+    this.reiniciarFormularioColorGenerado();
     this.productoForm.reset({
       nombre: '',
       descripcion: '',
@@ -130,6 +164,9 @@ export class MisProductosComponent {
 
   abrirFormularioEditar(producto: Producto): void {
     this.productoEditando.set(producto);
+    this.coloresGenerados.set(producto.coloresGenerados ?? []);
+    this.cantidadesIniciales.set(producto.variantes ?? []);
+    this.reiniciarFormularioColorGenerado();
     this.productoForm.reset({
       nombre: producto.nombre,
       descripcion: producto.descripcion,
@@ -179,6 +216,45 @@ export class MisProductosComponent {
     input.value = '';
   }
 
+  // Tallas/colores actualmente marcados en el formulario (se recalculan en
+  // cada ciclo de detección de cambios porque dependen del estado en vivo de
+  // los checkboxes, no de un signal independiente).
+  tallasSeleccionadas(): Talla[] {
+    const valores = this.productoForm.controls.tallas.value as Record<string, boolean>;
+    return this.tallas().filter(talla => valores[talla]);
+  }
+
+  coloresSeleccionados(): Color[] {
+    const valores = this.productoForm.controls.colores.value as Record<string, boolean>;
+    return this.colores()
+      .map(opcion => opcion.valor)
+      .filter(color => valores[color]);
+  }
+
+  /** Filas talla×color a mostrar en la grilla de stock inicial. */
+  combinacionesStock(): { talla: Talla; color: Color }[] {
+    const tallas = this.tallasSeleccionadas();
+    const colores = this.coloresSeleccionados();
+    const coloresEfectivos = colores.length > 0 ? colores : [SIN_COLOR];
+    return tallas.flatMap(talla => coloresEfectivos.map(color => ({ talla, color })));
+  }
+
+  etiquetaDeColor(color: Color): string {
+    return this.coloresService.etiquetaDe(color);
+  }
+
+  cantidadInicial(talla: Talla, color: Color): number {
+    return this.cantidadesIniciales().find(v => v.talla === talla && v.color === color)?.cantidad ?? 0;
+  }
+
+  actualizarCantidadInicial(talla: Talla, color: Color, valorCrudo: string): void {
+    const cantidad = Math.max(0, Math.floor(Number(valorCrudo)) || 0);
+    this.cantidadesIniciales.update(actuales => [
+      ...actuales.filter(v => !(v.talla === talla && v.color === color)),
+      { talla, color, cantidad }
+    ]);
+  }
+
   guardar(): void {
     if (this.productoForm.invalid) {
       this.productoForm.markAllAsTouched();
@@ -191,6 +267,10 @@ export class MisProductosComponent {
       .map(opcion => opcion.valor)
       .filter(color => valores.colores[color]);
     const etiqueta: Etiqueta = valores.etiqueta === 'NINGUNA' ? null : valores.etiqueta;
+    const coloresEfectivos = coloresDisponibles.length > 0 ? coloresDisponibles : [SIN_COLOR];
+    const variantes: VarianteStock[] = tallasDisponibles.flatMap(talla =>
+      coloresEfectivos.map(color => ({ talla, color, cantidad: this.cantidadInicial(talla, color) }))
+    );
 
     const datosProducto = {
       nombre: valores.nombre!,
@@ -202,7 +282,8 @@ export class MisProductosComponent {
       destacado: !!valores.destacado,
       tallasDisponibles,
       imagenUrl: valores.imagenUrl || 'https://picsum.photos/seed/nuevo/400/500',
-      etiqueta
+      etiqueta,
+      variantes
     };
 
     const edicion = this.productoEditando();
@@ -351,6 +432,72 @@ export class MisProductosComponent {
     this.tallasService.eliminarTalla(talla);
     this.productoForm.controls.tallas.removeControl(talla as never);
     this.toastService.exito(`Talla "${talla}" eliminada.`);
+  }
+
+  generarColor(): void {
+    const producto = this.productoEditando();
+    const nombreColor = this.nuevoColorGeneradoNombre().trim();
+    if (!producto || !nombreColor || this.generandoColor()) {
+      return;
+    }
+
+    this.generandoColor.set(true);
+    this.errorGenerarColor.set(null);
+
+    this.recoloreoService.generarColor(producto.id, nombreColor, this.nuevoColorGeneradoHex()).subscribe({
+      next: colorGenerado => {
+        this.coloresGenerados.update(colores => [...colores, colorGenerado]);
+        this.generandoColor.set(false);
+        this.reiniciarFormularioColorGenerado();
+        this.toastService.exito(`Color "${colorGenerado.nombreColor}" generado.`);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.generandoColor.set(false);
+        this.errorGenerarColor.set(this.mensajeDeError(error));
+      }
+    });
+  }
+
+  async eliminarColorGenerado(color: ColorGenerado): Promise<void> {
+    const producto = this.productoEditando();
+    if (!producto) {
+      return;
+    }
+
+    const confirmado = await this.confirmService.confirmar({
+      titulo: 'Eliminar color generado',
+      mensaje: `¿Seguro que quieres eliminar el color "${color.nombreColor}"? Esta acción no se puede deshacer.`,
+      textoConfirmar: 'Eliminar',
+      peligroso: true
+    });
+
+    if (!confirmado) {
+      return;
+    }
+
+    this.recoloreoService.eliminarColor(producto.id, color.id).subscribe({
+      next: () => {
+        this.coloresGenerados.update(colores => colores.filter(c => c.id !== color.id));
+        this.toastService.exito(`Color "${color.nombreColor}" eliminado.`);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.toastService.error(this.mensajeDeError(error));
+      }
+    });
+  }
+
+  private reiniciarFormularioColorGenerado(): void {
+    this.nuevoColorGeneradoNombre.set('');
+    this.nuevoColorGeneradoHex.set('#c9a227');
+    this.errorGenerarColor.set(null);
+  }
+
+  private mensajeDeError(error: HttpErrorResponse): string {
+    const mensaje = error.error?.message;
+    if (Array.isArray(mensaje)) {
+      return mensaje.join(' ');
+    }
+    return mensaje ?? 'No se pudo completar la operación. Intenta de nuevo.';
   }
 
   private mapaColores(seleccionados: string[]): Record<string, boolean> {
