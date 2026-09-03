@@ -1,45 +1,38 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { NavigationEnd, Router } from '@angular/router';
-import { Observable, of, throwError } from 'rxjs';
-import { Usuario } from '../models/usuario.model';
+import { HttpClient, HttpContext, HttpErrorResponse } from '@angular/common/http';
+import { Router } from '@angular/router';
+import { Observable, catchError, finalize, map, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
+import { environment } from '../../../environments/environment';
+import { Usuario, Rol } from '../models/usuario.model';
 import { ToastService } from './toast.service';
+import { OMITIR_REDIRECCION_AL_EXPIRAR } from '../interceptors/auth-refresh.interceptor';
 
-const CLAVE_SESION = 'session_user';
-const CLAVE_USUARIOS_REGISTRADOS = 'usuarios_registrados';
-const CLAVE_OVERRIDES = 'usuarios_overrides';
+// AuthService habla con el backend real (ecommerceback): la sesión vive en
+// cookies HttpOnly (access_token de 15 min + refresh_token de 7 días, ver
+// AuthModule/cookie.util.ts del backend) que el navegador maneja solo — por
+// eso TODAS las llamadas de aquí llevan `withCredentials: true` y ya no hay
+// nada que guardar a mano en localStorage. La renovación del access token
+// vencido es transparente: la maneja authRefreshInterceptor (ver
+// core/interceptors/auth-refresh.interceptor.ts) reintentando una vez tras
+// un 401; este servicio solo expone refrescarSesion()/cerrarSesionLocal()
+// para que ese interceptor los use.
 
-// Diagnóstico (antes de este cambio): AuthService no tenía ningún mecanismo
-// de expiración — `session_user` guardaba el Usuario tal cual y solo se
-// borraba con logout() explícito. La sesión "se sentía" corta no por un
-// timer sino porque no existía ninguno: cualquier otra causa de pérdida
-// (recarga, guard mal configurado) se descartó al revisar authGuard/roleGuard
-// y CartService, que sí persisten correctamente en localStorage. Se
-// implementa aquí la duración de 1 hora pedida, con renovación por
-// actividad: cada navegación dentro de la SPA con sesión activa reinicia el
-// conteo (guardado como `expiraEn`, un timestamp absoluto, junto al usuario),
-// así que en la práctica expira tras 1 hora SIN navegar, no 1 hora fija
-// desde el login — evita cortar un checkout a medio llenar.
-const DURACION_SESION_MS = 60 * 60 * 1000;
-const AVISO_ANTES_DE_EXPIRAR_MS = 5 * 60 * 1000;
-const INTERVALO_CHEQUEO_MS = 15 * 1000;
-
-interface SesionAlmacenada {
-  usuario: Usuario;
-  expiraEn: number;
+// Forma de la respuesta de /auth/login, /auth/registro y /auth/refresh
+// (AuthController del backend): datos mínimos, sin telefono/fechaRegistro.
+interface RespuestaAuthBasica {
+  id: string;
+  nombre: string;
+  email: string;
+  rol: string;
 }
 
-// Único vendedor del sistema: no es un marketplace, así que esta cuenta
-// viene precargada y nunca se crea desde el formulario de registro público.
-const USUARIOS_SEED: Usuario[] = [
-  {
-    id: 'seed-vendedor',
-    nombre: 'Frank',
-    email: 'vendedor@frankjeans.com',
-    password: 'vendedor123',
-    rol: 'vendedor',
-    fechaRegistro: '2024-01-15T00:00:00.000Z'
-  }
-];
+// Forma de GET/PATCH /usuarios/perfil (PerfilUsuario del backend): el perfil
+// completo, que es lo que de verdad necesita la UI (ver perfil.component.html,
+// que muestra telefono y fechaRegistro).
+interface RespuestaPerfil extends RespuestaAuthBasica {
+  telefono: string | null;
+  fechaRegistro: string;
+}
 
 export interface ResultadoCambioPassword {
   exito: boolean;
@@ -50,186 +43,178 @@ export interface ResultadoCambioPassword {
   providedIn: 'root'
 })
 export class AuthService {
+  private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly toastService = inject(ToastService);
 
+  private readonly authUrl = `${environment.apiUrl}/auth`;
+  private readonly perfilUrl = `${environment.apiUrl}/usuarios/perfil`;
+
   readonly currentUser = signal<Usuario | null>(null);
 
-  private expiraEn: number | null = null;
-  private avisoMostrado = false;
+  // Comparte un único POST /auth/refresh entre todas las peticiones que
+  // reciban un 401 al mismo tiempo (ej. varias cards del catálogo pidiendo
+  // datos de vendedor a la vez) — evita una estampida de refrescos
+  // simultáneos que rotarían el refresh token varias veces innecesariamente.
+  private refrescoEnCurso$: Observable<void> | null = null;
 
-  constructor() {
-    this.restaurarSesion();
+  /**
+   * Verificación de sesión al cargar la app: la llama provideAppInitializer
+   * en app.config.ts ANTES de que el router resuelva la primera navegación,
+   * así los guards (authGuard/roleGuard) ya ven currentUser() poblado si la
+   * cookie de sesión seguía vigente (F5, nueva pestaña, etc.). Un 401 aquí
+   * solo significa "no hay sesión" — nunca es un error que deba mostrarse.
+   */
+  inicializarSesion(): Observable<void> {
+    const contexto = new HttpContext().set(OMITIR_REDIRECCION_AL_EXPIRAR, true);
 
-    // Renueva la sesión con cada navegación dentro de la SPA mientras haya
-    // un usuario activo: es la señal de "actividad" más simple disponible
-    // sin instrumentar clics/teclas por toda la app.
-    this.router.events.subscribe(evento => {
-      if (evento instanceof NavigationEnd && this.currentUser()) {
-        this.renovarSesion();
-      }
-    });
-
-    setInterval(() => this.verificarExpiracion(), INTERVALO_CHEQUEO_MS);
+    return this.http.get<RespuestaPerfil>(this.perfilUrl, { withCredentials: true, context: contexto }).pipe(
+      tap(perfil => this.currentUser.set(this.aUsuario(perfil))),
+      map(() => undefined),
+      catchError(() => {
+        this.currentUser.set(null);
+        return of(undefined);
+      })
+    );
   }
 
   login(email: string, password: string): Observable<Usuario | null> {
-    const usuario = this.todosLosUsuarios().find(
-      u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-    ) ?? null;
-
-    if (usuario) {
-      this.guardarSesion(usuario, Date.now() + DURACION_SESION_MS);
-    }
-
-    return of(usuario);
+    return this.iniciarSesionConCredenciales(email, password).pipe(
+      catchError((error: unknown) => {
+        // 401 = credenciales inválidas: es el flujo normal de un login
+        // fallido, lo maneja LoginComponent mostrando su propio mensaje.
+        // Cualquier otro error (429 por throttling, backend caído, etc.) sí
+        // es una sorpresa y vale la pena avisarlo con un toast.
+        if (!(error instanceof HttpErrorResponse) || error.status !== 401) {
+          this.toastService.error(this.extraerMensaje(error));
+        }
+        return of(null);
+      })
+    );
   }
 
   registro(nombre: string, email: string, password: string): Observable<Usuario> {
-    const yaRegistrado = this.todosLosUsuarios().some(
-      u => u.email.toLowerCase() === email.toLowerCase()
-    );
-
-    if (yaRegistrado) {
-      return throwError(() => new Error('Ya existe una cuenta con ese correo electrónico.'));
-    }
-
-    const nuevoUsuario: Usuario = {
-      id: crypto.randomUUID(),
-      nombre,
-      email,
-      password,
-      rol: 'comprador',
-      fechaRegistro: new Date().toISOString()
-    };
-
-    const registrados = this.leerUsuariosRegistrados();
-    registrados.push(nuevoUsuario);
-    localStorage.setItem(CLAVE_USUARIOS_REGISTRADOS, JSON.stringify(registrados));
-
-    this.guardarSesion(nuevoUsuario, Date.now() + DURACION_SESION_MS);
-
-    return of(nuevoUsuario);
+    return this.http
+      .post<RespuestaAuthBasica>(`${this.authUrl}/registro`, { nombre, email, password }, { withCredentials: true })
+      .pipe(
+        // El backend fuerza rol 'comprador' en /auth/registro sin importar lo
+        // que se le mande (ver RegistroDto/AuthService.registro del backend) —
+        // por eso este formulario nunca envía ni deja elegir rol.
+        // /auth/registro solo crea la cuenta, no deja cookies de sesión: se
+        // encadena un login con las mismas credenciales para que, igual que
+        // antes con el mock, quedar registrado equivalga a quedar dentro.
+        switchMap(() => this.iniciarSesionConCredenciales(email, password)),
+        catchError((error: unknown) => throwError(() => new Error(this.extraerMensaje(error))))
+      );
   }
 
   actualizarPerfil(id: string, cambios: { nombre?: string; telefono?: string }): Observable<Usuario> {
-    return of(this.actualizarUsuario(id, cambios));
+    // El backend nunca recibe id: PATCH /usuarios/perfil siempre opera sobre
+    // el usuario del JWT de la cookie (ver UsersController, que a propósito
+    // no acepta :id para eliminar cualquier superficie de IDOR). Se conserva
+    // el parámetro solo para no romper la firma que ya consume
+    // DatosPersonalesComponent.
+    void id;
+
+    return this.http.patch<RespuestaPerfil>(this.perfilUrl, cambios, { withCredentials: true }).pipe(
+      map(perfil => this.aUsuario(perfil)),
+      tap(usuario => this.currentUser.set(usuario))
+    );
   }
 
   cambiarPassword(id: string, passwordActual: string, passwordNueva: string): Observable<ResultadoCambioPassword> {
-    const usuario = this.todosLosUsuarios().find(u => u.id === id);
+    void id;
 
-    if (!usuario || usuario.password !== passwordActual) {
-      return of({ exito: false, error: 'La contraseña actual no es correcta.' });
-    }
-
-    this.actualizarUsuario(id, { password: passwordNueva });
-    return of({ exito: true });
+    return this.http
+      .patch<void>(`${this.authUrl}/cambiar-password`, { passwordActual, passwordNueva }, { withCredentials: true })
+      .pipe(
+        map(() => {
+          // El backend rota refreshTokenVersion y limpia las cookies al
+          // cambiar la contraseña (obliga a reautenticarse en este mismo
+          // dispositivo) — se refleja localmente cerrando la sesión y
+          // mandando a /login con el mismo aviso que un cierre por expiración.
+          this.cerrarSesionLocal();
+          this.router.navigate(['/login'], { queryParams: { motivo: 'password-actualizada' } });
+          return { exito: true } satisfies ResultadoCambioPassword;
+        }),
+        catchError((error: unknown) => of({ exito: false, error: this.extraerMensaje(error) }))
+      );
   }
 
+  /** Cierra sesión en el backend (limpia las cookies del lado servidor) y localmente. */
   logout(): void {
-    localStorage.removeItem(CLAVE_SESION);
+    // Fire-and-forget: el estado local se limpia de inmediato sin esperar la
+    // respuesta (misma UX síncrona que antes), y si la petición falla (red
+    // caída, etc.) da igual — las cookies igual expiran solas y no hay nada
+    // más que el usuario pueda hacer al respecto desde aquí.
+    this.http.post<void>(`${this.authUrl}/logout`, {}, { withCredentials: true }).subscribe({ error: () => {} });
+    this.cerrarSesionLocal();
+  }
+
+  /** Limpia solo el estado local (sin llamar al backend) — usado cuando ya se sabe que la sesión del servidor terminó. */
+  cerrarSesionLocal(): void {
     this.currentUser.set(null);
-    this.expiraEn = null;
-    this.avisoMostrado = false;
   }
 
-  /** Extiende la sesión activa 1 hora más a partir de ahora. */
-  renovarSesion(): void {
-    const usuario = this.currentUser();
-    if (!usuario) {
-      return;
+  /**
+   * POST /auth/refresh usando la cookie httpOnly refresh_token; la llama
+   * authRefreshInterceptor tras un 401. Multicasta la llamada en curso para
+   * que 401s simultáneos no disparen refrescos por duplicado.
+   */
+  refrescarSesion(): Observable<void> {
+    if (!this.refrescoEnCurso$) {
+      // No hace falta releer el perfil completo aquí: es solo renovación de
+      // token, los datos del usuario en currentUser() no cambiaron.
+      // shareReplay multicasta esta única llamada HTTP a todos los 401
+      // simultáneos que la pidan mientras está en curso; finalize limpia la
+      // referencia al terminar (éxito o error) para que la siguiente vez que
+      // el access token expire se dispare un refresh nuevo, no el mismo.
+      this.refrescoEnCurso$ = this.http
+        .post<RespuestaAuthBasica>(`${this.authUrl}/refresh`, {}, { withCredentials: true })
+        .pipe(
+          map(() => undefined),
+          finalize(() => {
+            this.refrescoEnCurso$ = null;
+          }),
+          shareReplay(1)
+        );
     }
-    this.guardarSesion(usuario, Date.now() + DURACION_SESION_MS);
+    return this.refrescoEnCurso$;
   }
 
-  private verificarExpiracion(): void {
-    if (!this.currentUser() || this.expiraEn == null) {
-      return;
-    }
-
-    const restante = this.expiraEn - Date.now();
-
-    if (restante <= 0) {
-      this.logout();
-      this.toastService.error('Tu sesión expiró por inactividad.');
-      this.router.navigate(['/login'], { queryParams: { motivo: 'sesion-expirada' } });
-      return;
-    }
-
-    if (restante <= AVISO_ANTES_DE_EXPIRAR_MS && !this.avisoMostrado) {
-      this.avisoMostrado = true;
-      this.toastService.mostrar('Tu sesión expirará pronto. Sigue navegando para mantenerla activa.', 'info');
-    }
+  private iniciarSesionConCredenciales(email: string, password: string): Observable<Usuario> {
+    return this.http
+      .post<RespuestaAuthBasica>(`${this.authUrl}/login`, { email, password }, { withCredentials: true })
+      .pipe(
+        switchMap(() =>
+          this.http.get<RespuestaPerfil>(this.perfilUrl, { withCredentials: true })
+        ),
+        map(perfil => this.aUsuario(perfil)),
+        tap(usuario => this.currentUser.set(usuario))
+      );
   }
 
-  private actualizarUsuario(id: string, cambios: Partial<Usuario>): Usuario {
-    const overrides = this.leerOverrides();
-    overrides[id] = { ...overrides[id], ...cambios };
-    localStorage.setItem(CLAVE_OVERRIDES, JSON.stringify(overrides));
-
-    const actualizado = this.todosLosUsuarios().find(u => u.id === id) as Usuario;
-
-    if (this.currentUser()?.id === id) {
-      // Conserva la expiración vigente: actualizar el perfil no cuenta como
-      // la "actividad de navegación" que renueva la sesión.
-      this.guardarSesion(actualizado, this.expiraEn ?? Date.now() + DURACION_SESION_MS);
-    }
-
-    return actualizado;
+  private aUsuario(perfil: RespuestaPerfil): Usuario {
+    return {
+      id: perfil.id,
+      nombre: perfil.nombre,
+      email: perfil.email,
+      rol: perfil.rol as Rol,
+      telefono: perfil.telefono ?? undefined,
+      fechaRegistro: perfil.fechaRegistro
+    };
   }
 
-  private guardarSesion(usuario: Usuario, expiraEn: number): void {
-    this.expiraEn = expiraEn;
-    this.avisoMostrado = false;
-    localStorage.setItem(CLAVE_SESION, JSON.stringify({ usuario, expiraEn } satisfies SesionAlmacenada));
-    this.currentUser.set(usuario);
-  }
-
-  private restaurarSesion(): void {
-    const crudo = localStorage.getItem(CLAVE_SESION);
-    if (!crudo) {
-      return;
-    }
-
-    try {
-      const datos = JSON.parse(crudo);
-      // Compatibilidad con el formato anterior (Usuario guardado directo, sin
-      // expiración): se le da una expiración nueva de 1 hora en vez de cerrar
-      // la sesión de golpe con esta actualización.
-      const sesion: SesionAlmacenada =
-        datos && typeof datos === 'object' && 'usuario' in datos && 'expiraEn' in datos
-          ? (datos as SesionAlmacenada)
-          : { usuario: datos as Usuario, expiraEn: Date.now() + DURACION_SESION_MS };
-
-      if (!sesion.usuario || sesion.expiraEn <= Date.now()) {
-        localStorage.removeItem(CLAVE_SESION);
-        return;
+  private extraerMensaje(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      const mensaje = (error.error as { message?: string | string[] } | null)?.message;
+      if (Array.isArray(mensaje)) {
+        return mensaje.join(' ');
       }
-
-      this.expiraEn = sesion.expiraEn;
-      this.currentUser.set(sesion.usuario);
-    } catch {
-      localStorage.removeItem(CLAVE_SESION);
+      if (typeof mensaje === 'string') {
+        return mensaje;
+      }
     }
-  }
-
-  private leerUsuariosRegistrados(): Usuario[] {
-    const guardados = localStorage.getItem(CLAVE_USUARIOS_REGISTRADOS);
-    return guardados ? (JSON.parse(guardados) as Usuario[]) : [];
-  }
-
-  private leerOverrides(): Record<string, Partial<Usuario>> {
-    const guardados = localStorage.getItem(CLAVE_OVERRIDES);
-    return guardados ? (JSON.parse(guardados) as Record<string, Partial<Usuario>>) : {};
-  }
-
-  private todosLosUsuarios(): Usuario[] {
-    const overrides = this.leerOverrides();
-    return [...USUARIOS_SEED, ...this.leerUsuariosRegistrados()].map(usuario => ({
-      ...usuario,
-      fechaRegistro: usuario.fechaRegistro ?? new Date(0).toISOString(),
-      ...overrides[usuario.id]
-    }));
+    return 'Ocurrió un error inesperado. Intenta de nuevo.';
   }
 }
