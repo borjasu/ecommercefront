@@ -15,7 +15,7 @@ import { SelectorProductoModalService } from '../../../core/services/selector-pr
 import { ToastService } from '../../../core/services/toast.service';
 import { ColoresService } from '../../../core/services/colores.service';
 import { Color, Talla } from '../../../core/models/producto.model';
-import { colorAgotado, tallaAgotada } from '../../utils/inventario.util';
+import { colorAgotado, stockDisponible, tallaAgotada } from '../../utils/inventario.util';
 
 const CANTIDAD_MINIMA = 1;
 const CANTIDAD_MAXIMA = 20;
@@ -32,6 +32,8 @@ export class AgregarCarritoModalComponent {
   readonly modalService = inject(SelectorProductoModalService);
   readonly favoritosService = inject(FavoritosService);
   private readonly coloresService = inject(ColoresService);
+
+  readonly topeGeneralCantidad = CANTIDAD_MAXIMA;
 
   readonly tallaSeleccionada = signal<Talla | null>(null);
   readonly colorSeleccionado = signal<Color | null>(null);
@@ -51,13 +53,54 @@ export class AgregarCarritoModalComponent {
     return producto.imagenes && producto.imagenes.length > 0 ? producto.imagenes : [producto.imagenUrl];
   });
 
+  // Igual que en producto-detalle.component.ts: emparejamiento por nombre
+  // (case-insensitive) entre el color elegido y las imágenes generadas por
+  // RecoloreoService (backend). Si el producto no tiene `coloresGenerados`,
+  // siempre es null y el comportamiento es idéntico al actual.
+  readonly imagenColorSeleccionado = computed(() => {
+    const producto = this.modalService.productoActivo();
+    const color = this.colorSeleccionado();
+    if (!producto || !color) {
+      return null;
+    }
+    const etiqueta = this.etiquetaDeColor(color).toLowerCase().trim();
+    return (
+      producto.coloresGenerados?.find(c => c.nombreColor.toLowerCase().trim() === etiqueta)
+        ?.imagenUrl ?? null
+    );
+  });
+
+  readonly imagenPrincipal = computed(() => this.imagenColorSeleccionado() ?? this.imagenes()[this.indiceImagen()]);
+  readonly imagenPrincipalLista = signal(true);
+
   readonly puedeAgregar = computed(() => {
     const talla = this.tallaSeleccionada();
     const requiereColor = this.coloresDisponibles().length > 0;
     if (!talla || (requiereColor && !this.colorSeleccionado())) {
       return false;
     }
-    return !this.tallaAgotada(talla);
+    return !this.tallaAgotada(talla) && this.cantidadMaxima() > 0;
+  });
+
+  // Tope real de piezas que se pueden agregar: el stock de la combinación
+  // talla+color elegida, menos lo que ya hubiera de esa misma línea en el
+  // carrito. Antes el selector de cantidad solo topaba en 20 sin mirar el
+  // inventario, así que dejaba agregar más piezas de las que existían.
+  readonly cantidadMaxima = computed(() => {
+    const producto = this.modalService.productoActivo();
+    const talla = this.tallaSeleccionada();
+    if (!producto || !talla) {
+      return CANTIDAD_MAXIMA;
+    }
+
+    const color = this.colorSeleccionado();
+    if (this.coloresDisponibles().length > 0 && !color) {
+      return CANTIDAD_MAXIMA;
+    }
+
+    const disponible = stockDisponible(producto, talla, color);
+    const yaEnCarrito = this.cartService.cantidadEnCarrito(producto.id, talla, color ?? undefined);
+    return Math.max(0, Math.min(CANTIDAD_MAXIMA, disponible - yaEnCarrito));
   });
 
   constructor() {
@@ -71,6 +114,27 @@ export class AgregarCarritoModalComponent {
         setTimeout(() => this.panel()?.nativeElement.focus());
       }
     });
+
+    // Ver producto-detalle.component.ts: misma transición suave al cambiar
+    // de imagen principal (galería o color).
+    effect(() => {
+      this.imagenPrincipal();
+      this.imagenPrincipalLista.set(false);
+    });
+
+    // Si cambia la talla/color elegidos (y por tanto el stock disponible), la
+    // cantidad ya tecleada se recorta para no quedar apuntando por encima del
+    // nuevo máximo.
+    effect(() => {
+      const maximo = this.cantidadMaxima();
+      if (this.cantidad() > maximo) {
+        this.cantidad.set(Math.max(CANTIDAD_MINIMA, maximo));
+      }
+    });
+  }
+
+  onImagenPrincipalCargada(): void {
+    this.imagenPrincipalLista.set(true);
   }
 
   imagenAnterior(): void {
@@ -124,7 +188,7 @@ export class AgregarCarritoModalComponent {
   }
 
   incrementarCantidad(): void {
-    this.cantidad.update(valor => Math.min(CANTIDAD_MAXIMA, valor + 1));
+    this.cantidad.update(valor => Math.min(this.cantidadMaxima(), valor + 1));
   }
 
   confirmar(): void {
@@ -134,9 +198,18 @@ export class AgregarCarritoModalComponent {
       return;
     }
 
-    this.cartService.agregarItem(producto, talla, this.cantidad(), this.colorSeleccionado() ?? undefined);
+    const agregado = this.cartService.agregarItem(producto, talla, this.cantidad(), this.colorSeleccionado() ?? undefined);
+    if (agregado === 0) {
+      this.toastService.error('Ya tienes en tu bolsa todo el stock disponible de esa combinación.');
+      return;
+    }
+
     this.agregado.set(true);
-    this.toastService.exito(`"${producto.nombre}" se agregó a tu bolsa.`);
+    this.toastService.exito(
+      agregado < this.cantidad()
+        ? `Solo agregamos ${agregado} pieza(s) de "${producto.nombre}": es el stock disponible.`
+        : `"${producto.nombre}" se agregó a tu bolsa.`
+    );
     setTimeout(() => this.modalService.cerrar(), 700);
   }
 

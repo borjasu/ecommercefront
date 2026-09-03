@@ -25,9 +25,11 @@
       <div class="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div class="relative overflow-hidden rounded-2xl bg-white">
           <img
-            [src]="imagenes()[indiceImagen()]"
+            [src]="imagenPrincipal()"
             [alt]="producto.nombre + ' — imagen ' + (indiceImagen() + 1) + ' de ' + imagenes().length"
-            class="aspect-[4/5] w-full object-cover"
+            class="aspect-[4/5] w-full object-cover transition-opacity duration-300"
+            [class.opacity-0]="!imagenPrincipalLista()"
+            (load)="onImagenPrincipalCargada()"
           />
 
           <button
@@ -157,12 +159,18 @@
               <button
                 type="button"
                 (click)="incrementarCantidad()"
+                [disabled]="cantidad() >= cantidadMaxima()"
                 aria-label="Aumentar cantidad"
-                class="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-sm border border-brand-muted font-body text-sm text-brand-text transition-colors duration-150 hover:border-brand-gold"
+                class="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-sm border border-brand-muted font-body text-sm text-brand-text transition-colors duration-150 hover:border-brand-gold disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-brand-muted"
               >
                 +
               </button>
             </div>
+            @if (tallaSeleccionada() && cantidadMaxima() < topeGeneralCantidad) {
+              <span class="font-body text-xs text-brand-muted">
+                {{ cantidadMaxima() > 0 ? cantidadMaxima() + ' disponibles' : 'Sin stock disponible' }}
+              </span>
+            }
           </div>
 
           <div class="mt-auto flex flex-col gap-3">
