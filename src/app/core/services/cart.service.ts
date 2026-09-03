@@ -1,6 +1,7 @@
 import { Injectable, computed, effect, signal } from '@angular/core';
 import { ItemCarrito } from '../models/carrito.model';
 import { Color, Producto, Talla } from '../models/producto.model';
+import { stockDisponible } from '../../shared/utils/inventario.util';
 
 const CLAVE_CARRITO = 'carrito_items';
 
@@ -26,18 +27,40 @@ export class CartService {
     });
   }
 
-  agregarItem(producto: Producto, talla: Talla, cantidad: number, color?: Color): void {
+  /**
+   * Agrega `cantidad` piezas de talla+color al carrito, sin superar el stock
+   * real del producto (sumando lo que ya hubiera de esa misma línea). Es la
+   * última línea de defensa contra agregar más de lo que hay en inventario
+   * aunque algún selector de cantidad no lo haya evitado antes; devuelve
+   * cuánto se agregó realmente para que el llamador pueda avisar si se topó
+   * con el límite.
+   */
+  agregarItem(producto: Producto, talla: Talla, cantidad: number, color?: Color): number {
+    const disponible = stockDisponible(producto, talla, color ?? null);
+    const yaEnCarrito = this.cantidadEnCarrito(producto.id, talla, color);
+    const cantidadAgregada = Math.max(0, Math.min(cantidad, disponible - yaEnCarrito));
+
+    if (cantidadAgregada === 0) {
+      return 0;
+    }
+
     this.items.update(items => {
       const existente = items.find(item => this.esMismaLinea(item, producto.id, talla, color));
 
       if (existente) {
         return items.map(item =>
-          item === existente ? { ...item, cantidad: item.cantidad + cantidad } : item
+          item === existente ? { ...item, cantidad: item.cantidad + cantidadAgregada } : item
         );
       }
 
-      return [...items, { producto, talla, color, cantidad }];
+      return [...items, { producto, talla, color, cantidad: cantidadAgregada }];
     });
+
+    return cantidadAgregada;
+  }
+
+  cantidadEnCarrito(productoId: string, talla: Talla, color?: Color): number {
+    return this.items().find(item => this.esMismaLinea(item, productoId, talla, color))?.cantidad ?? 0;
   }
 
   eliminarItem(producto: Producto, talla: Talla, color?: Color): void {
