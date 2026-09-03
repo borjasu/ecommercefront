@@ -12,6 +12,10 @@ function passwordsNuevasIgualesValidator(control: AbstractControl): ValidationEr
   return nueva === confirmar ? null : { passwordsNoCoinciden: true };
 }
 
+// Misma regla que el backend (CambiarPasswordDto): mínimo 8 caracteres, al
+// menos una mayúscula y un dígito.
+const REGEX_PASSWORD_SEGURA = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
+
 @Component({
     selector: 'app-datos-personales',
     imports: [ReactiveFormsModule],
@@ -43,7 +47,7 @@ export class DatosPersonalesComponent {
   readonly passwordForm = this.fb.group(
     {
       passwordActual: ['', [Validators.required]],
-      passwordNueva: ['', [Validators.required, Validators.minLength(6)]],
+      passwordNueva: ['', [Validators.required, Validators.pattern(REGEX_PASSWORD_SEGURA)]],
       confirmarPasswordNueva: ['', [Validators.required]]
     },
     { validators: passwordsNuevasIgualesValidator }
