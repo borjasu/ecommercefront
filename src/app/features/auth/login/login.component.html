@@ -3,9 +3,9 @@
     <h1 class="font-display text-3xl font-semibold text-brand-ink">Iniciar sesión</h1>
     <p class="mt-2 font-body text-sm text-brand-muted">Ingresa tus datos para continuar.</p>
 
-    @if (sesionExpirada) {
+    @if (avisoSesion) {
       <p class="mt-4 rounded-[2px] border border-brand-gold/40 bg-brand-gold/10 px-4 py-3 font-body text-sm text-brand-ink">
-        Tu sesión expiró por inactividad. Inicia sesión de nuevo.
+        {{ avisoSesion }}
       </p>
     }
 

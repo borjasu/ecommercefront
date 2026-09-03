@@ -17,9 +17,20 @@ export class LoginComponent {
   private readonly route = inject(ActivatedRoute);
 
   errorMensaje = '';
-  // AuthService redirige aquí con ?motivo=sesion-expirada cuando cierra la
-  // sesión automáticamente por expiración (ver verificarExpiracion()).
-  readonly sesionExpirada = this.route.snapshot.queryParamMap.get('motivo') === 'sesion-expirada';
+
+  // AuthService/authRefreshInterceptor redirigen aquí con ?motivo=... cuando
+  // cierran la sesión por una causa que no es un login fallido normal: la
+  // sesión de 7 días terminó de verdad (el refresh automático también
+  // falló) o se acaba de cambiar la contraseña (el backend invalida la
+  // sesión actual al hacerlo, ver AuthService.cambiarPassword).
+  private readonly motivo = this.route.snapshot.queryParamMap.get('motivo');
+
+  readonly avisoSesion =
+    this.motivo === 'sesion-expirada'
+      ? 'Tu sesión expiró. Inicia sesión de nuevo.'
+      : this.motivo === 'password-actualizada'
+        ? 'Tu contraseña se actualizó. Inicia sesión de nuevo.'
+        : null;
 
   readonly form = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
