@@ -13,6 +13,11 @@
         </div>
       }
     </div>
+  } @else if (error()) {
+    <div class="p-8 text-center">
+      <p class="font-body text-sm text-brand-muted">No se pudieron cargar tus pedidos.</p>
+      <button type="button" class="btn-gold mt-6 inline-flex" (click)="reintentar()">Reintentar</button>
+    </div>
   } @else if (pedidos().length === 0) {
     <div class="p-8 text-center">
       <p class="font-body text-sm text-brand-muted">Todavía no has hecho ningún pedido.</p>
@@ -27,7 +32,10 @@
               <p class="font-body text-sm font-semibold text-brand-text">{{ pedido.numeroPedido }}</p>
               <p class="mt-0.5 font-body text-xs text-brand-muted">{{ pedido.fecha | date: 'dd/MM/yyyy HH:mm' }}</p>
             </div>
-            <span [class]="claseEstado(pedido.estado)">{{ etiquetaEstado(pedido.estado) }}</span>
+            <div class="flex items-center gap-2">
+              <span [class]="claseEstado(pedido.estado)">{{ etiquetaEstado(pedido.estado) }}</span>
+              <span [class]="clasePago(pedido.estadoPago)">{{ etiquetaPago(pedido.estadoPago) }}</span>
+            </div>
             <p class="font-body text-sm font-semibold text-brand-gold">${{ pedido.total }}</p>
           </div>
 
@@ -36,24 +44,34 @@
               <div>
                 <h3 class="font-body text-xs uppercase tracking-wide text-brand-muted">Artículos</h3>
                 <div class="mt-3 flex flex-col divide-y divide-brand-muted/20">
-                  @for (item of pedido.items; track item.producto.id + item.talla) {
+                  @for (item of pedido.items; track item.productoId + item.talla + item.color) {
                     <div class="flex items-center gap-4 py-3">
                       <img
-                        [src]="item.producto.imagenUrl"
-                        [alt]="item.producto.nombre"
+                        [src]="item.productoImagenUrl"
+                        [alt]="item.productoNombre"
                         class="h-16 w-13 rounded-md object-cover"
                       />
                       <div class="flex-1">
-                        <p class="font-body text-sm text-brand-text">{{ item.producto.nombre }}</p>
+                        <p class="font-body text-sm text-brand-text">{{ item.productoNombre }}</p>
                         <p class="mt-1 font-body text-xs uppercase tracking-wide text-brand-muted">
-                          Talla {{ item.talla }} · Cantidad {{ item.cantidad }}
+                          Talla {{ item.talla }}
+                          @if (item.color) {
+                            · Color {{ item.color }}
+                          }
+                          · Cantidad {{ item.cantidad }}
                         </p>
                       </div>
                       <p class="font-body text-sm font-semibold text-brand-gold">
-                        ${{ item.producto.precio * item.cantidad }}
+                        ${{ item.precioUnitario * item.cantidad }}
                       </p>
                     </div>
                   }
+                </div>
+
+                <div class="mt-4 space-y-1 border-t border-brand-muted/20 pt-4 font-body text-sm text-brand-text">
+                  <div class="flex justify-between"><span>Subtotal</span><span>${{ pedido.subtotal }}</span></div>
+                  <div class="flex justify-between"><span>Envío</span><span>${{ pedido.costoEnvio }}</span></div>
+                  <div class="flex justify-between font-semibold"><span>Total</span><span>${{ pedido.total }}</span></div>
                 </div>
               </div>
 
@@ -69,13 +87,13 @@
                 <h3 class="mt-6 font-body text-xs uppercase tracking-wide text-brand-muted">Método de pago</h3>
                 <p class="mt-2 font-body text-sm capitalize text-brand-text">{{ pedido.metodoPago }}</p>
 
-                @if (pedido.infoEnvio?.numeroGuia) {
+                @if (pedido.infoEnvio.numeroGuia) {
                   <h3 class="mt-6 font-body text-xs uppercase tracking-wide text-brand-muted">Guía de rastreo</h3>
                   <div class="mt-2 space-y-1 font-body text-sm text-brand-text">
-                    <p>{{ pedido.infoEnvio?.paqueteria }} · {{ pedido.infoEnvio?.numeroGuia }}</p>
-                    @if (pedido.infoEnvio?.urlRastreo) {
+                    <p>{{ pedido.infoEnvio.paqueteria }} · {{ pedido.infoEnvio.numeroGuia }}</p>
+                    @if (pedido.infoEnvio.urlRastreo) {
                       <a
-                        [href]="pedido.infoEnvio?.urlRastreo"
+                        [href]="pedido.infoEnvio.urlRastreo"
                         target="_blank"
                         rel="noopener"
                         class="text-brand-gold hover:underline"
