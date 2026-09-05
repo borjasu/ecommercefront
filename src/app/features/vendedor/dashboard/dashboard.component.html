@@ -2,58 +2,81 @@
   <h1 class="font-body text-3xl font-bold text-brand-ink">Dashboard</h1>
   <p class="mt-1 font-body text-sm text-brand-muted">Resumen general de tu tienda.</p>
 
-  <div class="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-    <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
-      <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Productos activos</p>
-      <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-ink">{{ totalProductos() }}</p>
+  @if (error()) {
+    <div class="mt-8 rounded-sm border border-brand-muted/30 bg-white/60 p-8 text-center shadow-sm">
+      <p class="font-body text-sm text-brand-muted">No se pudo cargar el resumen.</p>
+      <button type="button" class="btn-gold mt-6 inline-flex" (click)="reintentar()">Reintentar</button>
     </div>
-    <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
-      <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Pedidos recibidos</p>
-      <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-ink">{{ totalPedidos() }}</p>
+  } @else {
+    <div class="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
+        <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Productos activos</p>
+        <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-ink">
+          {{ cargando() ? '—' : totalProductos() }}
+        </p>
+      </div>
+      <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
+        <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Pedidos recibidos</p>
+        <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-ink">
+          {{ cargando() ? '—' : totalPedidos() }}
+        </p>
+      </div>
+      <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
+        <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Pendientes de envío</p>
+        <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-ink">
+          {{ cargando() ? '—' : pedidosPendientes() }}
+        </p>
+      </div>
+      <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
+        <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Ingresos totales</p>
+        <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-gold">
+          {{ cargando() ? '—' : '$' + ingresosTotales() }}
+        </p>
+      </div>
     </div>
-    <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
-      <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Pendientes de envío</p>
-      <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-ink">{{ pedidosPendientes() }}</p>
-    </div>
-    <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
-      <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Ingresos totales</p>
-      <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-gold">${{ ingresosTotales() }}</p>
-    </div>
-  </div>
 
-  <div class="mt-10">
-    <h2 class="font-body text-xl font-bold text-brand-ink">Pedidos recientes</h2>
-    <div class="mt-4 overflow-hidden rounded-sm border border-brand-muted/30 bg-white/60 shadow-sm">
-      @if (pedidosRecientes().length === 0) {
-        <p class="p-6 font-body text-sm text-brand-muted">Todavía no hay pedidos.</p>
-      } @else {
-        <div class="overflow-x-auto">
-        <table class="w-full text-left">
-          <thead>
-            <tr class="border-b border-brand-muted/20 font-body text-xs uppercase tracking-wide text-brand-muted">
-              <th class="px-6 py-3">Número</th>
-              <th class="px-6 py-3">Fecha</th>
-              <th class="px-6 py-3">Total</th>
-              <th class="px-6 py-3">Estado</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-brand-muted/20">
-            @for (pedido of pedidosRecientes(); track pedido.id) {
-              <tr>
-                <td class="px-6 py-4 font-body text-sm text-brand-text">
-                  <a routerLink="/vendedor/pedidos" class="hover:text-brand-gold">{{ pedido.numeroPedido }}</a>
-                </td>
-                <td class="px-6 py-4 font-body text-sm text-brand-muted">{{ pedido.fecha | date: 'dd/MM/yyyy' }}</td>
-                <td class="px-6 py-4 font-body text-sm font-semibold text-brand-gold">${{ pedido.total }}</td>
-                <td class="px-6 py-4">
-                  <span [class]="claseEstado(pedido.estado)">{{ etiquetaEstado(pedido.estado) }}</span>
-                </td>
-              </tr>
+    <div class="mt-10">
+      <h2 class="font-body text-xl font-bold text-brand-ink">Pedidos recientes</h2>
+      <div class="mt-4 overflow-hidden rounded-sm border border-brand-muted/30 bg-white/60 shadow-sm">
+        @if (cargando()) {
+          <div class="divide-y divide-brand-muted/20">
+            @for (indice of [1, 2, 3]; track indice) {
+              <div class="animate-pulse p-6">
+                <div class="h-4 w-32 rounded-sm bg-brand-muted/10"></div>
+              </div>
             }
-          </tbody>
-        </table>
-        </div>
-      }
+          </div>
+        } @else if (pedidosRecientes().length === 0) {
+          <p class="p-6 font-body text-sm text-brand-muted">Todavía no hay pedidos.</p>
+        } @else {
+          <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="border-b border-brand-muted/20 font-body text-xs uppercase tracking-wide text-brand-muted">
+                <th class="px-6 py-3">Número</th>
+                <th class="px-6 py-3">Fecha</th>
+                <th class="px-6 py-3">Total</th>
+                <th class="px-6 py-3">Estado</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-brand-muted/20">
+              @for (pedido of pedidosRecientes(); track pedido.id) {
+                <tr>
+                  <td class="px-6 py-4 font-body text-sm text-brand-text">
+                    <a routerLink="/vendedor/pedidos" class="hover:text-brand-gold">{{ pedido.numeroPedido }}</a>
+                  </td>
+                  <td class="px-6 py-4 font-body text-sm text-brand-muted">{{ pedido.fecha | date: 'dd/MM/yyyy' }}</td>
+                  <td class="px-6 py-4 font-body text-sm font-semibold text-brand-gold">${{ pedido.total }}</td>
+                  <td class="px-6 py-4">
+                    <span [class]="claseEstado(pedido.estado)">{{ etiquetaEstado(pedido.estado) }}</span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          </div>
+        }
+      </div>
     </div>
-  </div>
+  }
 </div>
