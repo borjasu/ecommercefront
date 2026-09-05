@@ -53,7 +53,8 @@ export class PagosComponent {
     const etiquetas: Record<EstadoPago, string> = {
       pendiente: 'Pendiente',
       pagado: 'Pagado',
-      reembolsado: 'Reembolsado'
+      reembolsado: 'Reembolsado',
+      rechazado: 'Rechazado'
     };
     return etiquetas[estadoPago];
   }
