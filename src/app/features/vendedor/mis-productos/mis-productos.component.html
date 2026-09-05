@@ -520,7 +520,9 @@
           >
             Cancelar
           </button>
-          <button type="submit" class="btn-gold">Guardar</button>
+          <button type="submit" [disabled]="guardando()" class="btn-gold disabled:cursor-not-allowed disabled:opacity-50">
+            {{ guardando() ? 'Guardando…' : 'Guardar' }}
+          </button>
         </div>
       </form>
 

@@ -23,7 +23,18 @@
   </div>
 
   <div class="mt-6 overflow-hidden rounded-sm border border-brand-muted/30 bg-white/60 shadow-sm">
-    @if (cargando()) {
+    @if (error()) {
+      <div class="flex flex-col items-center gap-4 p-10 text-center">
+        <p class="font-body text-sm text-brand-muted">No pudimos cargar tus productos. Intenta de nuevo.</p>
+        <button
+          type="button"
+          (click)="reintentar()"
+          class="cursor-pointer rounded-[2px] border border-brand-muted px-6 py-2 font-body text-sm uppercase tracking-wide text-brand-text transition-colors hover:border-brand-gold hover:text-brand-gold"
+        >
+          Reintentar
+        </button>
+      </div>
+    } @else if (cargando()) {
       <div class="divide-y divide-brand-muted/20 p-6">
         @for (indice of [1, 2, 3, 4]; track indice) {
           <div class="flex animate-pulse items-center gap-4 py-3">

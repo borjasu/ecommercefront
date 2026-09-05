@@ -1,11 +1,14 @@
-import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, of, throwError } from 'rxjs';
+import { catchError, map, switchMap, tap } from 'rxjs/operators';
+import { environment } from '../../../environments/environment';
 import {
   Audiencia,
   Categoria,
   Color,
   DetalleStockInsuficiente,
+  Etiqueta,
   ItemStockSolicitado,
   Producto,
   ResultadoVerificacionStock,
@@ -14,15 +17,34 @@ import {
   VarianteStock
 } from '../models/producto.model';
 
-const CLAVE_PRODUCTOS = 'productos_data';
+// ProductoService habla con el backend real (ecommerceback) para todo lo que
+// el backend sí modela: datos del producto, colores/tallas disponibles,
+// imagen. El backend HOY NO TIENE modelo de inventario (ni `variantes` ni
+// `stockPorTalla` existen en la entidad Producto ni en ningún endpoint —
+// confirmado en la auditoría del día 2, ver `orders.service.ts` y
+// `producto-color-imagen.entity.ts` del backend, que documentan
+// explícitamente "no hay control de stock"). Por decisión explícita del
+// equipo, el stock por talla×color se sigue manejando 100% en el frontend
+// (localStorage), indexado por el id REAL (uuid) que ahora devuelve el
+// backend, y se combina con cada producto que llega del servidor. Esto no
+// sobrevive a limpiar el localStorage del navegador ni se comparte entre
+// dispositivos — es una limitación conocida hasta que el backend tenga su
+// propio modelo de inventario.
+const CLAVE_STOCK = 'stock_variantes_data';
 
-// Stock por defecto que reciben las variantes generadas para productos
-// existentes que todavía no tenían `variantes` (datos guardados antes de que
-// existiera este campo, o los productos semilla). Así el catálogo no aparece
-// agotado de golpe tras esta actualización; el vendedor ajusta desde
-// Inventario. Las variantes creadas explícitamente (producto nuevo, o talla/
-// color agregados desde el formulario/Inventario) sí arrancan en 0: ver
-// `sincronizarVariantes`.
+// Tope máximo que acepta el backend por página (ver ListarProductosQueryDto
+// del backend, LIMITE_MAXIMO=50). El catálogo/mis-productos/inventario del
+// frontend siguen pidiendo "todo de una vez" y paginando/filtrando en
+// cliente (igual que con el mock), así que se pide el máximo permitido en
+// una sola llamada. Si el catálogo real llega a superar 50 productos activos
+// hace falta agregar recorrido de páginas aquí — no aplica todavía (~12
+// productos sembrados hoy).
+const LIMITE_CATALOGO = 50;
+
+// Stock por defecto que reciben las variantes de un producto que llega del
+// backend real sin stock local guardado todavía (primera vez que se ve ese
+// id en este navegador). Mismo criterio que tenía la migración del mock: así
+// el catálogo no aparece agotado de golpe.
 const STOCK_POR_DEFECTO_MIGRACION = 15;
 
 function construirVariantes(tallas: Talla[], colores: Color[], cantidad: number): VarianteStock[] {
@@ -37,431 +59,248 @@ function construirStockPorTalla(tallas: Talla[], variantes: VarianteStock[]): { 
   }));
 }
 
-const PRODUCTOS_SEED_BASE: Omit<Producto, 'variantes' | 'stockPorTalla'>[] = [
-  {
-    id: 'p1',
-    sku: 'FJ-PAN-001',
-    nombre: 'Pantalón de Vestir Slim',
-    descripcion:
-      'Pantalón de corte slim confeccionado en gabardina de algodón, ideal para looks formales y de oficina.',
-    precio: 899,
-    categoria: 'pantalon',
-    audiencia: 'hombre',
-    coloresDisponibles: ['negro', 'azul'],
-    tallasDisponibles: ['S', 'M', 'L', 'XL'],
-    imagenUrl: 'https://picsum.photos/seed/p1/400/500',
-    imagenes: [
-      'https://picsum.photos/seed/p1/400/500',
-      'https://picsum.photos/seed/p1-b/400/500',
-      'https://picsum.photos/seed/p1-c/400/500'
-    ],
-    etiqueta: 'NUEVO',
-    destacado: true
-  },
-  {
-    id: 'p2',
-    sku: 'FJ-PAN-002',
-    nombre: 'Pantalón Chino Clásico',
-    descripcion: 'Pantalón chino de algodón con corte recto, un básico versátil para el día a día.',
-    precio: 749,
-    categoria: 'pantalon',
-    audiencia: 'nino',
-    coloresDisponibles: ['beige'],
-    tallasDisponibles: ['M', 'L', 'XL'],
-    imagenUrl: 'https://picsum.photos/seed/p2/400/500',
-    imagenes: [
-      'https://picsum.photos/seed/p2/400/500',
-      'https://picsum.photos/seed/p2-b/400/500',
-      'https://picsum.photos/seed/p2-c/400/500'
-    ],
-    etiqueta: 'ESENCIAL',
-    destacado: false
-  },
-  {
-    id: 'p3',
-    sku: 'FJ-PAN-003',
-    nombre: 'Pantalón Cargo Utility',
-    descripcion: 'Pantalón cargo con bolsillos funcionales, tela resistente y ajuste cómodo.',
-    precio: 999,
-    categoria: 'pantalon',
-    audiencia: 'hombre',
-    coloresDisponibles: ['gris', 'negro'],
-    tallasDisponibles: ['S', 'M', 'L'],
-    imagenUrl: 'https://picsum.photos/seed/p3/400/500',
-    imagenes: [
-      'https://picsum.photos/seed/p3/400/500',
-      'https://picsum.photos/seed/p3-b/400/500',
-      'https://picsum.photos/seed/p3-c/400/500'
-    ],
-    etiqueta: null,
-    destacado: false
-  },
-  {
-    id: 'p4',
-    sku: 'FJ-PLA-004',
-    nombre: 'Playera Básica Algodón',
-    descripcion: 'Playera de algodón 100% peinado, suave al tacto y de ajuste regular.',
-    precio: 349,
-    categoria: 'playera',
-    audiencia: 'nino',
-    coloresDisponibles: ['blanco'],
-    tallasDisponibles: ['S', 'M', 'L', 'XL'],
-    imagenUrl: 'https://picsum.photos/seed/p4/400/500',
-    imagenes: [
-      'https://picsum.photos/seed/p4/400/500',
-      'https://picsum.photos/seed/p4-b/400/500',
-      'https://picsum.photos/seed/p4-c/400/500'
-    ],
-    etiqueta: 'ESENCIAL',
-    destacado: true
-  },
-  {
-    id: 'p5',
-    sku: 'FJ-PLA-005',
-    nombre: 'Playera Estampada Edición Limitada',
-    descripcion: 'Playera con estampado exclusivo de temporada, tela premium y acabado suave.',
-    precio: 429,
-    categoria: 'playera',
-    audiencia: 'hombre',
-    coloresDisponibles: ['azul'],
-    tallasDisponibles: ['M', 'L'],
-    imagenUrl: 'https://picsum.photos/seed/p5/400/500',
-    imagenes: [
-      'https://picsum.photos/seed/p5/400/500',
-      'https://picsum.photos/seed/p5-b/400/500',
-      'https://picsum.photos/seed/p5-c/400/500'
-    ],
-    etiqueta: 'NUEVO',
-    destacado: true
-  },
-  {
-    id: 'p6',
-    sku: 'FJ-PLA-006',
-    nombre: 'Playera Cuello V',
-    descripcion: 'Playera con cuello en V, corte entallado y tejido transpirable.',
-    precio: 379,
-    categoria: 'playera',
-    audiencia: 'nino',
-    coloresDisponibles: ['negro', 'blanco'],
-    tallasDisponibles: ['S', 'M', 'L', 'XL'],
-    imagenUrl: 'https://picsum.photos/seed/p6/400/500',
-    imagenes: [
-      'https://picsum.photos/seed/p6/400/500',
-      'https://picsum.photos/seed/p6-b/400/500',
-      'https://picsum.photos/seed/p6-c/400/500'
-    ],
-    etiqueta: null,
-    destacado: false
-  },
-  {
-    id: 'p7',
-    sku: 'FJ-CAM-007',
-    nombre: 'Camisa de Lino Manga Larga',
-    descripcion: 'Camisa confeccionada en lino ligero, perfecta para climas cálidos y looks relajados.',
-    precio: 1099,
-    categoria: 'camisa',
-    audiencia: 'hombre',
-    coloresDisponibles: ['blanco'],
-    tallasDisponibles: ['S', 'M', 'L'],
-    imagenUrl: 'https://picsum.photos/seed/p7/400/500',
-    imagenes: [
-      'https://picsum.photos/seed/p7/400/500',
-      'https://picsum.photos/seed/p7-b/400/500',
-      'https://picsum.photos/seed/p7-c/400/500'
-    ],
-    etiqueta: 'NUEVO',
-    destacado: false
-  },
-  {
-    id: 'p8',
-    sku: 'FJ-CAM-008',
-    nombre: 'Camisa Oxford Clásica',
-    descripcion: 'Camisa Oxford de algodón con cuello abotonado, un básico atemporal para el guardarropa.',
-    precio: 949,
-    categoria: 'camisa',
-    audiencia: 'nino',
-    coloresDisponibles: ['azul'],
-    tallasDisponibles: ['S', 'M', 'L', 'XL'],
-    imagenUrl: 'https://picsum.photos/seed/p8/400/500',
-    imagenes: [
-      'https://picsum.photos/seed/p8/400/500',
-      'https://picsum.photos/seed/p8-b/400/500',
-      'https://picsum.photos/seed/p8-c/400/500'
-    ],
-    etiqueta: 'ESENCIAL',
-    destacado: true
-  },
-  {
-    id: 'p9',
-    sku: 'FJ-CAM-009',
-    nombre: 'Camisa a Cuadros Franela',
-    descripcion: 'Camisa de franela con estampado a cuadros, cálida y de tacto suave.',
-    precio: 899,
-    categoria: 'camisa',
-    audiencia: 'hombre',
-    coloresDisponibles: ['cafe'],
-    tallasDisponibles: ['M', 'L', 'XL'],
-    imagenUrl: 'https://picsum.photos/seed/p9/400/500',
-    imagenes: [
-      'https://picsum.photos/seed/p9/400/500',
-      'https://picsum.photos/seed/p9-b/400/500',
-      'https://picsum.photos/seed/p9-c/400/500'
-    ],
-    etiqueta: null,
-    destacado: false
-  },
-  {
-    id: 'p10',
-    sku: 'FJ-BER-010',
-    nombre: 'Bermuda Deportiva',
-    descripcion: 'Bermuda ligera de secado rápido, ideal para actividades al aire libre.',
-    precio: 549,
-    categoria: 'bermuda',
-    audiencia: 'nino',
-    coloresDisponibles: ['gris'],
-    tallasDisponibles: ['S', 'M', 'L', 'XL'],
-    imagenUrl: 'https://picsum.photos/seed/p10/400/500',
-    imagenes: [
-      'https://picsum.photos/seed/p10/400/500',
-      'https://picsum.photos/seed/p10-b/400/500',
-      'https://picsum.photos/seed/p10-c/400/500'
-    ],
-    etiqueta: 'NUEVO',
-    destacado: false
-  },
-  {
-    id: 'p11',
-    sku: 'FJ-BER-011',
-    nombre: 'Bermuda Denim',
-    descripcion: 'Bermuda de mezclilla con corte recto y lavado clásico.',
-    precio: 629,
-    categoria: 'bermuda',
-    audiencia: 'hombre',
-    coloresDisponibles: ['azul'],
-    tallasDisponibles: ['M', 'L'],
-    imagenUrl: 'https://picsum.photos/seed/p11/400/500',
-    imagenes: [
-      'https://picsum.photos/seed/p11/400/500',
-      'https://picsum.photos/seed/p11-b/400/500',
-      'https://picsum.photos/seed/p11-c/400/500'
-    ],
-    etiqueta: 'ESENCIAL',
-    destacado: true
-  },
-  {
-    id: 'p12',
-    sku: 'FJ-BER-012',
-    nombre: 'Bermuda Cargo',
-    descripcion: 'Bermuda tipo cargo con bolsillos laterales y tela resistente.',
-    precio: 679,
-    categoria: 'bermuda',
-    audiencia: 'nino',
-    coloresDisponibles: ['beige', 'gris'],
-    tallasDisponibles: ['S', 'M', 'L', 'XL'],
-    imagenUrl: 'https://picsum.photos/seed/p12/400/500',
-    imagenes: [
-      'https://picsum.photos/seed/p12/400/500',
-      'https://picsum.photos/seed/p12-b/400/500',
-      'https://picsum.photos/seed/p12-c/400/500'
-    ],
-    etiqueta: null,
-    destacado: false
-  }
-];
+// Forma real de la respuesta del backend (ver ProductoPlano/ProductoConPrecio
+// en products/producto-con-precio.mapper.ts de ecommerceback). `precio` es el
+// precio base sin descuentos; el backend además manda
+// precioOriginal/precioFinal/porcentajeDescuento/ofertaAplicada cuando hay una
+// oferta vigente (ver OffersService), pero el frontend todavía calcula
+// descuentos por su cuenta con su propio OfertaService mock (ver
+// oferta.service.ts) — ambos sistemas quedan sin unificar hasta el día que se
+// conecte Ofertas al backend, así que aquí se ignoran esos campos y se usa
+// `precio` tal cual, igual que hacía el mock.
+interface ProductoBackend {
+  id: string;
+  sku: string;
+  nombre: string;
+  descripcion: string;
+  precio: number;
+  categoria: Categoria;
+  audiencia: Audiencia;
+  coloresDisponibles: string[];
+  tallasDisponibles: string[];
+  imagenUrl: string;
+  imagenes: string[] | null;
+  etiqueta: Etiqueta;
+  destacado: boolean;
+  activo: boolean;
+}
 
-const PRODUCTOS_SEED: Producto[] = PRODUCTOS_SEED_BASE.map(producto => {
-  const variantes = construirVariantes(producto.tallasDisponibles, producto.coloresDisponibles, STOCK_POR_DEFECTO_MIGRACION);
-  return {
-    ...producto,
-    variantes,
-    stockPorTalla: construirStockPorTalla(producto.tallasDisponibles, variantes)
-  };
-});
+interface PaginaProductosBackend {
+  data: ProductoBackend[];
+  total: number;
+  page: number;
+  limit: number;
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class ProductoService {
-  private productos: Producto[] = this.leerProductosGuardados();
+  private readonly http = inject(HttpClient);
+  private readonly baseUrl = `${environment.apiUrl}/productos`;
+
+  private stockLocal: Record<string, VarianteStock[]> = this.leerStockGuardado();
+
+  // Cache best-effort id→nombre (se llena cada vez que se mapea un producto
+  // real) usada solo para que los mensajes de "stock insuficiente" en el
+  // checkout puedan mostrar el nombre del producto sin depender de mantener
+  // en memoria el catálogo completo (ver verificarStockDisponible).
+  private nombresPorId: Record<string, string> = {};
 
   obtenerTodos(): Observable<Producto[]> {
-    return of(this.productos);
+    return this.http
+      .get<PaginaProductosBackend>(this.baseUrl, { params: { limit: LIMITE_CATALOGO } })
+      .pipe(map(pagina => pagina.data.map(p => this.aProducto(p))));
   }
 
   obtenerPorCategoria(categoria: Categoria): Observable<Producto[]> {
-    return of(this.productos.filter(producto => producto.categoria === categoria));
+    return this.http
+      .get<PaginaProductosBackend>(this.baseUrl, { params: { categoria, limit: LIMITE_CATALOGO } })
+      .pipe(map(pagina => pagina.data.map(p => this.aProducto(p))));
   }
 
   obtenerPorAudiencia(audiencia: Audiencia, categoria?: Categoria): Observable<Producto[]> {
-    return of(
-      this.productos.filter(
-        producto => producto.audiencia === audiencia && (!categoria || producto.categoria === categoria)
-      )
-    );
+    const params: Record<string, string | number> = { audiencia, limit: LIMITE_CATALOGO };
+    if (categoria) {
+      params['categoria'] = categoria;
+    }
+    return this.http
+      .get<PaginaProductosBackend>(this.baseUrl, { params })
+      .pipe(map(pagina => pagina.data.map(p => this.aProducto(p))));
   }
 
   obtenerDestacados(): Observable<Producto[]> {
-    return of(this.productos.filter(producto => producto.destacado));
+    return this.http
+      .get<ProductoBackend[]>(`${this.baseUrl}/destacados`)
+      .pipe(map(productos => productos.map(p => this.aProducto(p))));
   }
 
   obtenerPorId(id: string): Observable<Producto | undefined> {
-    return of(this.productos.find(producto => producto.id === id));
-  }
-
-  buscar(termino: string): Observable<Producto[]> {
-    const terminoNormalizado = termino.trim().toLowerCase();
-
-    if (!terminoNormalizado) {
-      return of([]);
-    }
-
-    return of(this.productos).pipe(
-      map(productos =>
-        productos.filter(producto => producto.nombre.toLowerCase().includes(terminoNormalizado))
-      )
+    return this.http.get<ProductoBackend>(`${this.baseUrl}/${id}`).pipe(
+      map(p => this.aProducto(p)),
+      // Igual que el mock (que nunca rechazaba la promesa/observable): un id
+      // inexistente o inválido se resuelve como "no encontrado", nunca como
+      // error — así producto-detalle.component.ts no necesita cambiar cómo
+      // consume esto.
+      catchError(() => of(undefined))
     );
   }
 
+  buscar(termino: string): Observable<Producto[]> {
+    const q = termino.trim();
+
+    if (!q) {
+      return of([]);
+    }
+
+    return this.http
+      .get<PaginaProductosBackend>(`${this.baseUrl}/buscar`, { params: { q, limit: LIMITE_CATALOGO } })
+      .pipe(map(pagina => pagina.data.map(p => this.aProducto(p))));
+  }
+
   crearProducto(producto: Omit<Producto, 'id' | 'sku' | 'stockPorTalla'>): Observable<Producto> {
-    // El formulario de "Nuevo producto" ahora captura el stock inicial por
-    // talla/color junto con el resto de los datos (ver mis-productos), así
-    // que las variantes ya vienen completas con sus cantidades. Si algún
-    // llamador futuro no las incluye, se sincronizan en 0 como antes.
-    const variantes =
-      producto.variantes.length > 0
-        ? producto.variantes
-        : this.sincronizarVariantes(producto.tallasDisponibles, producto.coloresDisponibles, []);
-
-    const nuevoProducto: Producto = {
-      ...producto,
-      id: `prod-${Date.now()}`,
-      sku: `FJ-${producto.categoria.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`,
-      variantes,
-      stockPorTalla: construirStockPorTalla(producto.tallasDisponibles, variantes)
-    };
-
-    this.productos = [...this.productos, nuevoProducto];
-    this.guardarProductos();
-
-    return of(nuevoProducto);
+    return this.http
+      .post<ProductoBackend>(this.baseUrl, this.aPayloadBackend(producto), { withCredentials: true })
+      .pipe(
+        map(creado => {
+          // El formulario de "Nuevo producto" ya captura el stock inicial por
+          // talla/color (ver mis-productos.component.ts): si vino con
+          // variantes se respeta tal cual; si no, arrancan en 0.
+          const variantes =
+            producto.variantes.length > 0
+              ? producto.variantes
+              : this.sincronizarVariantes(creado.tallasDisponibles, creado.coloresDisponibles, []);
+          this.guardarStockDe(creado.id, variantes);
+          return this.aProducto(creado, variantes);
+        })
+      );
   }
 
   actualizarProducto(id: string, cambios: Partial<Producto>): Observable<Producto> {
-    this.productos = this.productos.map(producto => {
-      if (producto.id !== id) {
-        return producto;
-      }
-
-      const actualizado: Producto = { ...producto, ...cambios, id };
-      const tocaTallasOColores = cambios.tallasDisponibles !== undefined || cambios.coloresDisponibles !== undefined;
-
-      // Si el formulario de "Mis Productos" cambió las tallas/colores del
-      // producto, las variantes se resincronizan para reflejar la nueva
-      // cuadrícula talla×color, preservando la cantidad de las combinaciones
-      // que ya existían (no se resetea el stock por editar otro campo).
-      if (tocaTallasOColores && cambios.variantes === undefined) {
-        actualizado.variantes = this.sincronizarVariantes(
-          actualizado.tallasDisponibles,
-          actualizado.coloresDisponibles,
-          producto.variantes
-        );
-      }
-
-      actualizado.stockPorTalla = construirStockPorTalla(actualizado.tallasDisponibles, actualizado.variantes);
-      return actualizado;
-    });
-    this.guardarProductos();
-
-    const actualizado = this.productos.find(producto => producto.id === id);
-    return of(actualizado as Producto);
+    return this.http.patch<ProductoBackend>(`${this.baseUrl}/${id}`, this.aPayloadBackend(cambios), {
+      withCredentials: true
+    }).pipe(
+      map(actualizado => {
+        let variantes: VarianteStock[];
+        if (cambios.variantes !== undefined) {
+          variantes = cambios.variantes;
+        } else if (cambios.tallasDisponibles !== undefined || cambios.coloresDisponibles !== undefined) {
+          // Cambiaron tallas/colores sin mandar variantes explícitas: se
+          // resincroniza la cuadrícula talla×color preservando las
+          // cantidades que ya existían, igual que hacía el mock.
+          variantes = this.sincronizarVariantes(
+            actualizado.tallasDisponibles,
+            actualizado.coloresDisponibles,
+            this.stockDe(id)
+          );
+        } else {
+          variantes = this.stockDe(id);
+        }
+        this.guardarStockDe(id, variantes);
+        return this.aProducto(actualizado, variantes);
+      })
+    );
   }
 
   eliminarProducto(id: string): Observable<void> {
-    this.productos = this.productos.filter(producto => producto.id !== id);
-    this.guardarProductos();
-
-    return of(undefined);
+    // Borrado lógico en el backend (activo=false) — desaparece del catálogo
+    // público de inmediato. El stock local del id se limpia también, ya no
+    // tiene caso conservarlo.
+    return this.http
+      .delete<void>(`${this.baseUrl}/${id}`, { withCredentials: true })
+      .pipe(tap(() => this.borrarStockDe(id)));
   }
 
   // --- Inventario: gestión de stock de productos existentes --------------
 
   agregarColorAProducto(productoId: string, color: Color): Observable<Producto> {
-    this.productos = this.productos.map(producto => {
-      if (producto.id !== productoId || producto.coloresDisponibles.includes(color)) {
-        return producto;
-      }
-
-      const coloresDisponibles = [...producto.coloresDisponibles, color];
-      const variantes = this.sincronizarVariantes(producto.tallasDisponibles, coloresDisponibles, producto.variantes);
-      return {
-        ...producto,
-        coloresDisponibles,
-        variantes,
-        stockPorTalla: construirStockPorTalla(producto.tallasDisponibles, variantes)
-      };
-    });
-    this.guardarProductos();
-
-    return of(this.productos.find(producto => producto.id === productoId) as Producto);
+    return this.http.get<ProductoBackend>(`${this.baseUrl}/${productoId}`).pipe(
+      switchMap(actual => {
+        if (actual.coloresDisponibles.includes(color)) {
+          return of(actual);
+        }
+        const coloresDisponibles = [...actual.coloresDisponibles, color];
+        return this.http.patch<ProductoBackend>(
+          `${this.baseUrl}/${productoId}`,
+          { coloresDisponibles },
+          { withCredentials: true }
+        );
+      }),
+      map(actualizado => {
+        const variantes = this.sincronizarVariantes(
+          actualizado.tallasDisponibles,
+          actualizado.coloresDisponibles,
+          this.stockDe(productoId)
+        );
+        this.guardarStockDe(productoId, variantes);
+        return this.aProducto(actualizado, variantes);
+      })
+    );
   }
 
   agregarTallaAProducto(productoId: string, talla: Talla): Observable<Producto> {
-    this.productos = this.productos.map(producto => {
-      if (producto.id !== productoId || producto.tallasDisponibles.includes(talla)) {
-        return producto;
-      }
-
-      const tallasDisponibles = [...producto.tallasDisponibles, talla];
-      const variantes = this.sincronizarVariantes(tallasDisponibles, producto.coloresDisponibles, producto.variantes);
-      return {
-        ...producto,
-        tallasDisponibles,
-        variantes,
-        stockPorTalla: construirStockPorTalla(tallasDisponibles, variantes)
-      };
-    });
-    this.guardarProductos();
-
-    return of(this.productos.find(producto => producto.id === productoId) as Producto);
+    return this.http.get<ProductoBackend>(`${this.baseUrl}/${productoId}`).pipe(
+      switchMap(actual => {
+        if (actual.tallasDisponibles.includes(talla)) {
+          return of(actual);
+        }
+        const tallasDisponibles = [...actual.tallasDisponibles, talla];
+        return this.http.patch<ProductoBackend>(
+          `${this.baseUrl}/${productoId}`,
+          { tallasDisponibles },
+          { withCredentials: true }
+        );
+      }),
+      map(actualizado => {
+        const variantes = this.sincronizarVariantes(
+          actualizado.tallasDisponibles,
+          actualizado.coloresDisponibles,
+          this.stockDe(productoId)
+        );
+        this.guardarStockDe(productoId, variantes);
+        return this.aProducto(actualizado, variantes);
+      })
+    );
   }
 
+  // Cantidades: 100% local (ver nota de cabecera), no requiere red — se
+  // conserva como Observable para no romper la firma que ya consume
+  // inventario.component.ts.
   actualizarStockVariante(productoId: string, talla: Talla, color: Color, cantidad: number): Observable<Producto> {
     const cantidadSegura = Math.max(0, Math.floor(cantidad) || 0);
+    const variantes = this.stockDe(productoId).map(variante =>
+      variante.talla === talla && variante.color === color ? { ...variante, cantidad: cantidadSegura } : variante
+    );
+    this.guardarStockDe(productoId, variantes);
 
-    this.productos = this.productos.map(producto => {
-      if (producto.id !== productoId) {
-        return producto;
-      }
-
-      const variantes = producto.variantes.map(variante =>
-        variante.talla === talla && variante.color === color ? { ...variante, cantidad: cantidadSegura } : variante
-      );
-      return { ...producto, variantes, stockPorTalla: construirStockPorTalla(producto.tallasDisponibles, variantes) };
-    });
-    this.guardarProductos();
-
-    return of(this.productos.find(producto => producto.id === productoId) as Producto);
+    // obtenerPorId nunca rechaza (un id inexistente resuelve `undefined`, ver
+    // su propio comentario) — aquí sí nos interesa distinguir esa falla del
+    // caso feliz, para que inventario.component.ts la muestre como error en
+    // vez de intentar leer `.id` de `undefined`.
+    return this.obtenerPorId(productoId).pipe(
+      switchMap(producto =>
+        producto ? of(producto) : throwError(() => new Error('No se pudo recargar el producto actualizado.'))
+      )
+    );
   }
 
-  // --- Descuento de stock al confirmar un pedido --------------------------
+  // --- Descuento de stock al confirmar un pedido (100% local) -------------
 
   // No permite que el stock quede negativo: si alguna línea del pedido pide
   // más piezas de las disponibles en esa variante, se rechaza el pedido
-  // completo (no se descuenta nada) y se informa qué líneas fallaron, para
-  // que el comprador ajuste su bolsa en vez de recibir un pedido a medias.
+  // completo (no se descuenta nada) y se informa qué líneas fallaron.
   verificarStockDisponible(items: ItemStockSolicitado[]): ResultadoVerificacionStock {
     const detalles: DetalleStockInsuficiente[] = [];
 
     for (const item of items) {
-      const producto = this.productos.find(p => p.id === item.productoId);
       const color = item.color ?? SIN_COLOR;
-      const variante = producto?.variantes.find(v => v.talla === item.talla && v.color === color);
+      const variante = this.stockDe(item.productoId).find(v => v.talla === item.talla && v.color === color);
       const disponible = variante?.cantidad ?? 0;
 
       if (disponible < item.cantidad) {
         detalles.push({
           productoId: item.productoId,
-          productoNombre: producto?.nombre ?? item.productoId,
+          productoNombre: this.nombresPorId[item.productoId] ?? item.productoId,
           talla: item.talla,
           color,
           disponible,
@@ -474,22 +313,15 @@ export class ProductoService {
   }
 
   descontarStock(items: ItemStockSolicitado[]): void {
-    this.productos = this.productos.map(producto => {
-      const ajustes = items.filter(item => item.productoId === producto.id);
-      if (ajustes.length === 0) {
-        return producto;
-      }
-
-      const variantes = producto.variantes.map(variante => {
-        const ajuste = ajustes.find(
-          item => item.talla === variante.talla && (item.color ?? SIN_COLOR) === variante.color
-        );
-        return ajuste ? { ...variante, cantidad: Math.max(0, variante.cantidad - ajuste.cantidad) } : variante;
-      });
-
-      return { ...producto, variantes, stockPorTalla: construirStockPorTalla(producto.tallasDisponibles, variantes) };
-    });
-    this.guardarProductos();
+    for (const item of items) {
+      const color = item.color ?? SIN_COLOR;
+      const variantes = this.stockDe(item.productoId).map(variante =>
+        variante.talla === item.talla && variante.color === color
+          ? { ...variante, cantidad: Math.max(0, variante.cantidad - item.cantidad) }
+          : variante
+      );
+      this.guardarStockDe(item.productoId, variantes);
+    }
   }
 
   // Reconstruye la lista de variantes para que exista exactamente una entrada
@@ -513,50 +345,89 @@ export class ProductoService {
     );
   }
 
-  private guardarProductos(): void {
-    localStorage.setItem(CLAVE_PRODUCTOS, JSON.stringify(this.productos));
+  private aProducto(p: ProductoBackend, variantesConocidas?: VarianteStock[]): Producto {
+    this.nombresPorId[p.id] = p.nombre;
+
+    const variantes = variantesConocidas ?? this.obtenerOInicializarStock(p.id, p.tallasDisponibles, p.coloresDisponibles);
+
+    return {
+      id: p.id,
+      sku: p.sku,
+      nombre: p.nombre,
+      descripcion: p.descripcion,
+      precio: p.precio,
+      categoria: p.categoria,
+      audiencia: p.audiencia,
+      coloresDisponibles: p.coloresDisponibles,
+      tallasDisponibles: p.tallasDisponibles,
+      variantes,
+      imagenUrl: p.imagenUrl,
+      imagenes: p.imagenes ?? undefined,
+      etiqueta: p.etiqueta,
+      destacado: p.destacado,
+      stockPorTalla: construirStockPorTalla(p.tallasDisponibles, variantes)
+    };
   }
 
-  private leerProductosGuardados(): Producto[] {
-    const guardados = localStorage.getItem(CLAVE_PRODUCTOS);
+  private obtenerOInicializarStock(id: string, tallas: Talla[], colores: Color[]): VarianteStock[] {
+    const existente = this.stockLocal[id];
+    const variantes = existente
+      ? this.sincronizarVariantes(tallas, colores, existente)
+      : construirVariantes(tallas, colores, STOCK_POR_DEFECTO_MIGRACION);
 
-    if (guardados) {
-      const productos = (JSON.parse(guardados) as Partial<Producto>[]).map(producto => {
-        const seedCoincidente = PRODUCTOS_SEED.find(seed => seed.id === producto.id);
-        const tallasDisponibles = producto.tallasDisponibles ?? seedCoincidente?.tallasDisponibles ?? [];
-        const coloresDisponibles =
-          producto.coloresDisponibles ?? seedCoincidente?.coloresDisponibles ?? ([] as Color[]);
+    this.guardarStockDe(id, variantes);
+    return variantes;
+  }
 
-        const base = {
-          audiencia: 'hombre' as Audiencia,
-          destacado: false,
-          sku: seedCoincidente?.sku ?? `FJ-${(producto.id ?? 'SIN-ID').toUpperCase()}`,
-          imagenes: seedCoincidente?.imagenes,
-          coloresDisponibles,
-          ...producto,
-          tallasDisponibles
-        } as Producto;
+  // Solo lo que el backend real entiende (ver CrearProductoDto/
+  // ActualizarProductoDto de ecommerceback) — variantes/stockPorTalla/
+  // coloresGenerados/id/sku nunca se mandan, el backend los ignoraría o los
+  // rechazaría.
+  private aPayloadBackend(producto: Partial<Producto>): Record<string, unknown> {
+    const payload: Record<string, unknown> = {};
 
-        // Migración: productos guardados antes de existir `variantes` (o con
-        // el arreglo vacío) reciben stock por defecto derivado de sus tallas
-        // y colores actuales, para que el catálogo no aparezca agotado de
-        // golpe tras esta actualización.
-        if (!base.variantes || base.variantes.length === 0) {
-          base.variantes =
-            seedCoincidente?.variantes && seedCoincidente.variantes.length > 0
-              ? seedCoincidente.variantes
-              : construirVariantes(tallasDisponibles, coloresDisponibles, STOCK_POR_DEFECTO_MIGRACION);
-        }
+    if (producto.nombre !== undefined) payload['nombre'] = producto.nombre;
+    if (producto.descripcion !== undefined) payload['descripcion'] = producto.descripcion;
+    if (producto.precio !== undefined) payload['precio'] = producto.precio;
+    if (producto.categoria !== undefined) payload['categoria'] = producto.categoria;
+    if (producto.audiencia !== undefined) payload['audiencia'] = producto.audiencia;
+    if (producto.coloresDisponibles !== undefined) payload['coloresDisponibles'] = producto.coloresDisponibles;
+    if (producto.tallasDisponibles !== undefined) payload['tallasDisponibles'] = producto.tallasDisponibles;
+    if (producto.imagenUrl !== undefined) payload['imagenUrl'] = producto.imagenUrl;
+    if (producto.imagenes !== undefined) payload['imagenes'] = producto.imagenes;
+    if (producto.etiqueta !== undefined) payload['etiqueta'] = producto.etiqueta;
+    if (producto.destacado !== undefined) payload['destacado'] = producto.destacado;
 
-        base.stockPorTalla = construirStockPorTalla(tallasDisponibles, base.variantes);
+    return payload;
+  }
 
-        return base;
-      });
-      localStorage.setItem(CLAVE_PRODUCTOS, JSON.stringify(productos));
-      return productos;
+  private stockDe(id: string): VarianteStock[] {
+    return this.stockLocal[id] ?? [];
+  }
+
+  private guardarStockDe(id: string, variantes: VarianteStock[]): void {
+    this.stockLocal = { ...this.stockLocal, [id]: variantes };
+    localStorage.setItem(CLAVE_STOCK, JSON.stringify(this.stockLocal));
+  }
+
+  private borrarStockDe(id: string): void {
+    const { [id]: _eliminado, ...resto } = this.stockLocal;
+    this.stockLocal = resto;
+    localStorage.setItem(CLAVE_STOCK, JSON.stringify(this.stockLocal));
+  }
+
+  private leerStockGuardado(): Record<string, VarianteStock[]> {
+    const guardado = localStorage.getItem(CLAVE_STOCK);
+
+    if (!guardado) {
+      return {};
     }
 
-    localStorage.setItem(CLAVE_PRODUCTOS, JSON.stringify(PRODUCTOS_SEED));
-    return PRODUCTOS_SEED;
+    try {
+      const stock = JSON.parse(guardado);
+      return stock && typeof stock === 'object' ? stock : {};
+    } catch {
+      return {};
+    }
   }
 }

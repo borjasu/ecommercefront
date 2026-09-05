@@ -1,9 +1,11 @@
 import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ProductoService } from '../../../core/services/producto.service';
 import { ColoresService, ColorOpcion } from '../../../core/services/colores.service';
 import { TallasService } from '../../../core/services/tallas.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { Color, Producto, SIN_COLOR, Talla, VarianteStock } from '../../../core/models/producto.model';
+import { mensajeDeErrorHttp } from '../../../shared/utils/http-error.util';
 
 const RETRASO_CARGA_MS = 300;
 
@@ -29,6 +31,7 @@ export class InventarioComponent {
 
   readonly productos = signal<Producto[]>([]);
   readonly cargando = signal(true);
+  readonly error = signal(false);
   readonly busqueda = signal('');
   readonly soloSinStock = signal(false);
 
@@ -71,10 +74,17 @@ export class InventarioComponent {
 
   private cargarProductos(): void {
     this.cargando.set(true);
+    this.error.set(false);
     setTimeout(() => {
-      this.productoService.obtenerTodos().subscribe(productos => {
-        this.productos.set(productos);
-        this.cargando.set(false);
+      this.productoService.obtenerTodos().subscribe({
+        next: productos => {
+          this.productos.set(productos);
+          this.cargando.set(false);
+        },
+        error: () => {
+          this.error.set(true);
+          this.cargando.set(false);
+        }
       });
     }, RETRASO_CARGA_MS);
   }
@@ -122,8 +132,9 @@ export class InventarioComponent {
     }
 
     pendientes.forEach(({ talla, color, cantidad }) => {
-      this.productoService.actualizarStockVariante(producto.id, talla, color, cantidad).subscribe(actualizado => {
-        this.reemplazarEnLista(actualizado);
+      this.productoService.actualizarStockVariante(producto.id, talla, color, cantidad).subscribe({
+        next: actualizado => this.reemplazarEnLista(actualizado),
+        error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
       });
     });
 
@@ -145,10 +156,13 @@ export class InventarioComponent {
       return;
     }
 
-    this.productoService.agregarColorAProducto(producto.id, color).subscribe(actualizado => {
-      this.reemplazarEnLista(actualizado);
-      this.colorParaAgregar.set('');
-      this.toastService.exito(`Color "${this.etiquetaDeColor(color)}" agregado al producto.`);
+    this.productoService.agregarColorAProducto(producto.id, color).subscribe({
+      next: actualizado => {
+        this.reemplazarEnLista(actualizado);
+        this.colorParaAgregar.set('');
+        this.toastService.exito(`Color "${this.etiquetaDeColor(color)}" agregado al producto.`);
+      },
+      error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
     });
   }
 
@@ -158,10 +172,13 @@ export class InventarioComponent {
       return;
     }
 
-    this.productoService.agregarTallaAProducto(producto.id, talla).subscribe(actualizado => {
-      this.reemplazarEnLista(actualizado);
-      this.tallaParaAgregar.set('');
-      this.toastService.exito(`Talla "${talla}" agregada al producto.`);
+    this.productoService.agregarTallaAProducto(producto.id, talla).subscribe({
+      next: actualizado => {
+        this.reemplazarEnLista(actualizado);
+        this.tallaParaAgregar.set('');
+        this.toastService.exito(`Talla "${talla}" agregada al producto.`);
+      },
+      error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
     });
   }
 

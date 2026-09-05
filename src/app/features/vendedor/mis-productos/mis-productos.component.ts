@@ -1,11 +1,11 @@
-import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, effect, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { delay } from 'rxjs';
 import { ProductoService } from '../../../core/services/producto.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { ConfirmService } from '../../../core/services/confirm.service';
-import { ColoresService } from '../../../core/services/colores.service';
+import { ColoresService, ColorOpcion } from '../../../core/services/colores.service';
 import { TallasService } from '../../../core/services/tallas.service';
 import { RecoloreoService } from '../../../core/services/recoloreo.service';
 import {
@@ -20,6 +20,7 @@ import {
   VarianteStock
 } from '../../../core/models/producto.model';
 import { AUDIENCIAS, CATEGORIAS } from '../../../shared/constants/categorias';
+import { mensajeDeErrorHttp } from '../../../shared/utils/http-error.util';
 
 const RETRASO_CARGA_MS = 400;
 const TAMANO_PAGINA = 10;
@@ -59,6 +60,7 @@ export class MisProductosComponent {
   readonly productos = signal<Producto[]>([]);
   readonly cargando = signal(true);
   readonly error = signal(false);
+  readonly guardando = signal(false);
   readonly mostrarFormulario = signal(false);
   readonly productoEditando = signal<Producto | null>(null);
   readonly filtroCategoria = signal<FiltroCategoria>('todos');
@@ -118,6 +120,35 @@ export class MisProductosComponent {
 
   constructor() {
     this.cargarProductosIniciales();
+
+    // Colores/TallasService cargan su listado del backend real de forma
+    // asíncrona (ver ColoresService/TallasService) — cuando llegan (o cuando
+    // se agrega/elimina uno desde este mismo formulario) se sincronizan los
+    // controles de los FormGroup `tallas`/`colores`, que se construyeron
+    // vacíos si este componente se instanció antes de que la primera
+    // respuesta llegara.
+    effect(() => {
+      this.sincronizarControlesTallas(this.tallas());
+      this.sincronizarControlesColores(this.colores());
+    });
+  }
+
+  private sincronizarControlesTallas(tallas: Talla[]): void {
+    const grupo = this.productoForm.controls.tallas;
+    for (const talla of tallas) {
+      if (!grupo.contains(talla)) {
+        grupo.addControl(talla, this.fb.control(false));
+      }
+    }
+  }
+
+  private sincronizarControlesColores(colores: ColorOpcion[]): void {
+    const grupo = this.productoForm.controls.colores;
+    for (const opcion of colores) {
+      if (!grupo.contains(opcion.valor)) {
+        grupo.addControl(opcion.valor, this.fb.control(false));
+      }
+    }
   }
 
   reintentar(): void {
@@ -291,10 +322,18 @@ export class MisProductosComponent {
       ? this.productoService.actualizarProducto(edicion.id, datosProducto)
       : this.productoService.crearProducto(datosProducto);
 
-    operacion.subscribe(() => {
-      this.cargarProductos();
-      this.cerrarFormulario();
-      this.toastService.exito(edicion ? 'Producto actualizado.' : 'Producto creado.');
+    this.guardando.set(true);
+    operacion.subscribe({
+      next: () => {
+        this.guardando.set(false);
+        this.cargarProductos();
+        this.cerrarFormulario();
+        this.toastService.exito(edicion ? 'Producto actualizado.' : 'Producto creado.');
+      },
+      error: (error: HttpErrorResponse) => {
+        this.guardando.set(false);
+        this.toastService.error(mensajeDeErrorHttp(error));
+      }
     });
   }
 
@@ -310,9 +349,12 @@ export class MisProductosComponent {
       return;
     }
 
-    this.productoService.eliminarProducto(producto.id).subscribe(() => {
-      this.cargarProductos();
-      this.toastService.exito(`"${producto.nombre}" se eliminó.`);
+    this.productoService.eliminarProducto(producto.id).subscribe({
+      next: () => {
+        this.cargarProductos();
+        this.toastService.exito(`"${producto.nombre}" se eliminó.`);
+      },
+      error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
     });
   }
 
@@ -340,10 +382,14 @@ export class MisProductosComponent {
       return;
     }
 
-    const nuevo = this.coloresService.agregarColor(nombre, this.nuevoColorHex());
-    this.productoForm.controls.colores.addControl(nuevo.valor, this.fb.control(true));
-    this.mostrarAgregarColor.set(false);
-    this.toastService.exito(`Color "${nuevo.etiqueta}" agregado.`);
+    this.coloresService.agregarColor(nombre, this.nuevoColorHex()).subscribe({
+      next: nuevo => {
+        this.productoForm.controls.colores.addControl(nuevo.valor, this.fb.control(true));
+        this.mostrarAgregarColor.set(false);
+        this.toastService.exito(`Color "${nuevo.etiqueta}" agregado.`);
+      },
+      error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
+    });
   }
 
   esColorPersonalizado(valor: string): boolean {
@@ -371,9 +417,13 @@ export class MisProductosComponent {
       return;
     }
 
-    this.coloresService.eliminarColor(opcion.valor);
-    this.productoForm.controls.colores.removeControl(opcion.valor as never);
-    this.toastService.exito(`Color "${opcion.etiqueta}" eliminado.`);
+    this.coloresService.eliminarColor(opcion.valor).subscribe({
+      next: () => {
+        this.productoForm.controls.colores.removeControl(opcion.valor as never);
+        this.toastService.exito(`Color "${opcion.etiqueta}" eliminado.`);
+      },
+      error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
+    });
   }
 
   abrirAgregarTalla(): void {
@@ -391,19 +441,23 @@ export class MisProductosComponent {
       return;
     }
 
-    const resultado = this.tallasService.agregarTalla(nombre);
-    if (!resultado.ok) {
-      this.toastService.error(
-        resultado.motivo === 'duplicada'
-          ? 'Esa talla ya existe.'
-          : 'Formato de talla no válido. Usa letra (S, M, L, XL, 2XL...) o número (28, 30, 32...).'
-      );
-      return;
-    }
+    this.tallasService.agregarTalla(nombre).subscribe({
+      next: resultado => {
+        if (!resultado.ok) {
+          this.toastService.error(
+            resultado.motivo === 'duplicada'
+              ? 'Esa talla ya existe.'
+              : 'Formato de talla no válido. Usa letra (S, M, L, XL, 2XL...) o número (28, 30, 32...).'
+          );
+          return;
+        }
 
-    this.productoForm.controls.tallas.addControl(resultado.talla, this.fb.control(false));
-    this.mostrarAgregarTalla.set(false);
-    this.toastService.exito(`Talla "${resultado.talla}" agregada.`);
+        this.productoForm.controls.tallas.addControl(resultado.talla, this.fb.control(false));
+        this.mostrarAgregarTalla.set(false);
+        this.toastService.exito(`Talla "${resultado.talla}" agregada.`);
+      },
+      error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
+    });
   }
 
   esTallaPersonalizada(talla: string): boolean {
@@ -429,9 +483,13 @@ export class MisProductosComponent {
       return;
     }
 
-    this.tallasService.eliminarTalla(talla);
-    this.productoForm.controls.tallas.removeControl(talla as never);
-    this.toastService.exito(`Talla "${talla}" eliminada.`);
+    this.tallasService.eliminarTalla(talla).subscribe({
+      next: () => {
+        this.productoForm.controls.tallas.removeControl(talla as never);
+        this.toastService.exito(`Talla "${talla}" eliminada.`);
+      },
+      error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
+    });
   }
 
   generarColor(): void {
@@ -453,7 +511,7 @@ export class MisProductosComponent {
       },
       error: (error: HttpErrorResponse) => {
         this.generandoColor.set(false);
-        this.errorGenerarColor.set(this.mensajeDeError(error));
+        this.errorGenerarColor.set(mensajeDeErrorHttp(error));
       }
     });
   }
@@ -481,7 +539,7 @@ export class MisProductosComponent {
         this.toastService.exito(`Color "${color.nombreColor}" eliminado.`);
       },
       error: (error: HttpErrorResponse) => {
-        this.toastService.error(this.mensajeDeError(error));
+        this.toastService.error(mensajeDeErrorHttp(error));
       }
     });
   }
@@ -490,14 +548,6 @@ export class MisProductosComponent {
     this.nuevoColorGeneradoNombre.set('');
     this.nuevoColorGeneradoHex.set('#c9a227');
     this.errorGenerarColor.set(null);
-  }
-
-  private mensajeDeError(error: HttpErrorResponse): string {
-    const mensaje = error.error?.message;
-    if (Array.isArray(mensaje)) {
-      return mensaje.join(' ');
-    }
-    return mensaje ?? 'No se pudo completar la operación. Intenta de nuevo.';
   }
 
   private mapaColores(seleccionados: string[]): Record<string, boolean> {
