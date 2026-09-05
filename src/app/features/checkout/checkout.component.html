@@ -1,11 +1,24 @@
 <div class="mx-auto max-w-5xl px-6 py-12">
-  @if (numeroPedido(); as numero) {
+  @if (numeroPedidoFinal(); as numero) {
     <div class="mx-auto max-w-md py-16 text-center">
-      <p class="font-body text-sm uppercase tracking-wide text-brand-gold">Pedido confirmado</p>
-      <h1 class="mt-2 font-display text-3xl font-semibold text-brand-ink">¡Gracias por tu compra!</h1>
+      <p class="font-body text-sm uppercase tracking-wide text-brand-gold">
+        {{ resultadoPago() === 'pendiente' ? 'Pago pendiente' : 'Pedido confirmado' }}
+      </p>
+      <h1 class="mt-2 font-display text-3xl font-semibold text-brand-ink">
+        {{ resultadoPago() === 'pendiente' ? 'Tu pedido está registrado' : '¡Gracias por tu compra!' }}
+      </h1>
+      @if (resultadoPago() === 'pendiente') {
+        <p class="mt-4 font-body text-sm text-brand-muted">
+          Tu pago quedó pendiente de confirmación (por ejemplo, si elegiste pagar en efectivo/OXXO). Te avisaremos en
+          cuanto se confirme.
+        </p>
+      }
       <p class="mt-4 font-body text-sm text-brand-muted">Tu número de pedido es</p>
       <p class="mt-1 font-display text-2xl font-semibold text-brand-ink">{{ numero }}</p>
-      <a routerLink="/catalogo" class="btn-gold mt-8 inline-flex">Volver al catálogo</a>
+      <a routerLink="/cuenta/pedidos" class="btn-gold mt-8 inline-flex">Ver mis pedidos</a>
+      <a routerLink="/catalogo" class="mt-4 block font-body text-sm text-brand-muted hover:text-brand-ink">
+        Seguir comprando
+      </a>
     </div>
   } @else {
     <h1 class="font-display text-3xl font-semibold text-brand-ink">Checkout</h1>
@@ -56,9 +69,10 @@
           }
         </div>
         <div class="mt-6 flex items-center justify-between border-t border-brand-muted/20 pt-6">
-          <p class="font-body text-lg font-semibold text-brand-ink">Total</p>
+          <p class="font-body text-lg font-semibold text-brand-ink">Subtotal</p>
           <p class="font-body text-lg font-semibold text-brand-gold">${{ total() }}</p>
         </div>
+        <p class="mt-1 font-body text-xs text-brand-muted">El costo de envío se calcula en el siguiente paso.</p>
       }
 
       @if (pasoActual() === 2) {
@@ -188,85 +202,72 @@
 
       @if (pasoActual() === 3) {
         <h2 class="font-display text-xl font-semibold text-brand-ink">Método de pago</h2>
-        <div class="mt-6 space-y-3">
-          <label class="flex cursor-pointer items-center gap-3 rounded-sm border border-brand-muted/30 p-4">
-            <input
-              type="radio"
-              name="metodoPago"
-              value="tarjeta"
-              [checked]="metodoPago() === 'tarjeta'"
-              (change)="metodoPago.set('tarjeta')"
-            />
-            <span class="font-body text-sm text-brand-text">Tarjeta de crédito/débito</span>
-          </label>
-          <label class="flex cursor-pointer items-center gap-3 rounded-sm border border-brand-muted/30 p-4">
-            <input
-              type="radio"
-              name="metodoPago"
-              value="efectivo"
-              [checked]="metodoPago() === 'efectivo'"
-              (change)="metodoPago.set('efectivo')"
-            />
-            <span class="font-body text-sm text-brand-text">Efectivo/Transferencia</span>
-          </label>
-        </div>
 
-        @if (metodoPago() === 'tarjeta') {
-          <form [formGroup]="tarjetaForm" class="mt-6 space-y-5">
-            <div>
-              <label for="numeroTarjeta" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                Número de tarjeta
-              </label>
+        @if (!pedidoCreado()) {
+          <div class="mt-6 space-y-3">
+            <label class="flex cursor-pointer items-center gap-3 rounded-sm border border-brand-muted/30 p-4">
               <input
-                id="numeroTarjeta"
-                type="text"
-                inputmode="numeric"
-                maxlength="19"
-                formControlName="numero"
-                (input)="onNumeroTarjetaInput($event)"
-                class="input-field"
-                placeholder="0000 0000 0000 0000"
+                type="radio"
+                name="metodoPago"
+                value="tarjeta"
+                [checked]="metodoPago() === 'tarjeta'"
+                [disabled]="preparandoPago()"
+                (change)="metodoPago.set('tarjeta')"
               />
+              <span class="font-body text-sm text-brand-text">Tarjeta de crédito/débito</span>
+            </label>
+            <label class="flex cursor-pointer items-center gap-3 rounded-sm border border-brand-muted/30 p-4">
+              <input
+                type="radio"
+                name="metodoPago"
+                value="efectivo"
+                [checked]="metodoPago() === 'efectivo'"
+                [disabled]="preparandoPago()"
+                (change)="metodoPago.set('efectivo')"
+              />
+              <span class="font-body text-sm text-brand-text">Efectivo / transferencia (OXXO, etc.)</span>
+            </label>
+          </div>
+
+          @if (errorPreparacion(); as error) {
+            <p class="mt-4 font-body text-sm text-red-600">{{ error }}</p>
+          }
+
+          <button type="button" class="btn-gold mt-8" [disabled]="preparandoPago()" (click)="continuarAlPago()">
+            {{ preparandoPago() ? 'Preparando tu pago…' : 'Continuar al pago' }}
+          </button>
+        } @else {
+          @if (opcionEnvio(); as envio) {
+            <div class="mt-6 flex items-center justify-between border-b border-brand-muted/20 pb-4 font-body text-sm text-brand-text">
+              <span>Envío ({{ envio.paqueteria }} — {{ envio.servicio }})</span>
+              <span>${{ envio.costo }}</span>
             </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label for="vencimiento" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                  Vencimiento
-                </label>
-                <input
-                  id="vencimiento"
-                  type="text"
-                  inputmode="numeric"
-                  maxlength="5"
-                  formControlName="vencimiento"
-                  (input)="onVencimientoInput($event)"
-                  class="input-field"
-                  placeholder="MM/AA"
-                />
-              </div>
-              <div>
-                <label for="cvv" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">CVV</label>
-                <input
-                  id="cvv"
-                  type="text"
-                  inputmode="numeric"
-                  maxlength="4"
-                  formControlName="cvv"
-                  (input)="onCvvInput($event)"
-                  class="input-field"
-                  placeholder="123"
-                />
-              </div>
+          }
+          <div class="mt-2 flex items-center justify-between font-body text-lg font-semibold text-brand-ink">
+            <span>Total a pagar</span>
+            <span class="text-brand-gold">${{ pedidoCreado()?.total }}</span>
+          </div>
+
+          @if (resultadoPago() === 'rechazado') {
+            <div class="mt-6 rounded-sm border border-red-200 bg-red-50 p-4">
+              <p class="font-body text-sm text-red-700">
+                Tu pago fue rechazado. Puedes intentar de nuevo con otro método o tarjeta.
+              </p>
+              <button type="button" class="btn-gold mt-4" [disabled]="preparandoPago()" (click)="reintentarPago()">
+                {{ preparandoPago() ? 'Preparando…' : 'Intentar de nuevo' }}
+              </button>
             </div>
-            <p class="font-body text-xs text-brand-muted">
-              Simulación visual: estos datos no se validan ni se envían a ninguna pasarela de pago.
-            </p>
-          </form>
+          } @else {
+            @if (pagando()) {
+              <p class="mt-4 font-body text-sm text-brand-muted">Procesando tu pago…</p>
+            }
+            <div id="brick-pago-container" class="mt-6"></div>
+          }
         }
       }
 
       <div class="mt-10 flex items-center justify-between">
-        @if (pasoActual() > 1) {
+        @if (pasoActual() > 1 && !pedidoCreado()) {
           <button
             type="button"
             (click)="pasoAnterior()"
@@ -280,8 +281,6 @@
 
         @if (pasoActual() < 3) {
           <button type="button" (click)="siguientePaso()" class="btn-gold">Siguiente</button>
-        } @else {
-          <button type="button" (click)="confirmarPedido()" class="btn-gold">Confirmar pedido</button>
         }
       </div>
     </div>
