@@ -20,14 +20,14 @@ export interface VarianteStock {
   cantidad: number;
 }
 
-// Imagen generada por el algoritmo de recoloreo del backend (ver
-// RecoloreoService en ecommerceback) para un color específico de un
-// producto. `nombreColor` es texto libre elegido por el vendedor al
-// generarla (no necesariamente coincide con un valor de `coloresDisponibles`
-// del catálogo) — el emparejamiento con el swatch de color que el comprador
-// selecciona se hace por nombre, case-insensitive (ver producto-detalle y
-// agregar-carrito-modal).
-export interface ColorGenerado {
+// Foto real de una prenda en un color específico, subida a mano por el
+// vendedor al marcar ese color en "Colores disponibles" (ver
+// FotoColorService/mis-productos.component.ts) — reemplaza al algoritmo de
+// recoloreo que existía antes. `nombreColor` siempre es la etiqueta legible
+// del color (ColoresService.etiquetaDe), nunca texto libre: el emparejamiento
+// con el swatch que el comprador selecciona se hace por nombre,
+// case-insensitive (ver producto-detalle y agregar-carrito-modal).
+export interface ImagenColorProducto {
   id: string;
   nombreColor: string;
   colorHex: string;
@@ -54,11 +54,11 @@ export interface Producto {
   // vista que ya leyera este campo de forma defensiva (ver OfertasComponent)
   // reciba datos reales ahora que el stock por talla existe.
   stockPorTalla?: { talla: Talla; cantidad: number }[];
-  // Opcional: productos mock existentes (todo el CRUD de "Mis Productos" hoy
-  // no habla con el backend real) simplemente no traen este campo. Se llena
-  // desde el backend real vía RecoloreoService (frontend) cuando el vendedor
-  // genera colores para un producto que sí existe ahí.
-  coloresGenerados?: ColorGenerado[];
+  // El backend ya lo incluye en toda respuesta de producto (ver
+  // ProductoPlano/aProductoPlano en ecommerceback) — opcional aquí solo por
+  // si algún consumidor construye un Producto a mano sin pasar por
+  // ProductoService (p. ej. un mock de test).
+  imagenesColores?: ImagenColorProducto[];
 }
 
 // --- Descuento de stock al confirmar un pedido ---------------------------

@@ -11,9 +11,6 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
-    // AuthService (login/registro/perfil/refresh) y RecoloreoService hablan
-    // con el backend real. El resto del CRUD de productos sigue siendo mock
-    // (ProductoService, ColoresService, etc. no usan HttpClient).
     // authRefreshInterceptor reintenta una vez, en silencio, cualquier 401
     // renovando el access token vencido antes de darlo por sesión terminada.
     provideHttpClient(withInterceptors([authRefreshInterceptor])),

@@ -9,6 +9,7 @@ import {
   Color,
   DetalleStockInsuficiente,
   Etiqueta,
+  ImagenColorProducto,
   ItemStockSolicitado,
   Producto,
   ResultadoVerificacionStock,
@@ -83,6 +84,7 @@ interface ProductoBackend {
   etiqueta: Etiqueta;
   destacado: boolean;
   activo: boolean;
+  imagenesColores: ImagenColorProducto[];
 }
 
 interface PaginaProductosBackend {
@@ -365,7 +367,8 @@ export class ProductoService {
       imagenes: p.imagenes ?? undefined,
       etiqueta: p.etiqueta,
       destacado: p.destacado,
-      stockPorTalla: construirStockPorTalla(p.tallasDisponibles, variantes)
+      stockPorTalla: construirStockPorTalla(p.tallasDisponibles, variantes),
+      imagenesColores: p.imagenesColores
     };
   }
 
@@ -381,8 +384,8 @@ export class ProductoService {
 
   // Solo lo que el backend real entiende (ver CrearProductoDto/
   // ActualizarProductoDto de ecommerceback) — variantes/stockPorTalla/
-  // coloresGenerados/id/sku nunca se mandan, el backend los ignoraría o los
-  // rechazaría.
+  // imagenesColores/id/sku nunca se mandan aquí: las fotos por color se suben
+  // aparte, una por una, vía FotoColorService (ver mis-productos.component.ts).
   private aPayloadBackend(producto: Partial<Producto>): Record<string, unknown> {
     const payload: Record<string, unknown> = {};
 

@@ -54,9 +54,10 @@ export class AgregarCarritoModalComponent {
   });
 
   // Igual que en producto-detalle.component.ts: emparejamiento por nombre
-  // (case-insensitive) entre el color elegido y las imágenes generadas por
-  // RecoloreoService (backend). Si el producto no tiene `coloresGenerados`,
-  // siempre es null y el comportamiento es idéntico al actual.
+  // (case-insensitive) entre el color elegido y la foto real subida por el
+  // vendedor (ver FotoColorService). Si ese color no tiene foto todavía, esto
+  // es null e `imagenPrincipal` cae de vuelta a la imagen general del
+  // producto — fallback intencional.
   readonly imagenColorSeleccionado = computed(() => {
     const producto = this.modalService.productoActivo();
     const color = this.colorSeleccionado();
@@ -65,7 +66,7 @@ export class AgregarCarritoModalComponent {
     }
     const etiqueta = this.etiquetaDeColor(color).toLowerCase().trim();
     return (
-      producto.coloresGenerados?.find(c => c.nombreColor.toLowerCase().trim() === etiqueta)
+      producto.imagenesColores?.find(c => c.nombreColor.toLowerCase().trim() === etiqueta)
         ?.imagenUrl ?? null
     );
   });

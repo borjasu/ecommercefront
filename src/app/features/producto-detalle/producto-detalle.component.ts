@@ -68,13 +68,13 @@ export class ProductoDetalleComponent {
 
   readonly coloresDisponibles = computed(() => this.producto()?.coloresDisponibles ?? []);
 
-  // Imagen generada por RecoloreoService (backend) para el color elegido, si
-  // el producto tiene una — el emparejamiento es por NOMBRE (etiqueta legible
-  // del catálogo de colores vs `nombreColor` libre que el vendedor puso al
-  // generarla), case-insensitive: es la única forma práctica de conectar
-  // ambos sin acoplar la entidad de imágenes generadas al catálogo Color.
-  // Si el producto no tiene `coloresGenerados` (todo lo mock hoy), esto
-  // siempre es null y el comportamiento es idéntico al actual.
+  // Foto real subida por el vendedor (ver FotoColorService) para el color
+  // elegido, si el producto tiene una — el emparejamiento es por NOMBRE
+  // (etiqueta legible del catálogo de colores vs `nombreColor`, que
+  // mis-productos.component.ts siempre fija a esa misma etiqueta al subir),
+  // case-insensitive. Si el color elegido no tiene foto todavía, esto es
+  // null e `imagenPrincipal` cae de vuelta a la imagen general del producto
+  // — fallback intencional, no un estado roto (ver resumen de la feature).
   readonly imagenColorSeleccionado = computed(() => {
     const producto = this.producto();
     const color = this.colorSeleccionado();
@@ -83,7 +83,7 @@ export class ProductoDetalleComponent {
     }
     const etiqueta = this.etiquetaDeColor(color).toLowerCase().trim();
     return (
-      producto.coloresGenerados?.find(c => c.nombreColor.toLowerCase().trim() === etiqueta)
+      producto.imagenesColores?.find(c => c.nombreColor.toLowerCase().trim() === etiqueta)
         ?.imagenUrl ?? null
     );
   });

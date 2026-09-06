@@ -47,8 +47,8 @@ export class ColoresService {
 
   // Se carga una vez al instanciar el servicio (singleton `providedIn:
   // 'root'`) y se mantiene en memoria, actualizándose con cada
-  // agregar/eliminar — mismo patrón que RecoloreoService/AuthService para
-  // hablar con el backend real. `listado` es un signal de solo lectura para
+  // agregar/eliminar — mismo patrón que AuthService para hablar con el
+  // backend real. `listado` es un signal de solo lectura para
   // no romper a los componentes que ya lo consumen así (catalogo, carrito,
   // checkout, mis-productos, inventario, producto-detalle).
   private readonly coloresBackend = signal<ColorBackend[]>([]);

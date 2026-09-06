@@ -437,7 +437,11 @@
                   class="flex items-center gap-2 rounded-[2px] border border-brand-muted/40 px-3 py-2 font-body text-sm text-brand-text"
                 >
                   <label [attr.title]="opcion.etiqueta" class="flex cursor-pointer items-center gap-2">
-                    <input type="checkbox" [formControlName]="opcion.valor" />
+                    <input
+                      type="checkbox"
+                      [formControlName]="opcion.valor"
+                      (change)="onToggleColor(opcion, $event)"
+                    />
                     <span
                       class="inline-block h-4 w-4 rounded-full border border-brand-muted/40"
                       [style.backgroundColor]="opcion.hex"
@@ -464,6 +468,66 @@
                 </span>
               }
             </div>
+
+            @if (opcionesColorMarcadas().length > 0) {
+              <div class="mt-4 space-y-4 rounded-[2px] border border-brand-muted/30 bg-brand-bone/50 p-4">
+                <p class="font-body text-xs text-brand-muted">
+                  Sube una foto real de la prenda en cada color marcado. Si un color se queda sin foto,
+                  el catálogo muestra la imagen general del producto en su lugar.
+                </p>
+                @for (opcion of opcionesColorMarcadas(); track opcion.valor) {
+                  <div class="flex items-center gap-4">
+                    @if (fotoColorPreviewUrl(opcion.valor); as preview) {
+                      <img
+                        [src]="preview"
+                        [alt]="'Foto de ' + opcion.etiqueta"
+                        class="h-20 w-16 shrink-0 rounded-sm border border-brand-muted/30 object-cover"
+                      />
+                    } @else {
+                      <div
+                        class="flex h-20 w-16 shrink-0 items-center justify-center rounded-sm border border-dashed border-brand-muted/40 font-body text-[10px] text-brand-muted"
+                      >
+                        Sin foto
+                      </div>
+                    }
+                    <div class="flex-1">
+                      <label class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                        Foto para {{ opcion.etiqueta }}
+                      </label>
+                      <input
+                        #inputFotoColor
+                        type="file"
+                        accept="image/*"
+                        class="hidden"
+                        (change)="onArchivoColorSeleccionado(opcion.valor, $event)"
+                      />
+                      <button
+                        type="button"
+                        (click)="inputFotoColor.click()"
+                        class="cursor-pointer rounded-[2px] border border-brand-muted px-4 py-2 font-body text-xs uppercase tracking-wide text-brand-text transition-colors hover:border-brand-gold hover:text-brand-gold"
+                      >
+                        {{ fotoColorPreviewUrl(opcion.valor) ? 'Cambiar foto' : 'Subir foto' }}
+                      </button>
+                      @if (erroresFotoColor()[opcion.valor]; as errorFoto) {
+                        <p class="mt-1 font-body text-xs text-red-600">
+                          {{ errorFoto }}
+                          <button
+                            type="button"
+                            (click)="reintentarFotoColor(opcion.valor)"
+                            class="cursor-pointer font-semibold underline hover:text-red-800"
+                          >
+                            Reintentar
+                          </button>
+                        </p>
+                      }
+                    </div>
+                  </div>
+                }
+                @if (subiendoFotosColor()) {
+                  <p class="font-body text-xs text-brand-muted">Subiendo fotos…</p>
+                }
+              </div>
+            }
           </div>
 
           <div>
@@ -525,102 +589,6 @@
           </button>
         </div>
       </form>
-
-      <!--
-        Recoloreo automático: fuera de productoForm a propósito — es una
-        llamada de red real (ver RecoloreoService, único uso de HttpClient del
-        proyecto), cada color generado ya queda guardado en el backend en el
-        momento de generarlo, no junto con "Guardar producto".
-      -->
-      <div class="mt-8 space-y-4 border-t border-brand-muted/20 pt-6">
-        <p class="font-body text-xs font-bold tracking-[0.1em] text-brand-gold">
-          COLORES GENERADOS AUTOMÁTICAMENTE
-        </p>
-
-        @if (!productoEditando()) {
-          <p class="font-body text-sm text-brand-muted">
-            Guarda el producto primero para poder generar colores a partir de su foto.
-          </p>
-        } @else {
-          <p class="font-body text-xs text-brand-muted">
-            Genera versiones de la foto principal en otros colores, preservando sombras y
-            pliegues de la tela. Usa el mismo nombre que en "Colores disponibles" para que el
-            comprador lo vea automáticamente al elegir color.
-          </p>
-
-          <div class="flex flex-wrap items-end gap-3 rounded-[2px] border border-brand-muted/30 bg-brand-bone/50 p-3">
-            <div class="min-w-0 flex-1">
-              <label for="nuevoColorGeneradoNombre" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                Nombre del color
-              </label>
-              <input
-                id="nuevoColorGeneradoNombre"
-                type="text"
-                class="input-field"
-                placeholder="Ej. Verde olivo"
-                [value]="nuevoColorGeneradoNombre()"
-                (input)="nuevoColorGeneradoNombre.set($any($event.target).value)"
-              />
-            </div>
-            <div>
-              <label for="nuevoColorGeneradoHex" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                Tono
-              </label>
-              <input
-                id="nuevoColorGeneradoHex"
-                type="color"
-                class="h-[42px] w-14 cursor-pointer rounded-[2px] border border-brand-muted/50 bg-white p-1"
-                [value]="nuevoColorGeneradoHex()"
-                (input)="nuevoColorGeneradoHex.set($any($event.target).value)"
-              />
-            </div>
-            <button
-              type="button"
-              (click)="generarColor()"
-              [disabled]="!nuevoColorGeneradoNombre().trim() || generandoColor()"
-              class="cursor-pointer rounded-[2px] bg-brand-gold px-4 py-3 font-body text-xs font-semibold uppercase tracking-wide text-brand-ink transition-colors hover:bg-brand-ink hover:text-brand-gold disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {{ generandoColor() ? 'Generando…' : 'Generar color' }}
-            </button>
-          </div>
-
-          @if (errorGenerarColor()) {
-            <p class="font-body text-xs text-red-600">{{ errorGenerarColor() }}</p>
-          }
-
-          @if (coloresGenerados().length > 0) {
-            <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              @for (color of coloresGenerados(); track color.id) {
-                <div class="relative overflow-hidden rounded-sm border border-brand-muted/30 bg-white/60">
-                  <img [src]="color.imagenUrl" [alt]="color.nombreColor" class="h-28 w-full object-cover" />
-                  <button
-                    type="button"
-                    (click)="eliminarColorGenerado(color)"
-                    [attr.aria-label]="'Eliminar color ' + color.nombreColor"
-                    title="Eliminar color generado"
-                    class="absolute right-1 top-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-white/90 text-red-600 shadow-sm transition-colors hover:bg-white"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5" aria-hidden="true">
-                      <path d="M3 6h18" />
-                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                      <line x1="10" y1="11" x2="10" y2="17" />
-                      <line x1="14" y1="11" x2="14" y2="17" />
-                    </svg>
-                  </button>
-                  <div class="flex items-center gap-2 p-2">
-                    <span
-                      class="inline-block h-4 w-4 shrink-0 rounded-full border border-brand-muted/40"
-                      [style.backgroundColor]="color.colorHex"
-                    ></span>
-                    <span class="truncate font-body text-xs text-brand-text">{{ color.nombreColor }}</span>
-                  </div>
-                </div>
-              }
-            </div>
-          }
-        }
-      </div>
     </div>
   </div>
 }
