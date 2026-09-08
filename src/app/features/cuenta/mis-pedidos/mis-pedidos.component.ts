@@ -59,6 +59,16 @@ export class MisPedidosComponent {
     return claseBadgeEstadoPago(estado);
   }
 
+  // El badge de estadoPago (arriba, en la fila colapsada) ya comunica
+  // pendiente/reembolsado/rechazado — este mensaje es solo para el hueco que
+  // deja "pagado sin guía todavía": ni error ni información de rastreo, así
+  // que sin esto la sección quedaba muda. Excluye 'cancelado' aparte porque
+  // un pedido pagado pero cancelado (reembolso en curso, aún no reflejado en
+  // estadoPago) no está "en preparación" — sería un mensaje contradictorio.
+  enPreparacion(pedido: PedidoDetalle): boolean {
+    return !pedido.infoEnvio.numeroGuia && pedido.estadoPago === 'pagado' && pedido.estado !== 'cancelado';
+  }
+
   private cargarPedidos(): void {
     this.cargando.set(true);
     this.error.set(false);

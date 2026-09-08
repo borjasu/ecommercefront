@@ -1,13 +1,16 @@
 import { Component, ChangeDetectionStrategy, OnDestroy, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { switchMap } from 'rxjs/operators';
+import { EMPTY } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/services/auth.service';
 import { CartService } from '../../core/services/cart.service';
 import { ProductoService } from '../../core/services/producto.service';
 import { DireccionesService } from '../../core/services/direcciones.service';
+import { CodigosPostalesService, ColoniaCp } from '../../core/services/codigos-postales.service';
 import { EnvioService, OpcionEnvio } from '../../core/services/envio.service';
 import { PagoService, ProcesarPagoPayload } from '../../core/services/pago.service';
 import { PedidoCompradorService } from '../../core/services/pedido-comprador.service';
@@ -50,6 +53,7 @@ export class CheckoutComponent implements OnDestroy {
   private readonly pagoService = inject(PagoService);
   private readonly pedidoCompradorService = inject(PedidoCompradorService);
   private readonly http = inject(HttpClient);
+  private readonly codigosPostalesService = inject(CodigosPostalesService);
   readonly direccionesService = inject(DireccionesService);
   private readonly coloresService = inject(ColoresService);
   private readonly toastService = inject(ToastService);
@@ -76,12 +80,29 @@ export class CheckoutComponent implements OnDestroy {
   // nuevo" → `reintentarPago`).
   readonly numeroPedidoFinal = signal<string | null>(null);
 
+  // Estado de la resolución del código postal contra el catálogo SEPOMEX
+  // (GET /codigos-postales/:cp, ver CodigosPostalesService) — sin esto no
+  // hay forma de distinguir "todavía no se ha tecleado un CP válido", "el
+  // catálogo lo encontró" (estado/municipio se bloquean, colonia es un
+  // selector) y "hueco de cobertura" (estado/municipio/colonia se vuelven
+  // editables a mano, ver auditoría del prompt).
+  readonly resolviendoCp = signal(false);
+  readonly cpResuelto = signal(false);
+  readonly cpSinCobertura = signal(false);
+  readonly cpError = signal<string | null>(null);
+  readonly colonias = signal<ColoniaCp[]>([]);
+
   readonly envioForm = this.fb.group({
     nombreCompleto: ['', [Validators.required]],
     email: [{ value: '', disabled: true }],
-    direccion: ['', [Validators.required]],
-    ciudad: ['', [Validators.required]],
-    codigoPostal: ['', [Validators.required, Validators.pattern(/^\d{4,6}$/)]],
+    calle: ['', [Validators.required]],
+    numeroExterior: ['', [Validators.required]],
+    numeroInterior: [''],
+    codigoPostal: ['', [Validators.required, Validators.pattern(/^\d{5}$/)]],
+    colonia: ['', [Validators.required]],
+    municipio: ['', [Validators.required]],
+    estado: ['', [Validators.required]],
+    referencias: [''],
     telefono: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]]
   });
 
@@ -102,6 +123,8 @@ export class CheckoutComponent implements OnDestroy {
     if (predeterminada) {
       this.usarDireccionGuardada(predeterminada.id);
     }
+
+    this.observarCodigoPostal();
   }
 
   ngOnDestroy(): void {
@@ -115,13 +138,79 @@ export class CheckoutComponent implements OnDestroy {
     }
 
     this.direccionSeleccionadaId.set(id);
+    // La dirección guardada (DireccionesService sigue siendo 100% mock local,
+    // ver auditoría del prompt) no tiene calle/colonia/estado/municipio por
+    // separado, solo un texto libre — se completa lo que sí mapea 1 a 1 y se
+    // deja "calle" con ese texto como punto de partida editable. El patchValue
+    // de codigoPostal dispara la misma resolución contra el catálogo SEPOMEX
+    // que si el comprador lo hubiera tecleado a mano (ver observarCodigoPostal),
+    // así estado/municipio/colonia se llenan con datos reales, no con el mock.
     this.envioForm.patchValue({
       nombreCompleto: direccion.nombreCompleto,
-      direccion: direccion.direccion,
-      ciudad: direccion.ciudad,
+      calle: direccion.direccion,
       codigoPostal: direccion.codigoPostal,
       telefono: direccion.telefono
     });
+  }
+
+  // Debounce de 400ms tras dejar de escribir el CP (cubre igual el caso de
+  // perder el foco, que solo dispararía esto un poco antes) — resuelve
+  // estado/municipio/colonia contra GET /codigos-postales/:cp.
+  private observarCodigoPostal(): void {
+    this.envioForm.controls.codigoPostal.valueChanges
+      .pipe(
+        debounceTime(400),
+        distinctUntilChanged(),
+        switchMap(valor => {
+          if (!/^\d{5}$/.test(valor ?? '')) {
+            this.limpiarResolucionCp();
+            return EMPTY;
+          }
+
+          this.resolviendoCp.set(true);
+          this.cpError.set(null);
+
+          return this.codigosPostalesService.buscar(valor!).pipe(
+            catchError((error: HttpErrorResponse) => {
+              this.resolviendoCp.set(false);
+              this.cpResuelto.set(false);
+              this.cpSinCobertura.set(true);
+              this.colonias.set([]);
+              this.envioForm.patchValue({ estado: '', municipio: '', colonia: '' });
+              this.cpError.set(
+                error.status === 404
+                  ? 'No encontramos ese código postal, verifícalo. Puedes completar estado, municipio y colonia manualmente.'
+                  : 'No pudimos verificar el código postal. Puedes completar estado, municipio y colonia manualmente.'
+              );
+              return EMPTY;
+            })
+          );
+        }),
+        takeUntilDestroyed()
+      )
+      .subscribe(respuesta => {
+        this.resolviendoCp.set(false);
+        this.cpResuelto.set(true);
+        this.cpSinCobertura.set(false);
+        this.colonias.set(respuesta.colonias);
+        this.envioForm.patchValue({
+          estado: respuesta.estado,
+          municipio: respuesta.municipio,
+          colonia: ''
+        });
+      });
+  }
+
+  // Vuelve al estado "sin resolver" (campos bloqueados y vacíos) cada vez que
+  // el CP deja de tener 5 dígitos válidos — evita dejar estado/municipio/
+  // colonia de un CP anterior visibles mientras el comprador edita uno nuevo.
+  private limpiarResolucionCp(): void {
+    this.resolviendoCp.set(false);
+    this.cpResuelto.set(false);
+    this.cpSinCobertura.set(false);
+    this.cpError.set(null);
+    this.colonias.set([]);
+    this.envioForm.patchValue({ estado: '', municipio: '', colonia: '' });
   }
 
   subtotalLinea(item: ItemCarrito): number {
@@ -168,14 +257,30 @@ export class CheckoutComponent implements OnDestroy {
     this.preparandoPago.set(true);
     this.errorPreparacion.set(null);
 
-    const { nombreCompleto, direccion, ciudad, codigoPostal, telefono } = this.envioForm.getRawValue();
+    const {
+      nombreCompleto,
+      calle,
+      numeroExterior,
+      numeroInterior,
+      colonia,
+      municipio,
+      estado,
+      codigoPostal,
+      referencias,
+      telefono
+    } = this.envioForm.getRawValue();
     const itemsPedido = this.itemsPedidoActuales();
 
     this.crearDireccionTemporal({
       nombreCompleto: nombreCompleto!,
-      direccion: direccion!,
-      ciudad: ciudad!,
+      calle: calle!,
+      numeroExterior: numeroExterior!,
+      numeroInterior: numeroInterior || null,
+      colonia: colonia!,
+      municipio: municipio!,
+      estado: estado!,
       codigoPostal: codigoPostal!,
+      referencias: referencias || null,
       telefono: telefono!
     })
       .pipe(
@@ -257,22 +362,40 @@ export class CheckoutComponent implements OnDestroy {
 
   private crearDireccionTemporal(datos: {
     nombreCompleto: string;
-    direccion: string;
-    ciudad: string;
+    calle: string;
+    numeroExterior: string;
+    numeroInterior: string | null;
+    colonia: string;
+    municipio: string;
+    estado: string;
     codigoPostal: string;
+    referencias: string | null;
     telefono: string;
   }) {
     // NOTA TEMPORAL (decisión explícita del día 3 del sprint): DireccionesService
     // sigue siendo 100% mock/localStorage — no tiene ids reales de la BD, y
     // POST /pedidos y POST /envios/cotizar exigen un direccionId real. Mientras
     // no se conecte esa migración (día futuro), aquí se crea una dirección real
-    // contra el backend con los datos que el comprador ya llenó en el paso 2,
-    // solo para tener un id válido con el que cotizar y crear el pedido. No
-    // reemplaza esa migración: cada checkout inserta una fila nueva en
-    // `direcciones`, no gestiona ni reutiliza un catálogo real todavía.
+    // contra el backend con los datos que el comprador ya llenó en el paso 2
+    // (ahora estructurados vía SEPOMEX, ver observarCodigoPostal), solo para
+    // tener un id válido con el que cotizar y crear el pedido. No reemplaza
+    // esa migración: cada checkout inserta una fila nueva en `direcciones`,
+    // no gestiona ni reutiliza un catálogo real todavía.
     return this.http.post<{ id: string }>(
       `${environment.apiUrl}/direcciones`,
-      { alias: 'Checkout', ...datos },
+      {
+        alias: 'Checkout',
+        nombreCompleto: datos.nombreCompleto,
+        calle: datos.calle,
+        numeroExterior: datos.numeroExterior,
+        numeroInterior: datos.numeroInterior || undefined,
+        colonia: datos.colonia,
+        municipio: datos.municipio,
+        estado: datos.estado,
+        codigoPostal: datos.codigoPostal,
+        referencias: datos.referencias || undefined,
+        telefono: datos.telefono
+      },
       { withCredentials: true }
     );
   }

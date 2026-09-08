@@ -102,6 +102,11 @@
                       </a>
                     }
                   </div>
+                } @else if (enPreparacion(pedido)) {
+                  <h3 class="mt-6 font-body text-xs uppercase tracking-wide text-brand-muted">Guía de rastreo</h3>
+                  <p class="mt-2 font-body text-sm text-brand-text">
+                    Tu pedido está siendo preparado. Te avisaremos cuando esté en camino.
+                  </p>
                 }
               </div>
             </div>

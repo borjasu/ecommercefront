@@ -129,54 +129,151 @@
             />
           </div>
 
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-[2fr_1fr_1fr]">
+            <div>
+              <label for="calle" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                Calle
+              </label>
+              <input
+                id="calle"
+                type="text"
+                formControlName="calle"
+                class="input-field"
+                autocomplete="address-line1"
+              />
+              @if (envioForm.controls.calle.invalid && envioForm.controls.calle.touched) {
+                <p class="mt-1 font-body text-xs text-red-600">La calle es requerida.</p>
+              }
+            </div>
+            <div>
+              <label for="numeroExterior" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                Núm. exterior
+              </label>
+              <input
+                id="numeroExterior"
+                type="text"
+                formControlName="numeroExterior"
+                class="input-field"
+                autocomplete="off"
+              />
+              @if (envioForm.controls.numeroExterior.invalid && envioForm.controls.numeroExterior.touched) {
+                <p class="mt-1 font-body text-xs text-red-600">Requerido.</p>
+              }
+            </div>
+            <div>
+              <label for="numeroInterior" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                Núm. interior
+              </label>
+              <input
+                id="numeroInterior"
+                type="text"
+                formControlName="numeroInterior"
+                class="input-field"
+                autocomplete="off"
+                placeholder="Opcional"
+              />
+            </div>
+          </div>
+
           <div>
-            <label for="direccion" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-              Dirección
+            <label for="codigoPostal" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              Código postal
             </label>
             <input
-              id="direccion"
+              id="codigoPostal"
               type="text"
-              formControlName="direccion"
-              class="input-field"
-              autocomplete="street-address"
+              inputmode="numeric"
+              maxlength="5"
+              formControlName="codigoPostal"
+              class="input-field max-w-[10rem]"
+              autocomplete="postal-code"
             />
-            @if (envioForm.controls.direccion.invalid && envioForm.controls.direccion.touched) {
-              <p class="mt-1 font-body text-xs text-red-600">La dirección es requerida.</p>
+            @if (envioForm.controls.codigoPostal.invalid && envioForm.controls.codigoPostal.touched) {
+              <p class="mt-1 font-body text-xs text-red-600">Ingresa un código postal a 5 dígitos.</p>
+            } @else if (resolviendoCp()) {
+              <p class="mt-1 font-body text-xs text-brand-muted">Buscando código postal…</p>
+            } @else if (cpError(); as error) {
+              <p class="mt-1 font-body text-xs text-red-600">{{ error }}</p>
             }
           </div>
 
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label for="ciudad" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                Ciudad
+              <label for="estado" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                Estado
               </label>
               <input
-                id="ciudad"
+                id="estado"
                 type="text"
-                formControlName="ciudad"
+                formControlName="estado"
                 class="input-field"
-                autocomplete="address-level2"
+                [class.bg-brand-bone]="!cpSinCobertura()"
+                [readOnly]="!cpSinCobertura()"
+                autocomplete="address-level1"
               />
-              @if (envioForm.controls.ciudad.invalid && envioForm.controls.ciudad.touched) {
-                <p class="mt-1 font-body text-xs text-red-600">La ciudad es requerida.</p>
+              @if (envioForm.controls.estado.invalid && envioForm.controls.estado.touched) {
+                <p class="mt-1 font-body text-xs text-red-600">El estado es requerido.</p>
               }
             </div>
             <div>
-              <label for="codigoPostal" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-                Código postal
+              <label for="municipio" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                Municipio
               </label>
               <input
-                id="codigoPostal"
+                id="municipio"
                 type="text"
-                inputmode="numeric"
-                formControlName="codigoPostal"
+                formControlName="municipio"
                 class="input-field"
-                autocomplete="postal-code"
+                [class.bg-brand-bone]="!cpSinCobertura()"
+                [readOnly]="!cpSinCobertura()"
+                autocomplete="address-level2"
               />
-              @if (envioForm.controls.codigoPostal.invalid && envioForm.controls.codigoPostal.touched) {
-                <p class="mt-1 font-body text-xs text-red-600">Ingresa un código postal válido.</p>
+              @if (envioForm.controls.municipio.invalid && envioForm.controls.municipio.touched) {
+                <p class="mt-1 font-body text-xs text-red-600">El municipio es requerido.</p>
               }
             </div>
+          </div>
+
+          <div>
+            <label for="colonia" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              Colonia
+            </label>
+            @if (cpSinCobertura()) {
+              <input
+                id="colonia"
+                type="text"
+                formControlName="colonia"
+                class="input-field"
+                autocomplete="address-level3"
+              />
+            } @else {
+              <select id="colonia" formControlName="colonia" class="input-field" [disabled]="!cpResuelto()">
+                <option value="" disabled>
+                  {{ cpResuelto() ? 'Selecciona una colonia' : 'Ingresa un código postal válido' }}
+                </option>
+                @for (opcion of colonias(); track opcion.nombre) {
+                  <option [value]="opcion.nombre">
+                    {{ opcion.nombre }}{{ opcion.tipoAsentamiento ? ' (' + opcion.tipoAsentamiento + ')' : '' }}
+                  </option>
+                }
+              </select>
+            }
+            @if (envioForm.controls.colonia.invalid && envioForm.controls.colonia.touched) {
+              <p class="mt-1 font-body text-xs text-red-600">Selecciona o ingresa una colonia.</p>
+            }
+          </div>
+
+          <div>
+            <label for="referencias" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              Referencias
+            </label>
+            <input
+              id="referencias"
+              type="text"
+              formControlName="referencias"
+              class="input-field"
+              placeholder="Opcional — ej. portón negro, entre calles X y Y"
+            />
           </div>
 
           <div>
