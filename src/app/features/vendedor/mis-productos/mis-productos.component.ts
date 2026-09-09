@@ -22,6 +22,7 @@ import {
 } from '../../../core/models/producto.model';
 import { AUDIENCIAS, CATEGORIAS } from '../../../shared/constants/categorias';
 import { mensajeDeErrorHttp } from '../../../shared/utils/http-error.util';
+import { PLACEHOLDER_IMAGEN_PRODUCTO, resolverImagenProducto } from '../../../shared/utils/producto-imagen.util';
 
 const RETRASO_CARGA_MS = 400;
 const TAMANO_PAGINA = 10;
@@ -231,6 +232,18 @@ export class MisProductosComponent {
     this.paginaVisible.set(TAMANO_PAGINA);
   }
 
+  // El campo "Imagen para carrusel" (ver plantilla) solo tiene sentido si el
+  // producto participa en el carrusel de destacados de inicio — se oculta en
+  // vez de deshabilitarse porque es el mismo patrón que ya usa el resto del
+  // formulario para secciones condicionales (p. ej. "Foto para <color>").
+  // Se lee el valor del control directamente (no un signal aparte) porque,
+  // igual que tallasSeleccionadas()/coloresSeleccionados(), se recalcula en
+  // cada ciclo de detección de cambios a partir del estado en vivo del
+  // checkbox.
+  imagenCarruselVisible(): boolean {
+    return !!this.productoForm.controls.destacado.value;
+  }
+
   onArchivoImagenSeleccionado(evento: Event): void {
     const input = evento.target as HTMLInputElement;
     const archivo = input.files?.[0];
@@ -317,6 +330,13 @@ export class MisProductosComponent {
       coloresEfectivos.map(color => ({ talla, color, cantidad: this.cantidadInicial(talla, color) }))
     );
 
+    // Si el producto queda destacado pero el vendedor no subió "Imagen para
+    // carrusel", no se bloquea el guardado: se usa el placeholder de siempre
+    // por ahora y, apenas se conozcan las fotos por color reales (ver
+    // subirFotosColorPendientes/resolverRespaldoImagenCarrusel más abajo), se
+    // reemplaza por la foto del primer color disponible que sí tenga una.
+    const requiereRespaldoImagenCarrusel = !!valores.destacado && !(valores.imagenUrl ?? '').trim();
+
     const datosProducto = {
       nombre: valores.nombre!,
       descripcion: valores.descripcion ?? '',
@@ -326,7 +346,7 @@ export class MisProductosComponent {
       coloresDisponibles,
       destacado: !!valores.destacado,
       tallasDisponibles,
-      imagenUrl: valores.imagenUrl || 'https://picsum.photos/seed/nuevo/400/500',
+      imagenUrl: valores.imagenUrl || PLACEHOLDER_IMAGEN_PRODUCTO,
       etiqueta,
       variantes
     };
@@ -348,7 +368,7 @@ export class MisProductosComponent {
         // para subir fotos de un producto recién creado) antes de intentar
         // las fotos pendientes, sin importar si alguna falla después.
         this.productoEditando.set(producto);
-        this.subirFotosColorPendientes(producto.id);
+        this.subirFotosColorPendientes(producto.id, requiereRespaldoImagenCarrusel ? coloresDisponibles : undefined);
       },
       error: (error: HttpErrorResponse) => {
         this.guardando.set(false);
@@ -376,6 +396,12 @@ export class MisProductosComponent {
       },
       error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
     });
+  }
+
+  // Miniatura de la tabla: ver shared/utils/producto-imagen.util.ts — cae a la
+  // primera foto de color si el producto no tiene imagenUrl propia.
+  imagenDe(producto: Producto): string {
+    return resolverImagenProducto(producto);
   }
 
   etiquetaDeCategoria(categoria: Categoria): string {
@@ -611,10 +637,18 @@ export class MisProductosComponent {
 
   // Sube cada foto pendiente en paralelo, una llamada por color, después de
   // que el producto base (crear/actualizar) ya se guardó con éxito.
-  private subirFotosColorPendientes(productoId: string): void {
+  // `coloresParaRespaldoCarrusel`, cuando viene, es la lista ordenada de
+  // colores marcados en este guardado — solo se pasa cuando el producto quedó
+  // destacado sin "Imagen para carrusel" (ver guardar()), y se usa para
+  // resolver el respaldo justo después de que las fotos por color ya están
+  // subidas (antes de eso no hay URLs reales que usar).
+  private subirFotosColorPendientes(productoId: string, coloresParaRespaldoCarrusel?: Color[]): void {
     const pendientes = this.fotosColorPendientes();
     const colores = Object.keys(pendientes);
     if (colores.length === 0) {
+      if (coloresParaRespaldoCarrusel) {
+        this.resolverRespaldoImagenCarrusel(productoId, coloresParaRespaldoCarrusel);
+      }
       this.cerrarFormulario();
       return;
     }
@@ -625,6 +659,9 @@ export class MisProductosComponent {
     forkJoin(colores.map(color => this.subirFotoDeColor(productoId, color, pendientes[color]))).subscribe(
       resultados => {
         this.subiendoFotosColor.set(false);
+        if (coloresParaRespaldoCarrusel) {
+          this.resolverRespaldoImagenCarrusel(productoId, coloresParaRespaldoCarrusel);
+        }
         if (resultados.every(r => r.ok)) {
           this.cerrarFormulario();
           this.toastService.exito('Fotos por color guardadas.');
@@ -637,6 +674,28 @@ export class MisProductosComponent {
         }
       }
     );
+  }
+
+  // Respaldo de "Imagen para carrusel": el primer color (en el orden en que
+  // se muestran en el formulario) que efectivamente tenga una foto subida —
+  // ya existente o recién subida en este guardado. Si ninguno tiene foto
+  // (p. ej. el producto no maneja colores), se deja el placeholder con el que
+  // ya se guardó el producto en guardar(). Un fallo del PATCH no se reporta:
+  // el producto y sus fotos por color ya quedaron guardados correctamente,
+  // esto es solo un ajuste best-effort de la miniatura del carrusel.
+  private resolverRespaldoImagenCarrusel(productoId: string, coloresDisponibles: Color[]): void {
+    const fotoDeRespaldo = coloresDisponibles
+      .map(color => this.fotoExistenteDe(this.etiquetaDeColor(color)))
+      .find((foto): foto is ImagenColorProducto => !!foto);
+
+    if (!fotoDeRespaldo) {
+      return;
+    }
+
+    this.productoService.actualizarProducto(productoId, { imagenUrl: fotoDeRespaldo.imagenUrl }).subscribe({
+      next: producto => this.productoEditando.set(producto),
+      error: () => {}
+    });
   }
 
   // Se envuelve en catchError (en vez de dejar que el error se propague) a

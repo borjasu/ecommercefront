@@ -11,6 +11,7 @@ import { Audiencia, Categoria, Color, Producto, Talla } from '../../core/models/
 import { ColoresService } from '../../core/services/colores.service';
 import { BreadcrumbComponent, BreadcrumbItem } from '../../shared/components/breadcrumb/breadcrumb.component';
 import { colorAgotado, stockDisponible, tallaAgotada } from '../../shared/utils/inventario.util';
+import { resolverImagenProducto } from '../../shared/utils/producto-imagen.util';
 
 const NOMBRES_CATEGORIA: Record<Categoria, string> = {
   pantalon: 'Pantalón',
@@ -63,7 +64,11 @@ export class ProductoDetalleComponent {
     if (!producto) {
       return [];
     }
-    return producto.imagenes && producto.imagenes.length > 0 ? producto.imagenes : [producto.imagenUrl];
+    // Igual que en cualquier otra vista sin lógica de color propia (ver
+    // shared/utils/producto-imagen.util.ts): si el producto no tiene galería
+    // (`imagenes`) ni una `imagenUrl` real, la imagen inicial (antes de elegir
+    // color) cae a la primera foto de color en vez del placeholder genérico.
+    return producto.imagenes && producto.imagenes.length > 0 ? producto.imagenes : [resolverImagenProducto(producto)];
   });
 
   readonly coloresDisponibles = computed(() => this.producto()?.coloresDisponibles ?? []);

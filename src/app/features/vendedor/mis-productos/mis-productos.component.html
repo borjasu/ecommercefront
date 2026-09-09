@@ -68,7 +68,7 @@
           @for (producto of productosVisibles(); track producto.id) {
             <tr>
               <td class="px-6 py-3">
-                <img [src]="producto.imagenUrl" [alt]="producto.nombre" class="h-14 w-11 rounded-sm object-cover" />
+                <img [src]="imagenDe(producto)" [alt]="producto.nombre" class="h-14 w-11 rounded-sm object-cover" />
               </td>
               <td class="px-6 py-3 font-body text-sm text-brand-text">{{ producto.nombre }}</td>
               <td class="px-6 py-3 font-body text-sm text-brand-muted">{{ etiquetaDeAudiencia(producto.audiencia) }}</td>
@@ -176,47 +176,6 @@
             <textarea id="descripcion" formControlName="descripcion" rows="3" class="input-field"></textarea>
           </div>
 
-          <div>
-            <label class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">Imagen</label>
-            <div class="flex items-center gap-4">
-              @if (productoForm.controls.imagenUrl.value) {
-                <img
-                  [src]="productoForm.controls.imagenUrl.value"
-                  alt="Vista previa"
-                  class="h-20 w-16 shrink-0 rounded-sm border border-brand-muted/30 object-cover"
-                />
-              } @else {
-                <div
-                  class="flex h-20 w-16 shrink-0 items-center justify-center rounded-sm border border-dashed border-brand-muted/40 font-body text-[10px] text-brand-muted"
-                >
-                  Sin imagen
-                </div>
-              }
-              <div class="flex-1">
-                <input
-                  #inputImagen
-                  type="file"
-                  accept="image/*"
-                  class="hidden"
-                  (change)="onArchivoImagenSeleccionado($event)"
-                />
-                <button
-                  type="button"
-                  (click)="inputImagen.click()"
-                  class="cursor-pointer rounded-[2px] border border-brand-muted px-4 py-2 font-body text-xs uppercase tracking-wide text-brand-text transition-colors hover:border-brand-gold hover:text-brand-gold"
-                >
-                  Subir imagen
-                </button>
-                <input
-                  id="imagenUrl"
-                  type="text"
-                  formControlName="imagenUrl"
-                  class="input-field mt-2"
-                  placeholder="O pega una URL: https://picsum.photos/seed/xxx/400/500"
-                />
-              </div>
-            </div>
-          </div>
         </div>
 
         <div class="space-y-5 border-t border-brand-muted/20 pt-6">
@@ -274,6 +233,56 @@
             <input type="checkbox" formControlName="destacado" />
             Producto destacado (aparece en el carrusel de inicio)
           </label>
+
+          @if (imagenCarruselVisible()) {
+            <div>
+              <label class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+                Imagen para carrusel
+              </label>
+              <p class="mb-2 font-body text-xs text-brand-muted">
+                Esta imagen se usa en el carrusel de destacados de la página de inicio. Si no subes una, se usa la
+                foto del primer color disponible.
+              </p>
+              <div class="flex items-center gap-4">
+                @if (productoForm.controls.imagenUrl.value) {
+                  <img
+                    [src]="productoForm.controls.imagenUrl.value"
+                    alt="Vista previa"
+                    class="h-20 w-16 shrink-0 rounded-sm border border-brand-muted/30 object-cover"
+                  />
+                } @else {
+                  <div
+                    class="flex h-20 w-16 shrink-0 items-center justify-center rounded-sm border border-dashed border-brand-muted/40 font-body text-[10px] text-brand-muted"
+                  >
+                    Sin imagen
+                  </div>
+                }
+                <div class="flex-1">
+                  <input
+                    #inputImagen
+                    type="file"
+                    accept="image/*"
+                    class="hidden"
+                    (change)="onArchivoImagenSeleccionado($event)"
+                  />
+                  <button
+                    type="button"
+                    (click)="inputImagen.click()"
+                    class="cursor-pointer rounded-[2px] border border-brand-muted px-4 py-2 font-body text-xs uppercase tracking-wide text-brand-text transition-colors hover:border-brand-gold hover:text-brand-gold"
+                  >
+                    Subir imagen
+                  </button>
+                  <input
+                    id="imagenUrl"
+                    type="text"
+                    formControlName="imagenUrl"
+                    class="input-field mt-2"
+                    placeholder="O pega una URL: https://picsum.photos/seed/xxx/400/500"
+                  />
+                </div>
+              </div>
+            </div>
+          }
         </div>
 
         <div class="space-y-5 border-t border-brand-muted/20 pt-6">
