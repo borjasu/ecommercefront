@@ -16,6 +16,7 @@ import { ToastService } from '../../../core/services/toast.service';
 import { ColoresService } from '../../../core/services/colores.service';
 import { Color, Talla } from '../../../core/models/producto.model';
 import { colorAgotado, stockDisponible, tallaAgotada } from '../../utils/inventario.util';
+import { resolverImagenProducto } from '../../utils/producto-imagen.util';
 
 const CANTIDAD_MINIMA = 1;
 const CANTIDAD_MAXIMA = 20;
@@ -50,7 +51,9 @@ export class AgregarCarritoModalComponent {
     if (!producto) {
       return [];
     }
-    return producto.imagenes && producto.imagenes.length > 0 ? producto.imagenes : [producto.imagenUrl];
+    // Ver producto-detalle.component.ts / shared/utils/producto-imagen.util.ts:
+    // misma imagen inicial de respaldo cuando no hay galería ni imagenUrl real.
+    return producto.imagenes && producto.imagenes.length > 0 ? producto.imagenes : [resolverImagenProducto(producto)];
   });
 
   // Igual que en producto-detalle.component.ts: emparejamiento por nombre

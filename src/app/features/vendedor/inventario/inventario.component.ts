@@ -6,6 +6,7 @@ import { TallasService } from '../../../core/services/tallas.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { Color, Producto, SIN_COLOR, Talla, VarianteStock } from '../../../core/models/producto.model';
 import { mensajeDeErrorHttp } from '../../../shared/utils/http-error.util';
+import { resolverImagenProducto } from '../../../shared/utils/producto-imagen.util';
 
 const RETRASO_CARGA_MS = 300;
 
@@ -91,6 +92,10 @@ export class InventarioComponent {
 
   stockTotal(producto: Producto): number {
     return (producto.variantes ?? []).reduce((total, variante) => total + variante.cantidad, 0);
+  }
+
+  imagenDe(producto: Producto): string {
+    return resolverImagenProducto(producto);
   }
 
   cantidadDe(producto: Producto, talla: Talla, color: Color): number {

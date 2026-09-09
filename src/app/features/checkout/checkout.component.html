@@ -50,7 +50,7 @@
           @for (item of items(); track item.producto.id + item.talla + (item.color ?? '')) {
             <div class="flex items-center gap-4 py-4">
               <img
-                [src]="item.producto.imagenUrl"
+                [src]="imagenDe(item)"
                 [alt]="item.producto.nombre"
                 class="h-20 w-16 rounded-xl object-cover"
               />

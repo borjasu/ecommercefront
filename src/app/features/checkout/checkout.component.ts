@@ -21,6 +21,7 @@ import { PedidoDetalle } from '../../core/models/pedido.model';
 import { ColoresService } from '../../core/services/colores.service';
 import { mensajeDeErrorHttp } from '../../shared/utils/http-error.util';
 import { soloDigitos } from '../../shared/utils/texto.util';
+import { resolverImagenProducto } from '../../shared/utils/producto-imagen.util';
 
 const LARGO_TELEFONO = 10;
 
@@ -215,6 +216,10 @@ export class CheckoutComponent implements OnDestroy {
 
   subtotalLinea(item: ItemCarrito): number {
     return item.producto.precio * item.cantidad;
+  }
+
+  imagenDe(item: ItemCarrito): string {
+    return resolverImagenProducto(item.producto);
   }
 
   onTelefonoInput(evento: Event): void {

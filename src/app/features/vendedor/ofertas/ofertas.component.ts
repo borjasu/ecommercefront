@@ -8,6 +8,7 @@ import { ConfirmService } from '../../../core/services/confirm.service';
 import { Audiencia, Categoria, Producto, Talla } from '../../../core/models/producto.model';
 import { Oferta, TipoDescuento } from '../../../core/models/oferta.model';
 import { AUDIENCIAS, CATEGORIAS } from '../../../shared/constants/categorias';
+import { resolverImagenProducto } from '../../../shared/utils/producto-imagen.util';
 
 const RETRASO_CARGA_MS = 400;
 const UMBRAL_STOCK_BAJO = 5;
@@ -292,6 +293,10 @@ export class OfertasComponent {
 
   etiquetaDeAudiencia(audiencia: Audiencia): string {
     return this.audiencias.find(opcion => opcion.valor === audiencia)?.etiqueta ?? audiencia;
+  }
+
+  imagenDe(producto: Producto): string {
+    return resolverImagenProducto(producto);
   }
 
   esStockBajo(producto: Producto): boolean {
