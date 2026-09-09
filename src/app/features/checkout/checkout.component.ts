@@ -214,8 +214,17 @@ export class CheckoutComponent implements OnDestroy {
     this.envioForm.patchValue({ estado: '', municipio: '', colonia: '' });
   }
 
+  // Usa el mismo precio efectivo que ya vio en el carrito (normal o de
+  // mayoreo, ver CartService.precioUnitarioEfectivo) — solo es la vista previa
+  // antes de pagar, el cálculo autoritativo real vuelve a hacerlo el backend
+  // al crear el pedido (OrdersService.crear), ignorando cualquier precio que
+  // mande el frontend.
   subtotalLinea(item: ItemCarrito): number {
-    return item.producto.precio * item.cantidad;
+    return this.cartService.precioUnitarioEfectivo(item) * item.cantidad;
+  }
+
+  aplicaMayoreo(item: ItemCarrito): boolean {
+    return this.cartService.aplicaMayoreo(item);
   }
 
   imagenDe(item: ItemCarrito): string {

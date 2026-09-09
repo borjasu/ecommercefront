@@ -164,13 +164,14 @@
                   Todo
                 </a>
               </li>
-              @for (categoria of categorias; track categoria.valor) {
+              @for (categoria of categorias(); track categoria.valor) {
                 <li>
                   <a
                     [routerLink]="['/catalogo', audiencia.valor, categoria.valor]"
                     (click)="cerrarMenu()"
-                    class="block font-body text-sm text-brand-bone/80 transition-colors hover:text-brand-gold"
+                    class="flex items-center gap-2 font-body text-sm text-brand-bone/80 transition-colors hover:text-brand-gold"
                   >
+                    <app-icono-categoria [nombre]="categoria.icono" class="h-4 w-4 shrink-0" />
                     {{ categoria.etiqueta }}
                   </a>
                 </li>

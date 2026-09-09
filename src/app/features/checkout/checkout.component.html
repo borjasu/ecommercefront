@@ -63,6 +63,11 @@
                   }
                   · Cantidad {{ item.cantidad }}
                 </p>
+                @if (aplicaMayoreo(item)) {
+                  <p class="mt-1 font-body text-xs font-semibold uppercase tracking-wide text-brand-oxide">
+                    Precio mayoreo aplicado
+                  </p>
+                }
               </div>
               <p class="font-body text-sm font-semibold text-brand-gold">${{ subtotalLinea(item) }}</p>
             </div>
