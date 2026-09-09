@@ -11,7 +11,8 @@ import {
   ItemPedidoDetalle,
   PedidoDetalle
 } from '../models/pedido.model';
-import { Color, Talla } from '../models/producto.model';
+import { Color, ImagenColorProducto, Talla } from '../models/producto.model';
+import { resolverImagenProducto } from '../../shared/utils/producto-imagen.util';
 
 export interface ItemPedidoPayload {
   productoId: string;
@@ -44,10 +45,12 @@ export interface CrearPedidoPayload {
 interface ItemPedidoBackend {
   productoId: string;
   // Presente en GET /pedidos y GET /pedidos/:id (relations: {items: {producto:
-  // true}}) — AUSENTE en la respuesta de POST /pedidos (OrdersService.crear
-  // guarda la entidad y la regresa tal cual, sin volver a cargar relaciones).
-  // Verificado en vivo contra el backend real, no es un supuesto.
-  producto?: { nombre: string; imagenUrl: string };
+  // {imagenesColores: true}}}) — AUSENTE en la respuesta de POST /pedidos
+  // (OrdersService.crear guarda la entidad y la regresa tal cual, sin volver a
+  // cargar relaciones). Verificado en vivo contra el backend real, no es un
+  // supuesto. `imagenesColores` se agregó para poder resolver una foto real
+  // cuando el producto no tiene imagenUrl propia — ver resolverImagenProducto().
+  producto?: { nombre: string; imagenUrl: string; imagenesColores?: ImagenColorProducto[] };
   talla: string;
   color: string;
   cantidad: number;
@@ -103,7 +106,9 @@ export class PedidoCompradorService {
     const items: ItemPedidoDetalle[] = p.items.map(item => ({
       productoId: item.productoId,
       productoNombre: item.producto?.nombre ?? '',
-      productoImagenUrl: item.producto?.imagenUrl ?? '',
+      productoImagenUrl: item.producto
+        ? resolverImagenProducto({ imagenUrl: item.producto.imagenUrl, imagenesColores: item.producto.imagenesColores })
+        : '',
       talla: item.talla,
       color: item.color,
       cantidad: item.cantidad,

@@ -11,6 +11,8 @@ import {
   ItemPedidoDetalle,
   PedidoVendedorDetalle
 } from '../models/pedido.model';
+import { ImagenColorProducto } from '../models/producto.model';
+import { resolverImagenProducto } from '../../shared/utils/producto-imagen.util';
 
 export interface FiltrosPedidosVendedor {
   estado?: EstadoPedido;
@@ -39,10 +41,13 @@ interface UsuarioBackend {
 // Misma forma que ItemPedidoBackend de pedido-comprador.service.ts —
 // `producto` puede venir ausente (ver esa nota); no aplica aquí (todas las
 // respuestas de VendorOrdersController sí cargan `items.producto`), pero se
-// deja igual de defensivo por si acaso.
+// deja igual de defensivo por si acaso. `imagenesColores` ahora viene incluida
+// (ver VendorOrdersService.listarTodos/obtenerUno en ecommerceback, que
+// agrega ese join) para poder resolver una foto real cuando el producto no
+// tiene imagenUrl propia — ver resolverImagenProducto().
 interface ItemPedidoBackend {
   productoId: string;
-  producto?: { nombre: string; imagenUrl: string };
+  producto?: { nombre: string; imagenUrl: string; imagenesColores?: ImagenColorProducto[] };
   talla: string;
   color: string;
   cantidad: number;
@@ -146,7 +151,9 @@ export class PedidoVendedorService {
     const items: ItemPedidoDetalle[] = p.items.map(item => ({
       productoId: item.productoId,
       productoNombre: item.producto?.nombre ?? '',
-      productoImagenUrl: item.producto?.imagenUrl ?? '',
+      productoImagenUrl: item.producto
+        ? resolverImagenProducto({ imagenUrl: item.producto.imagenUrl, imagenesColores: item.producto.imagenesColores })
+        : '',
       talla: item.talla,
       color: item.color,
       cantidad: item.cantidad,
