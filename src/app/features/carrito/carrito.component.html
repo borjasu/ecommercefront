@@ -7,7 +7,7 @@
         <div class="flex flex-wrap items-center gap-4 py-6">
           <a [routerLink]="['/producto', item.producto.id]" class="shrink-0">
             <img
-              [src]="item.producto.imagenUrl"
+              [src]="imagenDe(item)"
               [alt]="item.producto.nombre"
               class="h-24 w-20 rounded-xl object-cover"
             />

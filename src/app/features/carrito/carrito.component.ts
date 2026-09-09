@@ -6,6 +6,7 @@ import { ConfirmService } from '../../core/services/confirm.service';
 import { ItemCarrito } from '../../core/models/carrito.model';
 import { Color } from '../../core/models/producto.model';
 import { ColoresService } from '../../core/services/colores.service';
+import { resolverImagenProducto } from '../../shared/utils/producto-imagen.util';
 
 @Component({
     selector: 'app-carrito',
@@ -25,6 +26,10 @@ export class CarritoComponent {
 
   subtotal(item: ItemCarrito): number {
     return item.producto.precio * item.cantidad;
+  }
+
+  imagenDe(item: ItemCarrito): string {
+    return resolverImagenProducto(item.producto);
   }
 
   incrementar(item: ItemCarrito): void {
