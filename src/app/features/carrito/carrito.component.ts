@@ -25,11 +25,19 @@ export class CarritoComponent {
   readonly totalArticulos = this.cartService.cantidadItems;
 
   subtotal(item: ItemCarrito): number {
-    return item.producto.precio * item.cantidad;
+    return this.cartService.precioUnitarioEfectivo(item) * item.cantidad;
   }
 
   imagenDe(item: ItemCarrito): string {
     return resolverImagenProducto(item.producto);
+  }
+
+  aplicaMayoreo(item: ItemCarrito): boolean {
+    return this.cartService.aplicaMayoreo(item);
+  }
+
+  piezasParaMayoreo(item: ItemCarrito): number {
+    return this.cartService.piezasParaMayoreo(item);
   }
 
   incrementar(item: ItemCarrito): void {
