@@ -1,13 +1,31 @@
 import { Component, ChangeDetectionStrategy, computed, effect, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
-import { delay } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Observable, delay, forkJoin, of } from 'rxjs';
+import { catchError, map, switchMap, tap } from 'rxjs/operators';
 import { ProductoService } from '../../../core/services/producto.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { ConfirmService } from '../../../core/services/confirm.service';
-import { ColoresService } from '../../../core/services/colores.service';
+import { ColoresService, ColorOpcion } from '../../../core/services/colores.service';
 import { TallasService } from '../../../core/services/tallas.service';
-import { Audiencia, Categoria, Etiqueta, Producto } from '../../../core/models/producto.model';
-import { AUDIENCIAS, CATEGORIAS } from '../../../shared/constants/categorias';
+import { CategoriasService, CategoriaOpcion } from '../../../core/services/categorias.service';
+import { FotoColorService } from '../../../core/services/foto-color.service';
+import { ICONOS_CATEGORIA } from '../../../shared/constants/iconos-categoria';
+import { IconoCategoriaComponent } from '../../../shared/components/icono-categoria/icono-categoria.component';
+import {
+  Audiencia,
+  Categoria,
+  Color,
+  Etiqueta,
+  ImagenColorProducto,
+  Producto,
+  SIN_COLOR,
+  Talla,
+  VarianteStock
+} from '../../../core/models/producto.model';
+import { AUDIENCIAS } from '../../../shared/constants/categorias';
+import { mensajeDeErrorHttp } from '../../../shared/utils/http-error.util';
+import { PLACEHOLDER_IMAGEN_PRODUCTO, resolverImagenProducto } from '../../../shared/utils/producto-imagen.util';
 
 const RETRASO_CARGA_MS = 400;
 const TAMANO_PAGINA = 10;
@@ -19,9 +37,43 @@ function alMenosUnaTallaValidator(control: AbstractControl): ValidationErrors | 
   return seleccionadas.some(seleccionada => seleccionada) ? null : { ningunaTalla: true };
 }
 
+// Mayoreo: validador de nivel raíz (no de un solo control) porque necesita leer
+// tres campos hermanos a la vez — mayoreoCantidadMinima/mayoreoPrecioPorPieza
+// solo son obligatorios si mayoreoHabilitado está marcado, y mayoreoPrecioPorPieza
+// además se compara contra `precio`. Replica del lado cliente la misma regla que
+// VendorProductsService valida de forma autoritativa en el backend.
+function mayoreoValidator(control: AbstractControl): ValidationErrors | null {
+  const valores = control.value as {
+    mayoreoHabilitado: boolean;
+    mayoreoCantidadMinima: number | null;
+    mayoreoPrecioPorPieza: number | null;
+    precio: number;
+  };
+
+  if (!valores.mayoreoHabilitado) {
+    return null;
+  }
+  if (valores.mayoreoCantidadMinima == null) {
+    return { mayoreoCantidadMinimaRequerida: true };
+  }
+  if (!Number.isInteger(valores.mayoreoCantidadMinima) || valores.mayoreoCantidadMinima < 2) {
+    return { mayoreoCantidadMinimaInvalida: true };
+  }
+  if (valores.mayoreoPrecioPorPieza == null) {
+    return { mayoreoPrecioRequerido: true };
+  }
+  if (valores.mayoreoPrecioPorPieza <= 0) {
+    return { mayoreoPrecioInvalido: true };
+  }
+  if (valores.mayoreoPrecioPorPieza >= valores.precio) {
+    return { mayoreoPrecioNoMenorAlNormal: true };
+  }
+  return null;
+}
+
 @Component({
     selector: 'app-mis-productos',
-    imports: [ReactiveFormsModule],
+    imports: [ReactiveFormsModule, IconoCategoriaComponent],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './mis-productos.component.html'
 })
@@ -32,20 +84,24 @@ export class MisProductosComponent {
   private readonly confirmService = inject(ConfirmService);
   private readonly coloresService = inject(ColoresService);
   private readonly tallasService = inject(TallasService);
+  private readonly categoriasService = inject(CategoriasService);
+  private readonly fotoColorService = inject(FotoColorService);
 
-  readonly categorias = CATEGORIAS;
+  readonly categorias = this.categoriasService.listado;
   readonly audiencias = AUDIENCIAS;
   readonly colores = this.coloresService.listado;
   readonly tallas = this.tallasService.listado;
+  readonly iconosDisponibles = ICONOS_CATEGORIA;
 
-  readonly filtrosCategoria: { valor: FiltroCategoria; etiqueta: string }[] = [
+  readonly filtrosCategoria = computed<{ valor: FiltroCategoria; etiqueta: string }[]>(() => [
     { valor: 'todos', etiqueta: 'Todos' },
-    ...CATEGORIAS
-  ];
+    ...this.categorias()
+  ]);
 
   readonly productos = signal<Producto[]>([]);
   readonly cargando = signal(true);
   readonly error = signal(false);
+  readonly guardando = signal(false);
   readonly mostrarFormulario = signal(false);
   readonly productoEditando = signal<Producto | null>(null);
   readonly filtroCategoria = signal<FiltroCategoria>('todos');
@@ -60,6 +116,40 @@ export class MisProductosComponent {
   readonly productosVisibles = computed(() => this.productosFiltrados().slice(0, this.paginaVisible()));
   readonly hayMasProductos = computed(() => this.productosFiltrados().length > this.paginaVisible());
 
+  readonly nuevoColorNombre = signal('');
+  readonly nuevoColorHex = signal('#c9a227');
+  readonly mostrarAgregarColor = signal(false);
+
+  readonly nuevaTallaNombre = signal('');
+  readonly mostrarAgregarTalla = signal(false);
+
+  readonly nuevaCategoriaNombre = signal('');
+  readonly nuevaCategoriaIcono = signal('accesorio');
+  readonly mostrarAgregarCategoria = signal(false);
+  readonly mostrarGestionCategorias = signal(false);
+
+  // Stock inicial por combinación talla×color, capturado en el mismo
+  // formulario (antes solo se podía asignar desde Inventario, así que todo
+  // producto nuevo arrancaba con existencias en 0). Se guarda aparte del
+  // FormGroup porque las combinaciones dependen de qué tallas/colores están
+  // marcados en ese momento, no de un set fijo de controles.
+  readonly cantidadesIniciales = signal<VarianteStock[]>([]);
+
+  // Fotos por color (ver FotoColorService, ecommerceback): una foto real por
+  // cada color marcado en "Colores disponibles", reemplaza al recoloreo
+  // algorítmico que existía antes. `fotosColorExistentes` son las que ya
+  // están subidas al backend (solo relevante editando un producto);
+  // `fotosColorPendientes` son archivos elegidos en este formulario que
+  // todavía no se han subido — se suben recién al confirmar "Guardar" (ver
+  // guardar()), una llamada de red por color, después de crear/actualizar el
+  // producto base. Ambas indexadas por `Color` (el `valor` del checkbox), no
+  // por nombre de archivo ni por id.
+  readonly fotosColorExistentes = signal<ImagenColorProducto[]>([]);
+  readonly fotosColorPendientes = signal<Record<Color, File>>({});
+  readonly previewsFotoColorPendiente = signal<Record<Color, string>>({});
+  readonly subiendoFotosColor = signal(false);
+  readonly erroresFotoColor = signal<Record<Color, string>>({});
+
   readonly productoForm = this.fb.group({
     nombre: ['', [Validators.required]],
     descripcion: [''],
@@ -69,6 +159,9 @@ export class MisProductosComponent {
     destacado: [false],
     etiqueta: ['NINGUNA' as 'NINGUNA' | 'NUEVO' | 'ESENCIAL'],
     imagenUrl: [''],
+    mayoreoHabilitado: [false],
+    mayoreoCantidadMinima: [null as number | null],
+    mayoreoPrecioPorPieza: [null as number | null],
     tallas: this.fb.group(
       Object.fromEntries(this.tallas().map(talla => [talla, this.fb.control(false)])),
       { validators: alMenosUnaTallaValidator }
@@ -76,34 +169,48 @@ export class MisProductosComponent {
     colores: this.fb.group(
       Object.fromEntries(this.colores().map(opcion => [opcion.valor, this.fb.control(false)]))
     )
-  });
+  }, { validators: mayoreoValidator });
 
   constructor() {
     this.cargarProductosIniciales();
 
-    // colores()/tallas() vienen de un GET async (catálogo dinámico real, ver
-    // modules/catalogos) — al construirse el componente ese fetch normalmente
-    // ya resolvió (los servicios son providedIn:'root' y se piden desde antes
-    // en la navegación), pero por si no: los sub-FormGroup de checkboxes se
-    // arman con Object.fromEntries al momento en que corre este effect, y
-    // `.reset()` no agrega controles nuevos a un FormGroup ya construido — sin
-    // este effect, si el fetch tarda, el formulario quedaría con 0 casillas.
+    // MERGE: se descartó el effect de origin/main, que reconstruía los
+    // FormGroup `tallas`/`colores` enteros con setControl() cada vez que
+    // cambiaba tallas()/colores() — eso resetea a "sin marcar" cualquier
+    // casilla que el vendedor ya hubiera marcado en este mismo formulario en
+    // cuanto se agrega un color/talla personalizado a mitad de edición (ver
+    // agregarColorPersonalizado/agregarTallaPersonalizada más abajo, que sí
+    // disparan ese mismo signal). La versión de HEAD solo agrega los
+    // controles que faltan, preservando lo ya marcado.
+    //
+    // Colores/TallasService cargan su listado del backend real de forma
+    // asíncrona (ver ColoresService/TallasService) — cuando llegan (o cuando
+    // se agrega/elimina uno desde este mismo formulario) se sincronizan los
+    // controles de los FormGroup `tallas`/`colores`, que se construyeron
+    // vacíos si este componente se instanció antes de que la primera
+    // respuesta llegara.
     effect(() => {
-      const tallas = this.tallas();
-      const colores = this.colores();
-
-      this.productoForm.setControl(
-        'tallas',
-        this.fb.group(
-          Object.fromEntries(tallas.map(talla => [talla, this.fb.control(false)])),
-          { validators: alMenosUnaTallaValidator }
-        )
-      );
-      this.productoForm.setControl(
-        'colores',
-        this.fb.group(Object.fromEntries(colores.map(opcion => [opcion.valor, this.fb.control(false)])))
-      );
+      this.sincronizarControlesTallas(this.tallas());
+      this.sincronizarControlesColores(this.colores());
     });
+  }
+
+  private sincronizarControlesTallas(tallas: Talla[]): void {
+    const grupo = this.productoForm.controls.tallas;
+    for (const talla of tallas) {
+      if (!grupo.contains(talla)) {
+        grupo.addControl(talla, this.fb.control(false));
+      }
+    }
+  }
+
+  private sincronizarControlesColores(colores: ColorOpcion[]): void {
+    const grupo = this.productoForm.controls.colores;
+    for (const opcion of colores) {
+      if (!grupo.contains(opcion.valor)) {
+        grupo.addControl(opcion.valor, this.fb.control(false));
+      }
+    }
   }
 
   reintentar(): void {
@@ -130,6 +237,8 @@ export class MisProductosComponent {
 
   abrirFormularioNuevo(): void {
     this.productoEditando.set(null);
+    this.cantidadesIniciales.set([]);
+    this.reiniciarEstadoFotosColor();
     this.productoForm.reset({
       nombre: '',
       descripcion: '',
@@ -139,6 +248,9 @@ export class MisProductosComponent {
       destacado: false,
       etiqueta: 'NINGUNA',
       imagenUrl: '',
+      mayoreoHabilitado: false,
+      mayoreoCantidadMinima: null,
+      mayoreoPrecioPorPieza: null,
       tallas: this.mapaTallas([]),
       colores: this.mapaColores([])
     });
@@ -147,6 +259,9 @@ export class MisProductosComponent {
 
   abrirFormularioEditar(producto: Producto): void {
     this.productoEditando.set(producto);
+    this.cantidadesIniciales.set(producto.variantes ?? []);
+    this.reiniciarEstadoFotosColor();
+    this.fotosColorExistentes.set(producto.imagenesColores ?? []);
     this.productoForm.reset({
       nombre: producto.nombre,
       descripcion: producto.descripcion,
@@ -156,6 +271,9 @@ export class MisProductosComponent {
       destacado: producto.destacado,
       etiqueta: producto.etiqueta ?? 'NINGUNA',
       imagenUrl: producto.imagenUrl,
+      mayoreoHabilitado: producto.mayoreoHabilitado,
+      mayoreoCantidadMinima: producto.mayoreoCantidadMinima ?? null,
+      mayoreoPrecioPorPieza: producto.mayoreoPrecioPorPieza ?? null,
       tallas: this.mapaTallas(producto.tallasDisponibles),
       colores: this.mapaColores(producto.coloresDisponibles)
     });
@@ -164,6 +282,7 @@ export class MisProductosComponent {
 
   cerrarFormulario(): void {
     this.mostrarFormulario.set(false);
+    this.revocarPreviewsFotoColor();
   }
 
   cargarMasProductos(): void {
@@ -173,6 +292,18 @@ export class MisProductosComponent {
   cambiarFiltroCategoria(filtro: FiltroCategoria): void {
     this.filtroCategoria.set(filtro);
     this.paginaVisible.set(TAMANO_PAGINA);
+  }
+
+  // El campo "Imagen para carrusel" (ver plantilla) solo tiene sentido si el
+  // producto participa en el carrusel de destacados de inicio — se oculta en
+  // vez de deshabilitarse porque es el mismo patrón que ya usa el resto del
+  // formulario para secciones condicionales (p. ej. "Foto para <color>").
+  // Se lee el valor del control directamente (no un signal aparte) porque,
+  // igual que tallasSeleccionadas()/coloresSeleccionados(), se recalcula en
+  // cada ciclo de detección de cambios a partir del estado en vivo del
+  // checkbox.
+  imagenCarruselVisible(): boolean {
+    return !!this.productoForm.controls.destacado.value;
   }
 
   onArchivoImagenSeleccionado(evento: Event): void {
@@ -196,6 +327,54 @@ export class MisProductosComponent {
     input.value = '';
   }
 
+  // Tallas/colores actualmente marcados en el formulario (se recalculan en
+  // cada ciclo de detección de cambios porque dependen del estado en vivo de
+  // los checkboxes, no de un signal independiente).
+  tallasSeleccionadas(): Talla[] {
+    const valores = this.productoForm.controls.tallas.value as Record<string, boolean>;
+    return this.tallas().filter(talla => valores[talla]);
+  }
+
+  coloresSeleccionados(): Color[] {
+    const valores = this.productoForm.controls.colores.value as Record<string, boolean>;
+    return this.colores()
+      .map(opcion => opcion.valor)
+      .filter(color => valores[color]);
+  }
+
+  // Igual que coloresSeleccionados() pero devuelve la ColorOpcion completa
+  // (etiqueta/hex), no solo el valor — la sección "Foto para <color>" del
+  // formulario itera esto para saber cuántos campos de subida mostrar y con
+  // qué etiqueta/tono.
+  opcionesColorMarcadas(): ColorOpcion[] {
+    const valores = this.productoForm.controls.colores.value as Record<string, boolean>;
+    return this.colores().filter(opcion => valores[opcion.valor]);
+  }
+
+  /** Filas talla×color a mostrar en la grilla de stock inicial. */
+  combinacionesStock(): { talla: Talla; color: Color }[] {
+    const tallas = this.tallasSeleccionadas();
+    const colores = this.coloresSeleccionados();
+    const coloresEfectivos = colores.length > 0 ? colores : [SIN_COLOR];
+    return tallas.flatMap(talla => coloresEfectivos.map(color => ({ talla, color })));
+  }
+
+  etiquetaDeColor(color: Color): string {
+    return this.coloresService.etiquetaDe(color);
+  }
+
+  cantidadInicial(talla: Talla, color: Color): number {
+    return this.cantidadesIniciales().find(v => v.talla === talla && v.color === color)?.cantidad ?? 0;
+  }
+
+  actualizarCantidadInicial(talla: Talla, color: Color, valorCrudo: string): void {
+    const cantidad = Math.max(0, Math.floor(Number(valorCrudo)) || 0);
+    this.cantidadesIniciales.update(actuales => [
+      ...actuales.filter(v => !(v.talla === talla && v.color === color)),
+      { talla, color, cantidad }
+    ]);
+  }
+
   guardar(): void {
     if (this.productoForm.invalid) {
       this.productoForm.markAllAsTouched();
@@ -208,6 +387,17 @@ export class MisProductosComponent {
       .map(opcion => opcion.valor)
       .filter(color => valores.colores[color]);
     const etiqueta: Etiqueta = valores.etiqueta === 'NINGUNA' ? null : valores.etiqueta;
+    const coloresEfectivos = coloresDisponibles.length > 0 ? coloresDisponibles : [SIN_COLOR];
+    const variantes: VarianteStock[] = tallasDisponibles.flatMap(talla =>
+      coloresEfectivos.map(color => ({ talla, color, cantidad: this.cantidadInicial(talla, color) }))
+    );
+
+    // Si el producto queda destacado pero el vendedor no subió "Imagen para
+    // carrusel", no se bloquea el guardado: se usa el placeholder de siempre
+    // por ahora y, apenas se conozcan las fotos por color reales (ver
+    // subirFotosColorPendientes/resolverRespaldoImagenCarrusel más abajo), se
+    // reemplaza por la foto del primer color disponible que sí tenga una.
+    const requiereRespaldoImagenCarrusel = !!valores.destacado && !(valores.imagenUrl ?? '').trim();
 
     const datosProducto = {
       nombre: valores.nombre!,
@@ -218,8 +408,16 @@ export class MisProductosComponent {
       coloresDisponibles,
       destacado: !!valores.destacado,
       tallasDisponibles,
-      imagenUrl: valores.imagenUrl || 'https://picsum.photos/seed/nuevo/400/500',
-      etiqueta
+      imagenUrl: valores.imagenUrl || PLACEHOLDER_IMAGEN_PRODUCTO,
+      etiqueta,
+      // mayoreoCantidadMinima/mayoreoPrecioPorPieza se mandan tal cual estén en
+      // el form aunque mayoreoHabilitado sea false — igual que imagenUrl con
+      // "Producto destacado", se conservan por si el vendedor vuelve a activar
+      // el mayoreo después, en vez de perder lo que ya había capturado.
+      mayoreoHabilitado: !!valores.mayoreoHabilitado,
+      mayoreoCantidadMinima: valores.mayoreoCantidadMinima,
+      mayoreoPrecioPorPieza: valores.mayoreoPrecioPorPieza,
+      variantes
     };
 
     const edicion = this.productoEditando();
@@ -227,10 +425,24 @@ export class MisProductosComponent {
       ? this.productoService.actualizarProducto(edicion.id, datosProducto)
       : this.productoService.crearProducto(datosProducto);
 
-    operacion.subscribe(() => {
-      this.cargarProductos();
-      this.cerrarFormulario();
-      this.toastService.exito(edicion ? 'Producto actualizado.' : 'Producto creado.');
+    this.guardando.set(true);
+    operacion.subscribe({
+      next: producto => {
+        this.guardando.set(false);
+        this.cargarProductos();
+        this.toastService.exito(edicion ? 'Producto actualizado.' : 'Producto creado.');
+
+        // El producto base (con o sin fotos) ya quedó guardado en este punto
+        // — apuntar el formulario al producto real (id incluido, necesario
+        // para subir fotos de un producto recién creado) antes de intentar
+        // las fotos pendientes, sin importar si alguna falla después.
+        this.productoEditando.set(producto);
+        this.subirFotosColorPendientes(producto.id, requiereRespaldoImagenCarrusel ? coloresDisponibles : undefined);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.guardando.set(false);
+        this.toastService.error(mensajeDeErrorHttp(error));
+      }
     });
   }
 
@@ -246,18 +458,445 @@ export class MisProductosComponent {
       return;
     }
 
-    this.productoService.eliminarProducto(producto.id).subscribe(() => {
-      this.cargarProductos();
-      this.toastService.exito(`"${producto.nombre}" se eliminó.`);
+    this.productoService.eliminarProducto(producto.id).subscribe({
+      next: () => {
+        this.cargarProductos();
+        this.toastService.exito(`"${producto.nombre}" se eliminó.`);
+      },
+      error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
     });
   }
 
+  // Miniatura de la tabla: ver shared/utils/producto-imagen.util.ts — cae a la
+  // primera foto de color si el producto no tiene imagenUrl propia.
+  imagenDe(producto: Producto): string {
+    return resolverImagenProducto(producto);
+  }
+
   etiquetaDeCategoria(categoria: Categoria): string {
-    return this.categorias.find(opcion => opcion.valor === categoria)?.etiqueta ?? categoria;
+    return this.categorias().find(opcion => opcion.valor === categoria)?.etiqueta ?? categoria;
   }
 
   etiquetaDeAudiencia(audiencia: Audiencia): string {
     return this.audiencias.find(opcion => opcion.valor === audiencia)?.etiqueta ?? audiencia;
+  }
+
+  abrirAgregarColor(): void {
+    this.nuevoColorNombre.set('');
+    this.nuevoColorHex.set('#c9a227');
+    this.mostrarAgregarColor.set(true);
+  }
+
+  cancelarAgregarColor(): void {
+    this.mostrarAgregarColor.set(false);
+  }
+
+  agregarColorPersonalizado(): void {
+    const nombre = this.nuevoColorNombre().trim();
+    if (!nombre) {
+      return;
+    }
+
+    this.coloresService.agregarColor(nombre, this.nuevoColorHex()).subscribe({
+      next: nuevo => {
+        this.productoForm.controls.colores.addControl(nuevo.valor, this.fb.control(true));
+        this.mostrarAgregarColor.set(false);
+        this.toastService.exito(`Color "${nuevo.etiqueta}" agregado.`);
+      },
+      error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
+    });
+  }
+
+  esColorPersonalizado(valor: string): boolean {
+    return this.coloresService.esPersonalizado(valor);
+  }
+
+  async eliminarColorPersonalizado(opcion: { valor: string; etiqueta: string }): Promise<void> {
+    const productosConColor = this.productos().filter(producto => producto.coloresDisponibles.includes(opcion.valor));
+
+    if (productosConColor.length > 0) {
+      this.toastService.error(
+        `No puedes eliminar "${opcion.etiqueta}": ${productosConColor.length} producto(s) lo usan.`
+      );
+      return;
+    }
+
+    const confirmado = await this.confirmService.confirmar({
+      titulo: 'Eliminar color',
+      mensaje: `¿Seguro que quieres eliminar el color "${opcion.etiqueta}"? Esta acción no se puede deshacer.`,
+      textoConfirmar: 'Eliminar',
+      peligroso: true
+    });
+
+    if (!confirmado) {
+      return;
+    }
+
+    this.coloresService.eliminarColor(opcion.valor).subscribe({
+      next: () => {
+        this.productoForm.controls.colores.removeControl(opcion.valor as never);
+        this.toastService.exito(`Color "${opcion.etiqueta}" eliminado.`);
+      },
+      error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
+    });
+  }
+
+  abrirAgregarTalla(): void {
+    this.nuevaTallaNombre.set('');
+    this.mostrarAgregarTalla.set(true);
+  }
+
+  cancelarAgregarTalla(): void {
+    this.mostrarAgregarTalla.set(false);
+  }
+
+  agregarTallaPersonalizada(): void {
+    const nombre = this.nuevaTallaNombre().trim();
+    if (!nombre) {
+      return;
+    }
+
+    this.tallasService.agregarTalla(nombre).subscribe({
+      next: resultado => {
+        if (!resultado.ok) {
+          this.toastService.error(
+            resultado.motivo === 'duplicada'
+              ? 'Esa talla ya existe.'
+              : 'Formato de talla no válido. Usa letra (S, M, L, XL, 2XL...) o número (28, 30, 32...).'
+          );
+          return;
+        }
+
+        this.productoForm.controls.tallas.addControl(resultado.talla, this.fb.control(false));
+        this.mostrarAgregarTalla.set(false);
+        this.toastService.exito(`Talla "${resultado.talla}" agregada.`);
+      },
+      error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
+    });
+  }
+
+  esTallaPersonalizada(talla: string): boolean {
+    return this.tallasService.esPersonalizada(talla);
+  }
+
+  abrirAgregarCategoria(): void {
+    this.nuevaCategoriaNombre.set('');
+    this.nuevaCategoriaIcono.set('accesorio');
+    this.mostrarAgregarCategoria.set(true);
+  }
+
+  cancelarAgregarCategoria(): void {
+    this.mostrarAgregarCategoria.set(false);
+  }
+
+  agregarCategoriaPersonalizada(): void {
+    const nombre = this.nuevaCategoriaNombre().trim();
+    if (!nombre) {
+      return;
+    }
+
+    this.categoriasService.agregarCategoria(nombre, this.nuevaCategoriaIcono()).subscribe({
+      next: resultado => {
+        if (!resultado.ok) {
+          this.toastService.error('Ya existe una categoría con ese nombre.');
+          return;
+        }
+
+        this.productoForm.patchValue({ categoria: resultado.categoria.valor });
+        this.mostrarAgregarCategoria.set(false);
+        this.toastService.exito(`Categoría "${resultado.categoria.etiqueta}" agregada.`);
+      },
+      error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
+    });
+  }
+
+  abrirGestionCategorias(): void {
+    this.mostrarGestionCategorias.set(true);
+  }
+
+  cerrarGestionCategorias(): void {
+    this.mostrarGestionCategorias.set(false);
+  }
+
+  // A diferencia de eliminarColorPersonalizado/eliminarTallaPersonalizada
+  // (borrado lógico, el backend nunca los rechaza), aquí el backend SÍ puede
+  // devolver un rechazo real (categoría en uso) — el pre-chequeo de abajo es
+  // solo para dar feedback instantáneo sin esperar la red; la fuente de
+  // verdad sigue siendo la respuesta de CategoriasService.eliminarCategoria.
+  async eliminarCategoriaDesdeGestion(categoria: CategoriaOpcion): Promise<void> {
+    const productosConCategoria = this.productos().filter(producto => producto.categoria === categoria.valor);
+
+    if (productosConCategoria.length > 0) {
+      this.toastService.error(
+        `No puedes eliminar "${categoria.etiqueta}": ${productosConCategoria.length} producto(s) la usan.`
+      );
+      return;
+    }
+
+    const confirmado = await this.confirmService.confirmar({
+      titulo: 'Eliminar categoría',
+      mensaje: `¿Seguro que quieres eliminar la categoría "${categoria.etiqueta}"? Esta acción no se puede deshacer.`,
+      textoConfirmar: 'Eliminar',
+      peligroso: true
+    });
+
+    if (!confirmado) {
+      return;
+    }
+
+    this.categoriasService.eliminarCategoria(categoria.id).subscribe({
+      next: resultado => {
+        if (!resultado.ok) {
+          this.toastService.error(resultado.mensaje);
+          return;
+        }
+        this.toastService.exito(`Categoría "${categoria.etiqueta}" eliminada.`);
+      },
+      error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
+    });
+  }
+
+  async eliminarTallaPersonalizada(talla: string): Promise<void> {
+    const productosConTalla = this.productos().filter(producto => producto.tallasDisponibles.includes(talla));
+
+    if (productosConTalla.length > 0) {
+      this.toastService.error(`No puedes eliminar "${talla}": ${productosConTalla.length} producto(s) la usan.`);
+      return;
+    }
+
+    const confirmado = await this.confirmService.confirmar({
+      titulo: 'Eliminar talla',
+      mensaje: `¿Seguro que quieres eliminar la talla "${talla}"? Esta acción no se puede deshacer.`,
+      textoConfirmar: 'Eliminar',
+      peligroso: true
+    });
+
+    if (!confirmado) {
+      return;
+    }
+
+    this.tallasService.eliminarTalla(talla).subscribe({
+      next: () => {
+        this.productoForm.controls.tallas.removeControl(talla as never);
+        this.toastService.exito(`Talla "${talla}" eliminada.`);
+      },
+      error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
+    });
+  }
+
+  // Intercepta el checkbox de un color ANTES de dejarlo desmarcado: si ese
+  // color ya tenía una foto (subida o solo elegida en este formulario, sin
+  // guardar todavía), se pide confirmación — nunca se descarta en silencio.
+  // Marcar (checked=true) nunca necesita confirmación, solo desmarcar.
+  async onToggleColor(opcion: ColorOpcion, evento: Event): Promise<void> {
+    const input = evento.target as HTMLInputElement;
+    if (input.checked) {
+      return;
+    }
+
+    const existente = this.fotoExistenteDe(opcion.etiqueta);
+    const tienePendiente = !!this.fotosColorPendientes()[opcion.valor];
+    if (!existente && !tienePendiente) {
+      return;
+    }
+
+    const confirmado = await this.confirmService.confirmar({
+      titulo: 'Quitar color',
+      mensaje: existente
+        ? `"${opcion.etiqueta}" ya tiene una foto subida. Si quitas el color, esa foto se elimina. ¿Continuar?`
+        : `Vas a descartar la foto que elegiste para "${opcion.etiqueta}" (todavía no se ha guardado). ¿Continuar?`,
+      textoConfirmar: 'Quitar color',
+      peligroso: true
+    });
+
+    if (!confirmado) {
+      // Revertir: el DOM y el FormControl ya quedaron desmarcados por el
+      // propio evento (change), hay que re-marcar ambos a mano.
+      input.checked = true;
+      this.productoForm.controls.colores.get(opcion.valor)?.setValue(true);
+      return;
+    }
+
+    this.descartarFotoPendiente(opcion.valor);
+
+    const producto = this.productoEditando();
+    if (existente && producto) {
+      this.fotoColorService.eliminarFoto(producto.id, existente.id).subscribe({
+        next: () => this.fotosColorExistentes.update(actuales => actuales.filter(f => f.id !== existente.id)),
+        error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
+      });
+    }
+  }
+
+  onArchivoColorSeleccionado(color: Color, evento: Event): void {
+    const input = evento.target as HTMLInputElement;
+    const archivo = input.files?.[0];
+    if (!archivo) {
+      return;
+    }
+
+    if (!archivo.type.startsWith('image/')) {
+      this.toastService.error('Selecciona un archivo de imagen válido.');
+      input.value = '';
+      return;
+    }
+
+    this.revocarPreviewFotoColor(color);
+    this.fotosColorPendientes.update(actuales => ({ ...actuales, [color]: archivo }));
+    this.previewsFotoColorPendiente.update(actuales => ({ ...actuales, [color]: URL.createObjectURL(archivo) }));
+    this.erroresFotoColor.update(({ [color]: _quitado, ...resto }) => resto);
+    input.value = '';
+  }
+
+  // Preview a mostrar bajo "Foto para <color>": el archivo recién elegido
+  // (todavía sin subir) tiene prioridad sobre la foto ya guardada — así el
+  // vendedor ve de inmediato el archivo que acaba de seleccionar, no el
+  // anterior que está por reemplazar.
+  fotoColorPreviewUrl(color: Color): string | null {
+    return this.previewsFotoColorPendiente()[color] ?? this.fotoExistenteDe(this.etiquetaDeColor(color))?.imagenUrl ?? null;
+  }
+
+  // Reintenta la subida de un color puntual sin tener que volver a elegir el
+  // archivo — el File ya elegido se conserva en fotosColorPendientes aunque
+  // la subida anterior haya fallado.
+  reintentarFotoColor(color: Color): void {
+    const producto = this.productoEditando();
+    const archivo = this.fotosColorPendientes()[color];
+    if (!producto || !archivo) {
+      return;
+    }
+
+    this.subiendoFotosColor.set(true);
+    this.subirFotoDeColor(producto.id, color, archivo).subscribe(() => {
+      this.subiendoFotosColor.set(false);
+      if (Object.keys(this.fotosColorPendientes()).length === 0) {
+        this.cerrarFormulario();
+        this.toastService.exito('Fotos por color guardadas.');
+      }
+    });
+  }
+
+  private fotoExistenteDe(etiqueta: string): ImagenColorProducto | undefined {
+    const buscada = etiqueta.toLowerCase().trim();
+    return this.fotosColorExistentes().find(f => f.nombreColor.toLowerCase().trim() === buscada);
+  }
+
+  // Sube cada foto pendiente en paralelo, una llamada por color, después de
+  // que el producto base (crear/actualizar) ya se guardó con éxito.
+  // `coloresParaRespaldoCarrusel`, cuando viene, es la lista ordenada de
+  // colores marcados en este guardado — solo se pasa cuando el producto quedó
+  // destacado sin "Imagen para carrusel" (ver guardar()), y se usa para
+  // resolver el respaldo justo después de que las fotos por color ya están
+  // subidas (antes de eso no hay URLs reales que usar).
+  private subirFotosColorPendientes(productoId: string, coloresParaRespaldoCarrusel?: Color[]): void {
+    const pendientes = this.fotosColorPendientes();
+    const colores = Object.keys(pendientes);
+    if (colores.length === 0) {
+      if (coloresParaRespaldoCarrusel) {
+        this.resolverRespaldoImagenCarrusel(productoId, coloresParaRespaldoCarrusel);
+      }
+      this.cerrarFormulario();
+      return;
+    }
+
+    this.subiendoFotosColor.set(true);
+    this.erroresFotoColor.set({});
+
+    forkJoin(colores.map(color => this.subirFotoDeColor(productoId, color, pendientes[color]))).subscribe(
+      resultados => {
+        this.subiendoFotosColor.set(false);
+        if (coloresParaRespaldoCarrusel) {
+          this.resolverRespaldoImagenCarrusel(productoId, coloresParaRespaldoCarrusel);
+        }
+        if (resultados.every(r => r.ok)) {
+          this.cerrarFormulario();
+          this.toastService.exito('Fotos por color guardadas.');
+        } else {
+          // El producto YA se guardó (ver guardar()) — un fallo aquí no lo
+          // afecta, solo faltan una o más fotos. Se deja el formulario
+          // abierto con el error puntual bajo cada color que falló, para
+          // reintentar sin repetir todo el guardado.
+          this.toastService.error('El producto se guardó, pero alguna foto no se pudo subir. Revisa el detalle debajo de cada color.');
+        }
+      }
+    );
+  }
+
+  // Respaldo de "Imagen para carrusel": el primer color (en el orden en que
+  // se muestran en el formulario) que efectivamente tenga una foto subida —
+  // ya existente o recién subida en este guardado. Si ninguno tiene foto
+  // (p. ej. el producto no maneja colores), se deja el placeholder con el que
+  // ya se guardó el producto en guardar(). Un fallo del PATCH no se reporta:
+  // el producto y sus fotos por color ya quedaron guardados correctamente,
+  // esto es solo un ajuste best-effort de la miniatura del carrusel.
+  private resolverRespaldoImagenCarrusel(productoId: string, coloresDisponibles: Color[]): void {
+    const fotoDeRespaldo = coloresDisponibles
+      .map(color => this.fotoExistenteDe(this.etiquetaDeColor(color)))
+      .find((foto): foto is ImagenColorProducto => !!foto);
+
+    if (!fotoDeRespaldo) {
+      return;
+    }
+
+    this.productoService.actualizarProducto(productoId, { imagenUrl: fotoDeRespaldo.imagenUrl }).subscribe({
+      next: producto => this.productoEditando.set(producto),
+      error: () => {}
+    });
+  }
+
+  // Se envuelve en catchError (en vez de dejar que el error se propague) a
+  // propósito: con forkJoin, un solo error sin capturar cancelaría TODAS las
+  // demás subidas en curso — justo lo que el punto 3 del prompt pide evitar.
+  private subirFotoDeColor(productoId: string, color: Color, archivo: File): Observable<{ color: Color; ok: boolean }> {
+    const opcion = this.colores().find(o => o.valor === color);
+    const nombreColor = opcion?.etiqueta ?? color;
+    const colorHex = opcion?.hex ?? '#c9a227';
+    const existente = this.fotoExistenteDe(nombreColor);
+
+    // Reemplazo: si ya había una foto con ese nombre, se borra antes de subir
+    // la nueva — el backend rechaza un nombreColor duplicado por producto
+    // (ver ProductoColorImagenesService.validarNombreNoDuplicado).
+    const borrarSiExiste = existente ? this.fotoColorService.eliminarFoto(productoId, existente.id) : of(undefined);
+
+    return borrarSiExiste.pipe(
+      switchMap(() => this.fotoColorService.subirFoto(productoId, nombreColor, colorHex, archivo)),
+      tap(subida => {
+        this.fotosColorExistentes.update(actuales => [...actuales.filter(f => f.id !== existente?.id), subida]);
+        this.descartarFotoPendiente(color);
+      }),
+      map(() => ({ color, ok: true })),
+      catchError((error: HttpErrorResponse) => {
+        this.erroresFotoColor.update(actuales => ({ ...actuales, [color]: mensajeDeErrorHttp(error) }));
+        return of({ color, ok: false });
+      })
+    );
+  }
+
+  private descartarFotoPendiente(color: Color): void {
+    this.fotosColorPendientes.update(({ [color]: _quitado, ...resto }) => resto);
+    this.revocarPreviewFotoColor(color);
+    this.erroresFotoColor.update(({ [color]: _quitado, ...resto }) => resto);
+  }
+
+  private revocarPreviewFotoColor(color: Color): void {
+    const url = this.previewsFotoColorPendiente()[color];
+    if (url) {
+      URL.revokeObjectURL(url);
+    }
+    this.previewsFotoColorPendiente.update(({ [color]: _quitado, ...resto }) => resto);
+  }
+
+  private revocarPreviewsFotoColor(): void {
+    Object.values(this.previewsFotoColorPendiente()).forEach(url => URL.revokeObjectURL(url));
+    this.previewsFotoColorPendiente.set({});
+  }
+
+  private reiniciarEstadoFotosColor(): void {
+    this.revocarPreviewsFotoColor();
+    this.fotosColorExistentes.set([]);
+    this.fotosColorPendientes.set({});
+    this.erroresFotoColor.set({});
+    this.subiendoFotosColor.set(false);
   }
 
   private mapaColores(seleccionados: string[]): Record<string, boolean> {

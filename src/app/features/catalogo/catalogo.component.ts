@@ -6,8 +6,10 @@ import { combineLatest, of } from 'rxjs';
 import { catchError, delay, map, startWith, switchMap } from 'rxjs/operators';
 import { ProductoService } from '../../core/services/producto.service';
 import { ColoresService } from '../../core/services/colores.service';
+import { TallasService } from '../../core/services/tallas.service';
+import { CategoriasService } from '../../core/services/categorias.service';
 import { Audiencia, Categoria, Color, Producto, Talla } from '../../core/models/producto.model';
-import { AUDIENCIAS, CATEGORIAS } from '../../shared/constants/categorias';
+import { AUDIENCIAS } from '../../shared/constants/categorias';
 import { BreadcrumbComponent, BreadcrumbItem } from '../../shared/components/breadcrumb/breadcrumb.component';
 import { ProductoCardComponent } from '../../shared/components/producto-card/producto-card.component';
 import { ProductoCardSkeletonComponent } from '../../shared/components/producto-card-skeleton/producto-card-skeleton.component';
@@ -37,17 +39,27 @@ export class CatalogoComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly productoService = inject(ProductoService);
   private readonly coloresService = inject(ColoresService);
+  private readonly tallasService = inject(TallasService);
+  private readonly categoriasService = inject(CategoriasService);
 
-  readonly categorias = CATEGORIAS;
+  // MERGE: se combinaron ambas versiones. Las categorías vienen de
+  // CategoriasService (catálogo dinámico de HEAD) — la versión de
+  // origin/main usaba una constante CATEGORIAS estática que ya no existe
+  // (shared/constants/categorias.ts la eliminó junto con la migración a
+  // categorías dinámicas). Talla/color sí se combinan: se conserva el
+  // catálogo dinámico de HEAD, filtrado por FiltrosDisponibles de
+  // origin/main para no ofrecer opciones que de todos modos den cero
+  // resultados (esa idea era buena y no chocaba con el catálogo dinámico).
+  readonly categorias = this.categoriasService.listado;
 
-  // Solo talla/color que EXISTEN de verdad entre productos activos ahora
-  // mismo (no la lista completa del catálogo dinámico) — así el panel de
-  // filtros nunca ofrece una opción que de todos modos daría cero resultados.
   private readonly filtrosDisponibles = toSignal(this.productoService.obtenerFiltrosDisponibles(), {
     initialValue: { tallas: [] as string[], colores: [] as string[], precioMin: 0, precioMax: 0 }
   });
 
-  readonly tallas = computed(() => this.filtrosDisponibles().tallas);
+  readonly tallas = computed(() => {
+    const nombresDisponibles = new Set(this.filtrosDisponibles().tallas);
+    return this.tallasService.listado().filter(talla => nombresDisponibles.has(talla));
+  });
   readonly colores = computed(() => {
     const nombresDisponibles = new Set(this.filtrosDisponibles().colores);
     return this.coloresService.listado().filter(opcion => nombresDisponibles.has(opcion.valor));
@@ -83,8 +95,17 @@ export class CatalogoComponent {
 
         const audienciaParam = params.get('audiencia');
         const audiencia = this.esAudienciaValida(audienciaParam) ? audienciaParam : null;
+        // Categoria ya no es una lista fija disponible de inmediato: viene de
+        // CategoriasService, que la carga por HTTP de forma asíncrona. Validarla
+        // aquí contra `this.categorias()` sería una condición de carrera (un
+        // deep-link a /catalogo/hombre/pantalon podría evaluarse ANTES de que
+        // el GET /categorias responda y perder el filtro para siempre, ya que
+        // este pipeline solo reacciona a cambios de ruta, no a que termine de
+        // cargar el catálogo). Se confía en el parámetro tal cual — igual que
+        // talla/color, que tampoco se validan aquí: uno inválido simplemente no
+        // coincide con ningún producto.
         const categoriaParam = params.get('categoria');
-        const categoria = this.esCategoriaValida(categoriaParam) ? categoriaParam : null;
+        const categoria = categoriaParam || null;
 
         const productos$ = audiencia
           ? this.productoService.obtenerPorAudiencia(audiencia)
@@ -335,15 +356,11 @@ export class CatalogoComponent {
     return !!valor && AUDIENCIAS.some(opcion => opcion.valor === valor);
   }
 
-  private esCategoriaValida(valor: string | null): valor is Categoria {
-    return !!valor && CATEGORIAS.some(opcion => opcion.valor === valor);
-  }
-
   private etiquetaDeAudiencia(audiencia: Audiencia): string {
     return AUDIENCIAS.find(opcion => opcion.valor === audiencia)?.etiqueta ?? audiencia;
   }
 
   private etiquetaDeCategoria(categoria: Categoria): string {
-    return CATEGORIAS.find(opcion => opcion.valor === categoria)?.etiqueta ?? categoria;
+    return this.categorias().find(opcion => opcion.valor === categoria)?.etiqueta ?? categoria;
   }
 }

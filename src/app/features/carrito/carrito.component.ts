@@ -10,6 +10,7 @@ import { ItemCarrito } from '../../core/models/carrito.model';
 import { Color } from '../../core/models/producto.model';
 import { ItemParaCotizar } from '../../core/models/envio.model';
 import { ColoresService } from '../../core/services/colores.service';
+import { resolverImagenProducto } from '../../shared/utils/producto-imagen.util';
 import { OpcionEnvioCardComponent } from '../../shared/components/opcion-envio-card/opcion-envio-card.component';
 
 @Component({
@@ -67,7 +68,19 @@ export class CarritoComponent {
   }
 
   subtotal(item: ItemCarrito): number {
-    return (item.producto.precioFinal ?? item.producto.precio) * item.cantidad;
+    return this.cartService.precioUnitarioEfectivo(item) * item.cantidad;
+  }
+
+  imagenDe(item: ItemCarrito): string {
+    return resolverImagenProducto(item.producto);
+  }
+
+  aplicaMayoreo(item: ItemCarrito): boolean {
+    return this.cartService.aplicaMayoreo(item);
+  }
+
+  piezasParaMayoreo(item: ItemCarrito): number {
+    return this.cartService.piezasParaMayoreo(item);
   }
 
   incrementar(item: ItemCarrito): void {

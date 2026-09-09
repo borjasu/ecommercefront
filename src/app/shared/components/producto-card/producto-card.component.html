@@ -19,7 +19,7 @@
         </span>
       }
       <img
-        [src]="producto().imagenUrl"
+        [src]="imagen()"
         [alt]="producto().nombre"
         class="aspect-[4/5] w-full object-cover transition-transform duration-300 hover:scale-105"
       />
@@ -60,6 +60,11 @@
       </p>
     } @else {
       <p class="font-body text-sm font-semibold text-brand-gold">${{ producto().precio }}</p>
+    }
+    @if (producto().mayoreoHabilitado) {
+      <p class="font-body text-xs text-brand-muted">
+        Compra {{ producto().mayoreoCantidadMinima }}+ piezas y paga ${{ producto().mayoreoPrecioPorPieza }} c/u
+      </p>
     }
   </div>
 

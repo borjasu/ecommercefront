@@ -4,6 +4,9 @@ import { DireccionesService } from '../../../core/services/direcciones.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { ConfirmService } from '../../../core/services/confirm.service';
 import { Direccion } from '../../../core/models/direccion.model';
+import { soloDigitos } from '../../../shared/utils/texto.util';
+
+const LARGO_TELEFONO = 10;
 
 @Component({
     selector: 'app-direcciones',
@@ -26,9 +29,14 @@ export class DireccionesComponent {
     direccion: ['', [Validators.required]],
     ciudad: ['', [Validators.required]],
     codigoPostal: ['', [Validators.required, Validators.pattern(/^\d{4,6}$/)]],
-    telefono: ['', [Validators.required, Validators.pattern(/^[\d\s+()-]{7,15}$/)]],
+    telefono: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
     predeterminada: [false]
   });
+
+  onTelefonoInput(evento: Event): void {
+    const valor = (evento.target as HTMLInputElement).value;
+    this.direccionForm.patchValue({ telefono: soloDigitos(valor, LARGO_TELEFONO) });
+  }
 
   abrirFormularioNuevo(): void {
     this.direccionEditando.set(null);

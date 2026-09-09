@@ -5,8 +5,16 @@ import { ProductoService } from '../../../core/services/producto.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { ConfirmService } from '../../../core/services/confirm.service';
 import { Audiencia, Categoria, Producto, Talla } from '../../../core/models/producto.model';
+// MERGE: se combinaron los imports de ambos lados. `AplicaA` es de
+// origin/main (HEAD lo omitía, pero sí se usa más abajo en
+// destinoValidoValidator/ofertaForm — sin él no compila). `CATEGORIAS` de
+// origin/main se descartó: ya no existe en shared/constants/categorias.ts
+// (las categorías son dinámicas vía CategoriasService, que es lo que este
+// archivo ya usa en `readonly categorias`).
 import { AplicaA, Oferta, TipoDescuento } from '../../../core/models/oferta.model';
-import { AUDIENCIAS, CATEGORIAS } from '../../../shared/constants/categorias';
+import { AUDIENCIAS } from '../../../shared/constants/categorias';
+import { CategoriasService } from '../../../core/services/categorias.service';
+import { resolverImagenProducto } from '../../../shared/utils/producto-imagen.util';
 
 const UMBRAL_STOCK_BAJO = 5;
 
@@ -82,8 +90,9 @@ export class OfertasComponent {
   private readonly productoService = inject(ProductoService);
   private readonly toastService = inject(ToastService);
   private readonly confirmService = inject(ConfirmService);
+  private readonly categoriasService = inject(CategoriasService);
 
-  readonly categorias = CATEGORIAS;
+  readonly categorias = this.categoriasService.listado;
   readonly audiencias = AUDIENCIAS;
 
   readonly ofertas = signal<Oferta[]>([]);
@@ -264,6 +273,9 @@ export class OfertasComponent {
     if (oferta.aplicaA === 'producto') {
       return this.productos().find(producto => producto.id === oferta.productoId)?.nombre ?? 'Producto eliminado';
     }
+    // MERGE: se descartó la versión de HEAD, que leía `oferta.categoriaAplicable`
+    // — ese campo no existe en Oferta (ver oferta.model.ts, ya fusionado sin
+    // conflicto: el campo real es `categoria`). Se usó la de origin/main.
     if (oferta.aplicaA === 'categoria') {
       return this.etiquetaDeCategoria(oferta.categoria as Categoria);
     }
@@ -271,11 +283,15 @@ export class OfertasComponent {
   }
 
   etiquetaDeCategoria(categoria: Categoria): string {
-    return this.categorias.find(opcion => opcion.valor === categoria)?.etiqueta ?? categoria;
+    return this.categorias().find(opcion => opcion.valor === categoria)?.etiqueta ?? categoria;
   }
 
   etiquetaDeAudiencia(audiencia: Audiencia): string {
     return this.audiencias.find(opcion => opcion.valor === audiencia)?.etiqueta ?? audiencia;
+  }
+
+  imagenDe(producto: Producto): string {
+    return resolverImagenProducto(producto);
   }
 
   esStockBajo(producto: Producto): boolean {

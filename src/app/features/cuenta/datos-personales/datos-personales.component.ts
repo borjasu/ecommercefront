@@ -2,12 +2,19 @@ import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/cor
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { soloDigitos } from '../../../shared/utils/texto.util';
+
+const LARGO_TELEFONO = 10;
 
 function passwordsNuevasIgualesValidator(control: AbstractControl): ValidationErrors | null {
   const nueva = control.get('passwordNueva')?.value;
   const confirmar = control.get('confirmarPasswordNueva')?.value;
   return nueva === confirmar ? null : { passwordsNoCoinciden: true };
 }
+
+// Misma regla que el backend (CambiarPasswordDto): mínimo 8 caracteres, al
+// menos una mayúscula y un dígito.
+const REGEX_PASSWORD_SEGURA = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
 
 @Component({
     selector: 'app-datos-personales',
@@ -27,13 +34,20 @@ export class DatosPersonalesComponent {
 
   readonly datosForm = this.fb.group({
     nombre: [this.usuarioActual()?.nombre ?? '', [Validators.required]],
-    telefono: [this.usuarioActual()?.telefono ?? '']
+    // Opcional (no todos los usuarios lo llenan), pero si se captura debe ser
+    // un teléfono completo de 10 dígitos, igual que en checkout/direcciones.
+    telefono: [this.usuarioActual()?.telefono ?? '', [Validators.pattern(/^\d{10}$/)]]
   });
+
+  onTelefonoInput(evento: Event): void {
+    const valor = (evento.target as HTMLInputElement).value;
+    this.datosForm.patchValue({ telefono: soloDigitos(valor, LARGO_TELEFONO) });
+  }
 
   readonly passwordForm = this.fb.group(
     {
       passwordActual: ['', [Validators.required]],
-      passwordNueva: ['', [Validators.required, Validators.minLength(6)]],
+      passwordNueva: ['', [Validators.required, Validators.pattern(REGEX_PASSWORD_SEGURA)]],
       confirmarPasswordNueva: ['', [Validators.required]]
     },
     { validators: passwordsNuevasIgualesValidator }

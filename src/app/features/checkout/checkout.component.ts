@@ -149,8 +149,18 @@ export class CheckoutComponent {
     });
   }
 
+  // MERGE: origin/main no tenía precio de mayoreo (era una implementación
+  // paralela solo en HEAD) — se usa el mismo precio efectivo que ya se ve en
+  // el carrito (normal, de oferta o de mayoreo, ver
+  // CartService.precioUnitarioEfectivo) en vez de calcular aquí solo con
+  // precioFinal. Solo es la vista previa antes de pagar: el cálculo
+  // autoritativo real lo vuelve a hacer el backend al crear el pedido.
   subtotalLinea(item: ItemCarrito): number {
-    return (item.producto.precioFinal ?? item.producto.precio) * item.cantidad;
+    return this.cartService.precioUnitarioEfectivo(item) * item.cantidad;
+  }
+
+  aplicaMayoreo(item: ItemCarrito): boolean {
+    return this.cartService.aplicaMayoreo(item);
   }
 
   etiquetaDeColor(color: Color): string {

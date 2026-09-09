@@ -131,6 +131,13 @@ export const routes: Routes = [
           )
       },
       {
+        path: 'inventario',
+        loadComponent: () =>
+          import('./features/vendedor/inventario/inventario.component').then(
+            m => m.InventarioComponent
+          )
+      },
+      {
         path: 'pedidos',
         loadComponent: () =>
           import('./features/vendedor/pedidos/pedidos.component').then(m => m.PedidosComponent)

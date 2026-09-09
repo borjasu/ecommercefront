@@ -36,18 +36,31 @@
     </div>
   </div>
 
+  @if (error()) {
+    <div class="mt-8 rounded-sm border border-brand-muted/30 bg-white/60 p-8 text-center shadow-sm">
+      <p class="font-body text-sm text-brand-muted">No se pudieron cargar los reportes.</p>
+      <button type="button" class="btn-gold mt-6 inline-flex" (click)="reintentar()">Reintentar</button>
+    </div>
+  }
+
   <div class="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-3">
     <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
       <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Ingresos en el periodo</p>
-      <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-gold">${{ ingresosTotales() }}</p>
+      <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-gold">
+        {{ cargando() ? '—' : '$' + ingresosTotales() }}
+      </p>
     </div>
     <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
       <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Pedidos en el periodo</p>
-      <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-ink">{{ totalPedidos() }}</p>
+      <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-ink">
+        {{ cargando() ? '—' : totalPedidos() }}
+      </p>
     </div>
     <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-6 shadow-sm">
       <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Ticket promedio</p>
-      <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-ink">${{ ticketPromedio() }}</p>
+      <p class="mt-2 font-utility text-3xl font-bold tracking-tight text-brand-ink">
+        {{ cargando() ? '—' : '$' + ticketPromedio() }}
+      </p>
     </div>
   </div>
 

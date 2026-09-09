@@ -7,11 +7,13 @@ import { CartService } from '../../core/services/cart.service';
 import { FavoritosService } from '../../core/services/favoritos.service';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
-import { AUDIENCIAS, CATEGORIAS } from '../../shared/constants/categorias';
+import { CategoriasService } from '../../core/services/categorias.service';
+import { AUDIENCIAS } from '../../shared/constants/categorias';
+import { IconoCategoriaComponent } from '../../shared/components/icono-categoria/icono-categoria.component';
 
 @Component({
     selector: 'app-header',
-    imports: [RouterLink],
+    imports: [RouterLink, IconoCategoriaComponent],
     templateUrl: './header.component.html',
     changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './header.component.css'
@@ -22,10 +24,11 @@ export class HeaderComponent {
   private readonly favoritosService = inject(FavoritosService);
   private readonly toastService = inject(ToastService);
   private readonly confirmService = inject(ConfirmService);
+  private readonly categoriasService = inject(CategoriasService);
   private readonly router = inject(Router);
 
   readonly audiencias = AUDIENCIAS;
-  readonly categorias = CATEGORIAS;
+  readonly categorias = this.categoriasService.listado;
 
   readonly usuarioActual = this.authService.currentUser;
   readonly cantidadCarrito = this.cartService.cantidadItems;

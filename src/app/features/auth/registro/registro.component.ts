@@ -15,6 +15,11 @@ function passwordsIgualesValidator(control: AbstractControl): ValidationErrors |
   return password === confirmarPassword ? null : { passwordsNoCoinciden: true };
 }
 
+// Misma regla que el backend (RegistroDto): mínimo 8 caracteres, al menos una
+// mayúscula y un dígito. Validarlo aquí también evita un viaje al servidor
+// solo para enterarse de que la contraseña no cumple la política.
+const REGEX_PASSWORD_SEGURA = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
+
 @Component({
     selector: 'app-registro',
     imports: [ReactiveFormsModule, RouterLink],
@@ -33,7 +38,7 @@ export class RegistroComponent {
     {
       nombre: ['', [Validators.required]],
       email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(6)]],
+      password: ['', [Validators.required, Validators.pattern(REGEX_PASSWORD_SEGURA)]],
       confirmarPassword: ['', [Validators.required]]
     },
     { validators: passwordsIgualesValidator }

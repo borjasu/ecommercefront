@@ -7,7 +7,7 @@
         <div class="flex flex-wrap items-center gap-4 py-6">
           <a [routerLink]="['/producto', item.producto.id]" class="shrink-0">
             <img
-              [src]="item.producto.imagenUrl"
+              [src]="imagenDe(item)"
               [alt]="item.producto.nombre"
               class="h-24 w-20 rounded-xl object-cover"
             />
@@ -30,6 +30,19 @@
                 ></span>
               }
             </p>
+
+            @if (aplicaMayoreo(item)) {
+              <p class="mt-1 font-body text-xs font-semibold uppercase tracking-wide text-brand-oxide">
+                Precio mayoreo aplicado
+              </p>
+            } @else if (piezasParaMayoreo(item); as faltan) {
+              @if (faltan > 0) {
+                <p class="mt-1 font-body text-xs text-brand-muted">
+                  Agrega {{ faltan }} pieza{{ faltan === 1 ? '' : 's' }} más de este producto y obtén precio de
+                  mayoreo (${{ item.producto.mayoreoPrecioPorPieza }} c/u).
+                </p>
+              }
+            }
 
             <div class="mt-2 flex items-center gap-3">
               <button
@@ -54,7 +67,14 @@
           </div>
 
           <div class="flex basis-full items-center justify-between gap-4 sm:basis-auto sm:justify-end">
-            <p class="font-body text-sm font-semibold text-brand-gold">${{ subtotal(item) }}</p>
+            <div class="text-right">
+              @if (aplicaMayoreo(item)) {
+                <p class="font-body text-xs text-brand-muted line-through">
+                  ${{ item.producto.precio * item.cantidad }}
+                </p>
+              }
+              <p class="font-body text-sm font-semibold text-brand-gold">${{ subtotal(item) }}</p>
+            </div>
 
             <button
               type="button"

@@ -143,6 +143,12 @@
           </div>
         </div>
 
+        <!-- MERGE: se descartó la rama de HEAD, que comparaba contra
+             aplicaA === 'segmento' (valor que no existe en AplicaA: 'producto'
+             | 'categoria' | 'audiencia', ver oferta.model.ts) — esos selects
+             nunca se mostraban. Se usó la estructura @if/@else if de
+             origin/main, con `categorias()` en vez de `categorias` porque el
+             componente expone categorías como signal (CategoriasService.listado). -->
         @if (ofertaForm.controls.aplicaA.value === 'categoria') {
           <div>
             <label for="categoria" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
@@ -150,7 +156,7 @@
             </label>
             <select id="categoria" formControlName="categoria" class="input-field">
               <option value="">Selecciona una categoría</option>
-              @for (opcion of categorias; track opcion.valor) {
+              @for (opcion of categorias(); track opcion.valor) {
                 <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
               }
             </select>
@@ -194,7 +200,7 @@
                   (change)="filtroCategoriaProductos.set($any($event.target).value)"
                 >
                   <option value="">Todas las categorías</option>
-                  @for (opcion of categorias; track opcion.valor) {
+                  @for (opcion of categorias(); track opcion.valor) {
                     <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
                   }
                 </select>
@@ -238,7 +244,7 @@
                       (change)="seleccionarProducto(producto.id)"
                     />
                     <img
-                      [src]="producto.imagenUrl"
+                      [src]="imagenDe(producto)"
                       [alt]="producto.nombre"
                       class="h-12 w-10 shrink-0 rounded-sm object-cover"
                     />

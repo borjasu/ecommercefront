@@ -25,6 +25,14 @@
       Mis Productos
     </a>
     <a
+      routerLink="/vendedor/inventario"
+      routerLinkActive="bg-brand-bone/10 text-brand-gold"
+      (click)="cerrarMenu()"
+      class="rounded-sm px-3 py-2 text-brand-bone/80 transition-colors hover:text-brand-gold"
+    >
+      Inventario
+    </a>
+    <a
       routerLink="/vendedor/pedidos"
       routerLinkActive="bg-brand-bone/10 text-brand-gold"
       (click)="cerrarMenu()"

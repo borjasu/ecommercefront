@@ -58,6 +58,16 @@ export class VendorPedidoService {
     return this.http.patch<Pedido>(`${API_URL}/vendedor/pedidos/${id}/estado-pago`, { estadoPago });
   }
 
+  // MERGE (guardrail portado de HEAD): pagado/pendiente los decide el webhook
+  // de Mercado Pago, nunca el vendedor a mano — la única transición manual
+  // legítima es marcar un reembolso. actualizarEstadoPago() de arriba se deja
+  // genérico por si algún consumidor futuro lo necesita, pero la UI
+  // (pagos.component.ts) usa este método dedicado en vez de exponer un
+  // selector libre de estadoPago.
+  marcarComoReembolsado(id: string): Observable<Pedido> {
+    return this.actualizarEstadoPago(id, 'reembolsado');
+  }
+
   registrarEnvioManual(id: string, datos: RegistrarEnvioManual): Observable<Pedido> {
     return this.http.patch<Pedido>(`${API_URL}/vendedor/pedidos/${id}/envio`, datos);
   }

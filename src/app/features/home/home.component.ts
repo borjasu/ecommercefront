@@ -5,6 +5,7 @@ import { delay, interval } from 'rxjs';
 import { ProductoService } from '../../core/services/producto.service';
 import { SelectorProductoModalService } from '../../core/services/selector-producto-modal.service';
 import { Producto } from '../../core/models/producto.model';
+import { resolverImagenProducto } from '../../shared/utils/producto-imagen.util';
 
 const ITEMS_VISIBLES = 3;
 const INTERVALO_CARRUSEL_MS = 5000;
@@ -81,6 +82,14 @@ export class HomeComponent {
 
   abrirModal(producto: Producto): void {
     this.modalService.abrir(producto);
+  }
+
+  // Este era justo el caso que motivó el fallback (ver shared/utils/
+  // producto-imagen.util.ts): un producto destacado sin "Imagen para
+  // carrusel" propia debe mostrar la foto de su primer color aquí en vez del
+  // placeholder genérico.
+  imagenDe(producto: Producto): string {
+    return resolverImagenProducto(producto);
   }
 
   anterior(): void {

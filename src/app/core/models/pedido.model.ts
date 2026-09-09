@@ -67,3 +67,21 @@ export interface Pedido {
   canceladoPorAbandono: boolean;
   fecha: string;
 }
+
+// MERGE: agregado sobre la base de origin/main (no existía ahí). Forma
+// mínima de GET /vendedor/dashboard → pedidosRecientes: esa consulta del
+// backend (ReportsService.dashboard, ver reportes.service.ts) no carga
+// relations (items/usuario), solo las columnas planas del pedido — el
+// dashboard tampoco las necesita (su tabla de "pedidos recientes" solo
+// muestra número/fecha/total/estado). Se conservó porque
+// dashboard.component.ts usa el resumen calculado por el backend
+// (ReportesService) en vez de derivarlo en cliente de VendorPedidoService,
+// que trunca a 200 pedidos (ver vendor-pedido.service.ts) y daría cifras
+// incorrectas de ingresosTotales/totalPedidos pasado ese tope.
+export interface PedidoResumen {
+  id: string;
+  numeroPedido: string;
+  fecha: string;
+  total: number;
+  estado: EstadoPedido;
+}

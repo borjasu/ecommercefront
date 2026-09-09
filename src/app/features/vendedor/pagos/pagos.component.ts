@@ -1,8 +1,10 @@
 import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { VendorPedidoService } from '../../../core/services/vendor-pedido.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { EstadoPago, Pedido } from '../../../core/models/pedido.model';
+import { mensajeDeErrorHttp } from '../../../shared/utils/http-error.util';
 
 type FiltroEstadoPago = 'todos' | EstadoPago;
 
@@ -28,10 +30,14 @@ export class PagosComponent {
     { valor: 'reembolsado', etiqueta: 'Reembolsado' }
   ];
 
-  readonly estadosPago: EstadoPago[] = ['pendiente', 'pagado', 'reembolsado'];
-
   readonly pedidos = signal<Pedido[]>([]);
+  readonly cargando = signal(true);
+  readonly error = signal(false);
   readonly filtroActual = signal<FiltroEstadoPago>('todos');
+  // Pedido cuyo reembolso se está confirmando en este momento — deshabilita
+  // su botón mientras la petición está en curso, sin bloquear el resto de la
+  // tabla.
+  readonly reembolsandoId = signal<string | null>(null);
 
   readonly pedidosOrdenados = computed(() =>
     [...this.pedidos()].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
@@ -65,10 +71,30 @@ export class PagosComponent {
     this.cargarPedidos();
   }
 
-  cambiarEstadoPago(pedido: Pedido, estadoPago: EstadoPago): void {
-    this.vendorPedidoService.actualizarEstadoPago(pedido.id, estadoPago).subscribe({
-      next: () => this.cargarPedidos(),
-      error: () => this.toastService.error('No pudimos actualizar el estado de pago.')
+  reintentar(): void {
+    this.cargarPedidos();
+  }
+
+  // MERGE: se descartó el <select> de origin/main que dejaba cambiar
+  // estadoPago a cualquier valor a mano (pendiente/pagado/reembolsado) —
+  // contradice su propio comentario de plantilla ("el estado lo confirma
+  // Mercado Pago... de forma automática"). Se restauró el guardrail de HEAD:
+  // pagado/pendiente los decide el webhook de Mercado Pago, la única
+  // transición manual legítima es marcar un reembolso (ver
+  // VendorPedidoService.marcarComoReembolsado, agregado sobre la base de
+  // origin/main).
+  marcarReembolsado(pedido: Pedido): void {
+    this.reembolsandoId.set(pedido.id);
+    this.vendorPedidoService.marcarComoReembolsado(pedido.id).subscribe({
+      next: () => {
+        this.reembolsandoId.set(null);
+        this.cargarPedidos();
+        this.toastService.exito(`Pedido "${pedido.numeroPedido}" marcado como reembolsado.`);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.reembolsandoId.set(null);
+        this.toastService.error(mensajeDeErrorHttp(error));
+      }
     });
   }
 
@@ -82,9 +108,17 @@ export class PagosComponent {
   }
 
   private cargarPedidos(): void {
+    this.cargando.set(true);
+    this.error.set(false);
     this.vendorPedidoService.obtenerTodos().subscribe({
-      next: pedidos => this.pedidos.set(pedidos),
-      error: () => this.toastService.error('No pudimos cargar los pedidos.')
+      next: pedidos => {
+        this.pedidos.set(pedidos);
+        this.cargando.set(false);
+      },
+      error: () => {
+        this.error.set(true);
+        this.cargando.set(false);
+      }
     });
   }
 }

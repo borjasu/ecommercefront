@@ -73,7 +73,7 @@
               <div class="relative">
                 <a [routerLink]="['/producto', producto.id]" class="block overflow-hidden rounded-2xl bg-white">
                   <img
-                    [src]="producto.imagenUrl"
+                    [src]="imagenDe(producto)"
                     [alt]="producto.nombre"
                     class="aspect-[4/5] w-full object-cover transition-transform duration-300 hover:scale-105"
                   />

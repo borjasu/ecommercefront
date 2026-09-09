@@ -1,12 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { AppComponent } from './app.component';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
+    // AppComponent renderiza HeaderComponent, que inyecta AuthService (usa
+    // HttpClient real).
     await TestBed.configureTestingModule({
       imports: [AppComponent],
-      providers: [provideRouter([])]
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()]
     }).compileComponents();
   });
 
@@ -22,11 +26,13 @@ describe('AppComponent', () => {
     expect(app.title).toEqual('ecommerfront');
   });
 
-  it('should render the header and footer', () => {
+  it('should render a router outlet', () => {
+    // AppComponent ya no renderiza header/footer directamente (se movieron a
+    // MainLayoutComponent, ver main-layout.component.spec.ts) — su única
+    // responsabilidad hoy es alojar el <router-outlet /> raíz.
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('app-header')).toBeTruthy();
-    expect(compiled.querySelector('app-footer')).toBeTruthy();
+    expect(compiled.querySelector('router-outlet')).toBeTruthy();
   });
 });

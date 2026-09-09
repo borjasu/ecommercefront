@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 
 import { LoginComponent } from './login.component';
 
@@ -8,9 +10,10 @@ describe('LoginComponent', () => {
   let fixture: ComponentFixture<LoginComponent>;
 
   beforeEach(async () => {
+    // LoginComponent inyecta AuthService, que ahora usa HttpClient real.
     await TestBed.configureTestingModule({
       imports: [LoginComponent],
-      providers: [provideRouter([])]
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()]
     })
     .compileComponents();
 

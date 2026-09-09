@@ -5,6 +5,7 @@ import { SelectorProductoModalService } from '../../../core/services/selector-pr
 import { FavoritosService } from '../../../core/services/favoritos.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { OfertaService } from '../../../core/services/oferta.service';
+import { resolverImagenProducto } from '../../utils/producto-imagen.util';
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
@@ -29,6 +30,10 @@ export class ProductoCardComponent {
 
   precioInfo() {
     return this.ofertaService.calcularPrecio(this.producto());
+  }
+
+  imagen(): string {
+    return resolverImagenProducto(this.producto());
   }
 
   abrirModal(): void {
