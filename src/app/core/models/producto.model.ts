@@ -1,4 +1,6 @@
-export type Categoria = 'pantalon' | 'playera' | 'camisa' | 'bermuda';
+// Ya no es un tipo fijo: es un catálogo dinámico con CRUD propio (ver
+// CategoriasService), mismo criterio que Talla/Color abajo.
+export type Categoria = string;
 export type Talla = string;
 export type Etiqueta = 'NUEVO' | 'ESENCIAL' | null;
 export type Audiencia = 'hombre' | 'nino';
@@ -49,6 +51,18 @@ export interface Producto {
   imagenes?: string[];
   etiqueta?: Etiqueta;
   destacado: boolean;
+  // Precio de mayoreo: opcional y por producto (nunca global ni por
+  // categoría), un solo nivel. El mínimo se evalúa sumando TODAS las
+  // tallas/colores de este producto en el carrito/pedido, no por línea
+  // individual — ver CartService.aplicaMayoreo() (preview en el carrito) y
+  // OrdersService.crear() del backend (cálculo autoritativo real).
+  // mayoreoCantidadMinima/mayoreoPrecioPorPieza pueden seguir presentes en un
+  // producto con mayoreoHabilitado=false: el vendedor los desactivó pero se
+  // conservan por si vuelve a activarlos (mismo criterio que imagenUrl con
+  // "Producto destacado").
+  mayoreoHabilitado: boolean;
+  mayoreoCantidadMinima?: number | null;
+  mayoreoPrecioPorPieza?: number | null;
   // Derivado de `variantes` (suma de cantidades por talla, ignorando color) por
   // ProductoService. No es la fuente de verdad: existe para que cualquier
   // vista que ya leyera este campo de forma defensiva (ver OfertasComponent)

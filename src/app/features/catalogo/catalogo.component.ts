@@ -7,8 +7,9 @@ import { catchError, delay, map, startWith, switchMap } from 'rxjs/operators';
 import { ProductoService } from '../../core/services/producto.service';
 import { ColoresService } from '../../core/services/colores.service';
 import { TallasService } from '../../core/services/tallas.service';
+import { CategoriasService } from '../../core/services/categorias.service';
 import { Audiencia, Categoria, Color, Producto, Talla } from '../../core/models/producto.model';
-import { AUDIENCIAS, CATEGORIAS } from '../../shared/constants/categorias';
+import { AUDIENCIAS } from '../../shared/constants/categorias';
 import { BreadcrumbComponent, BreadcrumbItem } from '../../shared/components/breadcrumb/breadcrumb.component';
 import { ProductoCardComponent } from '../../shared/components/producto-card/producto-card.component';
 import { ProductoCardSkeletonComponent } from '../../shared/components/producto-card-skeleton/producto-card-skeleton.component';
@@ -39,9 +40,10 @@ export class CatalogoComponent {
   private readonly productoService = inject(ProductoService);
   private readonly coloresService = inject(ColoresService);
   private readonly tallasService = inject(TallasService);
+  private readonly categoriasService = inject(CategoriasService);
 
   readonly tallas = this.tallasService.listado;
-  readonly categorias = CATEGORIAS;
+  readonly categorias = this.categoriasService.listado;
   readonly colores = this.coloresService.listado;
 
   private readonly intentoRecarga = signal(0);
@@ -74,8 +76,17 @@ export class CatalogoComponent {
 
         const audienciaParam = params.get('audiencia');
         const audiencia = this.esAudienciaValida(audienciaParam) ? audienciaParam : null;
+        // Categoria ya no es una lista fija disponible de inmediato: viene de
+        // CategoriasService, que la carga por HTTP de forma asíncrona. Validarla
+        // aquí contra `this.categorias()` sería una condición de carrera (un
+        // deep-link a /catalogo/hombre/pantalon podría evaluarse ANTES de que
+        // el GET /categorias responda y perder el filtro para siempre, ya que
+        // este pipeline solo reacciona a cambios de ruta, no a que termine de
+        // cargar el catálogo). Se confía en el parámetro tal cual — igual que
+        // talla/color, que tampoco se validan aquí: uno inválido simplemente no
+        // coincide con ningún producto.
         const categoriaParam = params.get('categoria');
-        const categoria = this.esCategoriaValida(categoriaParam) ? categoriaParam : null;
+        const categoria = categoriaParam || null;
 
         const productos$ = audiencia
           ? this.productoService.obtenerPorAudiencia(audiencia)
@@ -326,15 +337,11 @@ export class CatalogoComponent {
     return !!valor && AUDIENCIAS.some(opcion => opcion.valor === valor);
   }
 
-  private esCategoriaValida(valor: string | null): valor is Categoria {
-    return !!valor && CATEGORIAS.some(opcion => opcion.valor === valor);
-  }
-
   private etiquetaDeAudiencia(audiencia: Audiencia): string {
     return AUDIENCIAS.find(opcion => opcion.valor === audiencia)?.etiqueta ?? audiencia;
   }
 
   private etiquetaDeCategoria(categoria: Categoria): string {
-    return CATEGORIAS.find(opcion => opcion.valor === categoria)?.etiqueta ?? categoria;
+    return this.categorias().find(opcion => opcion.valor === categoria)?.etiqueta ?? categoria;
   }
 }

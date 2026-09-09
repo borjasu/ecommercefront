@@ -18,7 +18,7 @@ export class CartService {
   );
 
   readonly total = computed(() =>
-    this.items().reduce((total, item) => total + item.producto.precio * item.cantidad, 0)
+    this.items().reduce((total, item) => total + this.precioUnitarioEfectivo(item) * item.cantidad, 0)
   );
 
   constructor() {
@@ -80,6 +80,51 @@ export class CartService {
 
   private esMismaLinea(item: ItemCarrito, productoId: string, talla: Talla, color?: Color): boolean {
     return item.producto.id === productoId && item.talla === talla && item.color === color;
+  }
+
+  // --- Precio de mayoreo (preview del carrito) ----------------------------
+  //
+  // El mínimo de mayoreo se define por PRODUCTO, sumando todas sus tallas y
+  // colores combinados en el carrito (no por línea individual) — ej. 3 en M +
+  // 3 en L = 6 piezas del mismo producto. Todo lo de aquí es solo para que el
+  // comprador VEA el precio correcto antes de pagar; el cálculo autoritativo
+  // real es el que hace OrdersService en el backend al crear el pedido (nunca
+  // se confía en un precio que calcule el frontend).
+
+  /** Piezas en el carrito de un mismo producto, sumando TODAS sus líneas (tallas/colores). */
+  private cantidadTotalDe(productoId: string): number {
+    return this.items()
+      .filter(item => item.producto.id === productoId)
+      .reduce((total, item) => total + item.cantidad, 0);
+  }
+
+  /** true si esta línea ya califica para el precio de mayoreo de su producto. */
+  aplicaMayoreo(item: ItemCarrito): boolean {
+    const producto = item.producto;
+    return (
+      !!producto.mayoreoHabilitado &&
+      producto.mayoreoCantidadMinima != null &&
+      producto.mayoreoPrecioPorPieza != null &&
+      this.cantidadTotalDe(producto.id) >= producto.mayoreoCantidadMinima
+    );
+  }
+
+  /** Precio unitario a cobrar/mostrar para esta línea: de mayoreo si aplica, si no el normal. */
+  precioUnitarioEfectivo(item: ItemCarrito): number {
+    return this.aplicaMayoreo(item) ? item.producto.mayoreoPrecioPorPieza! : item.producto.precio;
+  }
+
+  /**
+   * Piezas que faltan (del mismo producto, sumando todas sus líneas) para
+   * alcanzar el mínimo de mayoreo — 0 si el producto no tiene mayoreo
+   * habilitado o si ya lo alcanzó. Usado para el mensaje "agrega N más...".
+   */
+  piezasParaMayoreo(item: ItemCarrito): number {
+    const producto = item.producto;
+    if (!producto.mayoreoHabilitado || producto.mayoreoCantidadMinima == null) {
+      return 0;
+    }
+    return Math.max(0, producto.mayoreoCantidadMinima - this.cantidadTotalDe(producto.id));
   }
 
   vaciarCarrito(): void {

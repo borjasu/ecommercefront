@@ -83,6 +83,9 @@ interface ProductoBackend {
   imagenes: string[] | null;
   etiqueta: Etiqueta;
   destacado: boolean;
+  mayoreoHabilitado: boolean;
+  mayoreoCantidadMinima: number | null;
+  mayoreoPrecioPorPieza: number | null;
   activo: boolean;
   imagenesColores: ImagenColorProducto[];
 }
@@ -367,6 +370,9 @@ export class ProductoService {
       imagenes: p.imagenes ?? undefined,
       etiqueta: p.etiqueta,
       destacado: p.destacado,
+      mayoreoHabilitado: p.mayoreoHabilitado,
+      mayoreoCantidadMinima: p.mayoreoCantidadMinima,
+      mayoreoPrecioPorPieza: p.mayoreoPrecioPorPieza,
       stockPorTalla: construirStockPorTalla(p.tallasDisponibles, variantes),
       imagenesColores: p.imagenesColores
     };
@@ -400,6 +406,9 @@ export class ProductoService {
     if (producto.imagenes !== undefined) payload['imagenes'] = producto.imagenes;
     if (producto.etiqueta !== undefined) payload['etiqueta'] = producto.etiqueta;
     if (producto.destacado !== undefined) payload['destacado'] = producto.destacado;
+    if (producto.mayoreoHabilitado !== undefined) payload['mayoreoHabilitado'] = producto.mayoreoHabilitado;
+    if (producto.mayoreoCantidadMinima !== undefined) payload['mayoreoCantidadMinima'] = producto.mayoreoCantidadMinima;
+    if (producto.mayoreoPrecioPorPieza !== undefined) payload['mayoreoPrecioPorPieza'] = producto.mayoreoPrecioPorPieza;
 
     return payload;
   }
