@@ -5,6 +5,24 @@
     un reembolso se marca manualmente.
   </p>
 
+  <!-- Solo "Total pagado" es dinero real (nunca suma pendiente/reembolsado) —
+       pendientes/reembolsados se muestran como CONTEO de pedidos, no como monto. -->
+  <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-5 shadow-sm">
+      <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Total pagado</p>
+      <p class="mt-1 font-display text-2xl font-semibold text-brand-gold">${{ totalPagado() }}</p>
+    </div>
+    <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-5 shadow-sm">
+      <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Pedidos pendientes</p>
+      <p class="mt-1 font-display text-2xl font-semibold text-brand-text">{{ pendientesCount() }}</p>
+      <p class="mt-0.5 font-body text-xs text-brand-muted">Sin confirmar — no es dinero recibido.</p>
+    </div>
+    <div class="rounded-sm border border-brand-muted/30 bg-white/60 p-5 shadow-sm">
+      <p class="font-body text-xs uppercase tracking-wide text-brand-muted">Reembolsados</p>
+      <p class="mt-1 font-display text-2xl font-semibold text-brand-text">{{ reembolsadosCount() }}</p>
+    </div>
+  </div>
+
   <div class="mt-6 flex flex-wrap gap-2">
     @for (filtro of filtros; track filtro.valor) {
       <button
@@ -47,6 +65,9 @@
             <th class="px-6 py-3">Método de pago</th>
             <th class="px-6 py-3">Monto</th>
             <th class="px-6 py-3">Estado de pago</th>
+            <!-- MERGE: origin/main tenía aquí un <select> que dejaba cambiar
+                 estadoPago a cualquier valor a mano; se restauró el guardrail
+                 de HEAD (solo botón de reembolso) — ver pagos.component.ts. -->
             <th class="px-6 py-3">Acción</th>
           </tr>
         </thead>
@@ -56,9 +77,15 @@
               <td class="px-6 py-4 font-body text-sm text-brand-text">{{ pedido.numeroPedido }}</td>
               <td class="px-6 py-4 font-body text-sm text-brand-muted">{{ pedido.fecha | date: 'dd/MM/yyyy HH:mm' }}</td>
               <td class="px-6 py-4 font-body text-sm capitalize text-brand-text">{{ pedido.metodoPago }}</td>
-              <td class="px-6 py-4 font-body text-sm font-semibold text-brand-gold">${{ pedido.total }}</td>
+              <td
+                class="px-6 py-4 font-body text-sm font-semibold"
+                [class.text-brand-gold]="pedido.estadoPago === 'pagado'"
+                [class.text-brand-muted]="pedido.estadoPago !== 'pagado'"
+              >
+                ${{ pedido.total }}
+              </td>
               <td class="px-6 py-4">
-                <span [class]="claseEstadoPago(pedido.estadoPago)">{{ etiquetaEstadoPago(pedido.estadoPago) }}</span>
+                <span class="badge">{{ etiquetaEstadoPago(pedido.estadoPago) }}</span>
               </td>
               <td class="px-6 py-4">
                 @if (pedido.estadoPago === 'pagado') {

@@ -11,6 +11,13 @@ export interface ColorOpcion {
   hex: string;
 }
 
+// MERGE: se descartó la versión de origin/main (ColorApi + carga de solo
+// lectura vía API_URL) y se usó la de HEAD (CRUD completo con
+// agregar/eliminarColor), porque mis-productos.component.ts (ya fusionado,
+// fuera de conflicto) llama a coloresService.agregarColor/esPersonalizado/
+// eliminarColor — métodos que solo existen en esta versión. Revisar si
+// conviene migrar este servicio a API_URL/credentialsInterceptor más
+// adelante, por consistencia con los servicios nuevos de origin/main.
 // Forma real de /colores (ver entities/color.entity.ts de ecommerceback):
 // `nombre` es el único identificador de texto que existe — no hay un slug
 // separado como en el catálogo mock anterior, así que `valor`/`etiqueta`
@@ -55,6 +62,9 @@ export class ColoresService {
 
   readonly listado = computed<ColorOpcion[]>(() => this.coloresBackend().map(color => this.aOpcion(color)));
 
+  // Catálogo dinámico (backend real, ver modules/catalogos) — público y casi
+  // estático, se carga una sola vez por sesión de la app (el servicio es
+  // providedIn: 'root', no depende del login).
   constructor() {
     this.recargar();
   }

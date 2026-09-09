@@ -42,9 +42,28 @@ export class CatalogoComponent {
   private readonly tallasService = inject(TallasService);
   private readonly categoriasService = inject(CategoriasService);
 
-  readonly tallas = this.tallasService.listado;
+  // MERGE: se combinaron ambas versiones. Las categorías vienen de
+  // CategoriasService (catálogo dinámico de HEAD) — la versión de
+  // origin/main usaba una constante CATEGORIAS estática que ya no existe
+  // (shared/constants/categorias.ts la eliminó junto con la migración a
+  // categorías dinámicas). Talla/color sí se combinan: se conserva el
+  // catálogo dinámico de HEAD, filtrado por FiltrosDisponibles de
+  // origin/main para no ofrecer opciones que de todos modos den cero
+  // resultados (esa idea era buena y no chocaba con el catálogo dinámico).
   readonly categorias = this.categoriasService.listado;
-  readonly colores = this.coloresService.listado;
+
+  private readonly filtrosDisponibles = toSignal(this.productoService.obtenerFiltrosDisponibles(), {
+    initialValue: { tallas: [] as string[], colores: [] as string[], precioMin: 0, precioMax: 0 }
+  });
+
+  readonly tallas = computed(() => {
+    const nombresDisponibles = new Set(this.filtrosDisponibles().tallas);
+    return this.tallasService.listado().filter(talla => nombresDisponibles.has(talla));
+  });
+  readonly colores = computed(() => {
+    const nombresDisponibles = new Set(this.filtrosDisponibles().colores);
+    return this.coloresService.listado().filter(opcion => nombresDisponibles.has(opcion.valor));
+  });
 
   private readonly intentoRecarga = signal(0);
 

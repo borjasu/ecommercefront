@@ -1,10 +1,9 @@
 import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { PedidoVendedorService } from '../../../core/services/pedido-vendedor.service';
+import { VendorPedidoService } from '../../../core/services/vendor-pedido.service';
 import { ToastService } from '../../../core/services/toast.service';
-import { EstadoPago, PedidoVendedorDetalle } from '../../../core/models/pedido.model';
-import { claseBadgeEstadoPago, etiquetaEstadoPago } from '../../../shared/utils/pedido-estado.util';
+import { EstadoPago, Pedido } from '../../../core/models/pedido.model';
 import { mensajeDeErrorHttp } from '../../../shared/utils/http-error.util';
 
 type FiltroEstadoPago = 'todos' | EstadoPago;
@@ -21,18 +20,17 @@ interface FiltroOpcion {
     templateUrl: './pagos.component.html'
 })
 export class PagosComponent {
-  private readonly pedidoVendedorService = inject(PedidoVendedorService);
+  private readonly vendorPedidoService = inject(VendorPedidoService);
   private readonly toastService = inject(ToastService);
 
   readonly filtros: FiltroOpcion[] = [
     { valor: 'todos', etiqueta: 'Todos' },
     { valor: 'pendiente', etiqueta: 'Pendiente' },
     { valor: 'pagado', etiqueta: 'Pagado' },
-    { valor: 'rechazado', etiqueta: 'Rechazado' },
     { valor: 'reembolsado', etiqueta: 'Reembolsado' }
   ];
 
-  readonly pedidos = signal<PedidoVendedorDetalle[]>([]);
+  readonly pedidos = signal<Pedido[]>([]);
   readonly cargando = signal(true);
   readonly error = signal(false);
   readonly filtroActual = signal<FiltroEstadoPago>('todos');
@@ -41,11 +39,33 @@ export class PagosComponent {
   // tabla.
   readonly reembolsandoId = signal<string | null>(null);
 
+  readonly pedidosOrdenados = computed(() =>
+    [...this.pedidos()].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+  );
+
   readonly pedidosFiltrados = computed(() => {
     const filtro = this.filtroActual();
-    const pedidos = this.pedidos();
+    const pedidos = this.pedidosOrdenados();
     return filtro === 'todos' ? pedidos : pedidos.filter(pedido => pedido.estadoPago === filtro);
   });
+
+  // Dinero real vs. solo referencia: totalPagado es la ÚNICA cifra que suma
+  // montos (nunca incluye pendiente/reembolsado) — pendientesCount y
+  // reembolsadosCount son conteos de pedidos, no dinero, para no dar la
+  // impresión de que ese monto ya entró a caja.
+  readonly totalPagado = computed(
+    () =>
+      Math.round(
+        this.pedidos()
+          .filter(pedido => pedido.estadoPago === 'pagado')
+          .reduce((suma, pedido) => suma + pedido.total, 0) * 100
+      ) / 100
+  );
+
+  readonly pendientesCount = computed(() => this.pedidos().filter(pedido => pedido.estadoPago === 'pendiente').length);
+  readonly reembolsadosCount = computed(
+    () => this.pedidos().filter(pedido => pedido.estadoPago === 'reembolsado').length
+  );
 
   constructor() {
     this.cargarPedidos();
@@ -55,12 +75,17 @@ export class PagosComponent {
     this.cargarPedidos();
   }
 
-  // Único cambio manual permitido (ver auditoría del día 4): pagado/rechazado
-  // los decide Mercado Pago vía webhook, nunca el vendedor a mano — la única
-  // transición sin cobertura automática es marcar un reembolso.
-  marcarReembolsado(pedido: PedidoVendedorDetalle): void {
+  // MERGE: se descartó el <select> de origin/main que dejaba cambiar
+  // estadoPago a cualquier valor a mano (pendiente/pagado/reembolsado) —
+  // contradice su propio comentario de plantilla ("el estado lo confirma
+  // Mercado Pago... de forma automática"). Se restauró el guardrail de HEAD:
+  // pagado/pendiente los decide el webhook de Mercado Pago, la única
+  // transición manual legítima es marcar un reembolso (ver
+  // VendorPedidoService.marcarComoReembolsado, agregado sobre la base de
+  // origin/main).
+  marcarReembolsado(pedido: Pedido): void {
     this.reembolsandoId.set(pedido.id);
-    this.pedidoVendedorService.marcarComoReembolsado(pedido.id).subscribe({
+    this.vendorPedidoService.marcarComoReembolsado(pedido.id).subscribe({
       next: () => {
         this.reembolsandoId.set(null);
         this.cargarPedidos();
@@ -74,17 +99,18 @@ export class PagosComponent {
   }
 
   etiquetaEstadoPago(estadoPago: EstadoPago): string {
-    return etiquetaEstadoPago(estadoPago);
-  }
-
-  claseEstadoPago(estadoPago: EstadoPago): string {
-    return claseBadgeEstadoPago(estadoPago);
+    const etiquetas: Record<EstadoPago, string> = {
+      pendiente: 'Pendiente',
+      pagado: 'Pagado',
+      reembolsado: 'Reembolsado'
+    };
+    return etiquetas[estadoPago];
   }
 
   private cargarPedidos(): void {
     this.cargando.set(true);
     this.error.set(false);
-    this.pedidoVendedorService.listarTodos().subscribe({
+    this.vendorPedidoService.obtenerTodos().subscribe({
       next: pedidos => {
         this.pedidos.set(pedidos);
         this.cargando.set(false);

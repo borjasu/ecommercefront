@@ -16,8 +16,7 @@
         <div class="flex flex-col items-start gap-2">
           <p class="font-display text-xl text-brand-ink">¡Gracias por escribirnos!</p>
           <p class="font-body text-sm text-brand-muted">
-            Recibimos tu mensaje. Este formulario es provisional; muy pronto quedará conectado a nuestro equipo de
-            atención al cliente.
+            Recibimos tu mensaje y te responderemos a la brevedad.
           </p>
         </div>
       } @else {
@@ -53,11 +52,17 @@
               class="input-field resize-none"
             ></textarea>
             @if (form.controls.mensaje.invalid && form.controls.mensaje.touched) {
-              <p class="mt-1 font-body text-xs text-red-600">Escribe tu mensaje.</p>
+              <p class="mt-1 font-body text-xs text-red-600">Escribe tu mensaje (máximo 2000 caracteres).</p>
             }
           </div>
 
-          <button type="submit" class="btn-gold w-full">Enviar mensaje</button>
+          @if (errorMensaje()) {
+            <p class="font-body text-xs text-red-600">{{ errorMensaje() }}</p>
+          }
+
+          <button type="submit" class="btn-gold w-full" [disabled]="enviando()">
+            {{ enviando() ? 'Enviando…' : 'Enviar mensaje' }}
+          </button>
         </form>
       }
     </div>

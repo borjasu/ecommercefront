@@ -17,6 +17,9 @@ export class CartService {
     this.items().reduce((total, item) => total + item.cantidad, 0)
   );
 
+  // precioFinal ya trae aplicada la oferta vigente (viene del backend); si no
+  // está presente por algún motivo, cae al precio base — nunca al revés, para
+  // que lo que se ve en el carrito coincida con lo que de verdad se cobra.
   readonly total = computed(() =>
     this.items().reduce((total, item) => total + this.precioUnitarioEfectivo(item) * item.cantidad, 0)
   );
@@ -109,9 +112,19 @@ export class CartService {
     );
   }
 
-  /** Precio unitario a cobrar/mostrar para esta línea: de mayoreo si aplica, si no el normal. */
+  /**
+   * Precio unitario a cobrar/mostrar para esta línea: de mayoreo si aplica; si
+   * no, el normal con la oferta vigente ya aplicada (ver
+   * OfertaService.calcularPrecio) — MERGE: origin/main solo consideraba
+   * precioFinal/oferta en `total` (sin mayoreo, que no existía en esa rama);
+   * se combinan ambos aquí porque no son excluyentes. El precio de mayoreo no
+   * vuelve a descontarse por oferta: ya es un precio negociado aparte.
+   */
   precioUnitarioEfectivo(item: ItemCarrito): number {
-    return this.aplicaMayoreo(item) ? item.producto.mayoreoPrecioPorPieza! : item.producto.precio;
+    if (this.aplicaMayoreo(item)) {
+      return item.producto.mayoreoPrecioPorPieza!;
+    }
+    return item.producto.precioFinal ?? item.producto.precio;
   }
 
   /**

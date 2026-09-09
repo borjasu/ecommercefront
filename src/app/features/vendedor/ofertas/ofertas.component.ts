@@ -1,19 +1,22 @@
 import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
-import { delay } from 'rxjs';
 import { OfertaService } from '../../../core/services/oferta.service';
 import { ProductoService } from '../../../core/services/producto.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { ConfirmService } from '../../../core/services/confirm.service';
 import { Audiencia, Categoria, Producto, Talla } from '../../../core/models/producto.model';
-import { Oferta, TipoDescuento } from '../../../core/models/oferta.model';
+// MERGE: se combinaron los imports de ambos lados. `AplicaA` es de
+// origin/main (HEAD lo omitía, pero sí se usa más abajo en
+// destinoValidoValidator/ofertaForm — sin él no compila). `CATEGORIAS` de
+// origin/main se descartó: ya no existe en shared/constants/categorias.ts
+// (las categorías son dinámicas vía CategoriasService, que es lo que este
+// archivo ya usa en `readonly categorias`).
+import { AplicaA, Oferta, TipoDescuento } from '../../../core/models/oferta.model';
 import { AUDIENCIAS } from '../../../shared/constants/categorias';
 import { CategoriasService } from '../../../core/services/categorias.service';
 import { resolverImagenProducto } from '../../../shared/utils/producto-imagen.util';
 
-const RETRASO_CARGA_MS = 400;
 const UMBRAL_STOCK_BAJO = 5;
-type AplicaA = 'productos' | 'segmento';
 
 // El modelo Producto todavía no tiene cantidades por talla (solo tallasDisponibles: Talla[]).
 // Estas funciones leen un posible campo `stockPorTalla` de forma defensiva para que el
@@ -55,17 +58,15 @@ function resumenStock(producto: Producto): string {
 }
 
 function destinoValidoValidator(control: AbstractControl): ValidationErrors | null {
-  const grupo = control;
-  const aplicaA = grupo.get('aplicaA')?.value as AplicaA;
+  const aplicaA = control.get('aplicaA')?.value as AplicaA;
 
-  if (aplicaA === 'productos') {
-    const seleccionados = Object.values((grupo.get('productos')?.value ?? {}) as Record<string, boolean>);
-    return seleccionados.some(Boolean) ? null : { sinDestino: true };
+  if (aplicaA === 'producto') {
+    return control.get('productoId')?.value ? null : { sinDestino: true };
   }
-
-  const categoria = grupo.get('categoria')?.value;
-  const audiencia = grupo.get('audiencia')?.value;
-  return categoria || audiencia ? null : { sinDestino: true };
+  if (aplicaA === 'categoria') {
+    return control.get('categoria')?.value ? null : { sinDestino: true };
+  }
+  return control.get('audiencia')?.value ? null : { sinDestino: true };
 }
 
 function rangoFechasValidator(control: AbstractControl): ValidationErrors | null {
@@ -138,11 +139,11 @@ export class OfertasComponent {
     {
       nombre: ['', [Validators.required]],
       tipoDescuento: ['porcentaje' as TipoDescuento, [Validators.required]],
-      valorDescuento: [10, [Validators.required, Validators.min(0.01)]],
-      aplicaA: ['segmento' as AplicaA, [Validators.required]],
+      valor: [10, [Validators.required, Validators.min(0.01)]],
+      aplicaA: ['categoria' as AplicaA, [Validators.required]],
       categoria: [''],
       audiencia: [''],
-      productos: this.fb.group({}),
+      productoId: [''],
       fechaInicio: ['', [Validators.required]],
       fechaFin: ['', [Validators.required]],
       activa: [true]
@@ -151,21 +152,8 @@ export class OfertasComponent {
   );
 
   constructor() {
-    this.productoService.obtenerTodos().subscribe(productos => {
-      this.productos.set(productos);
-      this.ofertaForm.setControl(
-        'productos',
-        this.fb.group(Object.fromEntries(productos.map(producto => [producto.id, this.fb.control(false)])))
-      );
-    });
-
-    this.ofertaService
-      .obtenerTodos()
-      .pipe(delay(RETRASO_CARGA_MS))
-      .subscribe(ofertas => {
-        this.ofertas.set(ofertas);
-        this.cargando.set(false);
-      });
+    this.productoService.obtenerTodos().subscribe(productos => this.productos.set(productos));
+    this.cargarOfertas();
   }
 
   private reiniciarFiltrosProductos(): void {
@@ -181,11 +169,11 @@ export class OfertasComponent {
     this.ofertaForm.reset({
       nombre: '',
       tipoDescuento: 'porcentaje',
-      valorDescuento: 10,
-      aplicaA: 'segmento',
+      valor: 10,
+      aplicaA: 'categoria',
       categoria: '',
       audiencia: '',
-      productos: this.mapaProductos([]),
+      productoId: '',
       fechaInicio: '',
       fechaFin: '',
       activa: true
@@ -199,11 +187,11 @@ export class OfertasComponent {
     this.ofertaForm.reset({
       nombre: oferta.nombre,
       tipoDescuento: oferta.tipoDescuento,
-      valorDescuento: oferta.valorDescuento,
-      aplicaA: oferta.productosAplicables.length > 0 ? 'productos' : 'segmento',
-      categoria: oferta.categoriaAplicable ?? '',
-      audiencia: oferta.audienciaAplicable ?? '',
-      productos: this.mapaProductos(oferta.productosAplicables),
+      valor: oferta.valor,
+      aplicaA: oferta.aplicaA,
+      categoria: oferta.categoria ?? '',
+      audiencia: oferta.audiencia ?? '',
+      productoId: oferta.productoId ?? '',
       fechaInicio: oferta.fechaInicio,
       fechaFin: oferta.fechaFin,
       activa: oferta.activa
@@ -215,6 +203,10 @@ export class OfertasComponent {
     this.mostrarFormulario.set(false);
   }
 
+  seleccionarProducto(id: string): void {
+    this.ofertaForm.controls.productoId.setValue(id);
+  }
+
   guardar(): void {
     if (this.ofertaForm.invalid) {
       this.ofertaForm.markAllAsTouched();
@@ -222,19 +214,16 @@ export class OfertasComponent {
     }
 
     const valores = this.ofertaForm.getRawValue();
-    const esPorProductos = valores.aplicaA === 'productos';
+    const aplicaA = valores.aplicaA as AplicaA;
 
     const datosOferta = {
       nombre: valores.nombre!,
       tipoDescuento: valores.tipoDescuento as TipoDescuento,
-      valorDescuento: valores.valorDescuento!,
-      productosAplicables: esPorProductos
-        ? Object.entries(valores.productos ?? {})
-            .filter(([, seleccionado]) => seleccionado)
-            .map(([id]) => id)
-        : [],
-      categoriaAplicable: !esPorProductos && valores.categoria ? (valores.categoria as Categoria) : undefined,
-      audienciaAplicable: !esPorProductos && valores.audiencia ? (valores.audiencia as Audiencia) : undefined,
+      valor: valores.valor!,
+      aplicaA,
+      productoId: aplicaA === 'producto' ? valores.productoId || null : null,
+      categoria: aplicaA === 'categoria' ? (valores.categoria as Categoria) || null : null,
+      audiencia: aplicaA === 'audiencia' ? (valores.audiencia as Audiencia) || null : null,
       fechaInicio: valores.fechaInicio!,
       fechaFin: valores.fechaFin!,
       activa: !!valores.activa
@@ -245,10 +234,13 @@ export class OfertasComponent {
       ? this.ofertaService.actualizarOferta(edicion.id, datosOferta)
       : this.ofertaService.crearOferta(datosOferta);
 
-    operacion.subscribe(() => {
-      this.cargarOfertas();
-      this.cerrarFormulario();
-      this.toastService.exito(edicion ? 'Oferta actualizada.' : 'Oferta creada.');
+    operacion.subscribe({
+      next: () => {
+        this.cargarOfertas();
+        this.cerrarFormulario();
+        this.toastService.exito(edicion ? 'Oferta actualizada.' : 'Oferta creada.');
+      },
+      error: () => this.toastService.error('No pudimos guardar la oferta. Intenta de nuevo.')
     });
   }
 
@@ -264,29 +256,30 @@ export class OfertasComponent {
       return;
     }
 
-    this.ofertaService.eliminarOferta(oferta.id).subscribe(() => {
-      this.cargarOfertas();
-      this.toastService.exito(`"${oferta.nombre}" se eliminó.`);
+    this.ofertaService.eliminarOferta(oferta.id).subscribe({
+      next: () => {
+        this.cargarOfertas();
+        this.toastService.exito(`"${oferta.nombre}" se eliminó.`);
+      },
+      error: () => this.toastService.error('No pudimos eliminar la oferta.')
     });
   }
 
   descripcionValor(oferta: Oferta): string {
-    return oferta.tipoDescuento === 'porcentaje' ? `${oferta.valorDescuento}%` : `$${oferta.valorDescuento}`;
+    return oferta.tipoDescuento === 'porcentaje' ? `${oferta.valor}%` : `$${oferta.valor}`;
   }
 
   descripcionDestino(oferta: Oferta): string {
-    if (oferta.productosAplicables.length > 0) {
-      return `${oferta.productosAplicables.length} producto(s)`;
+    if (oferta.aplicaA === 'producto') {
+      return this.productos().find(producto => producto.id === oferta.productoId)?.nombre ?? 'Producto eliminado';
     }
-
-    const partes: string[] = [];
-    if (oferta.categoriaAplicable) {
-      partes.push(this.categorias().find(c => c.valor === oferta.categoriaAplicable)?.etiqueta ?? oferta.categoriaAplicable);
+    // MERGE: se descartó la versión de HEAD, que leía `oferta.categoriaAplicable`
+    // — ese campo no existe en Oferta (ver oferta.model.ts, ya fusionado sin
+    // conflicto: el campo real es `categoria`). Se usó la de origin/main.
+    if (oferta.aplicaA === 'categoria') {
+      return this.etiquetaDeCategoria(oferta.categoria as Categoria);
     }
-    if (oferta.audienciaAplicable) {
-      partes.push(this.audiencias.find(a => a.valor === oferta.audienciaAplicable)?.etiqueta ?? oferta.audienciaAplicable);
-    }
-    return partes.length > 0 ? partes.join(' · ') : 'Todo el catálogo';
+    return this.etiquetaDeAudiencia(oferta.audiencia as Audiencia);
   }
 
   etiquetaDeCategoria(categoria: Categoria): string {
@@ -309,16 +302,17 @@ export class OfertasComponent {
     return resumenStock(producto);
   }
 
-  contarProductosSeleccionados(): number {
-    const valores = this.ofertaForm.controls.productos.value as Record<string, boolean>;
-    return Object.values(valores ?? {}).filter(Boolean).length;
-  }
-
-  private mapaProductos(seleccionados: string[]): Record<string, boolean> {
-    return Object.fromEntries(this.productos().map(producto => [producto.id, seleccionados.includes(producto.id)]));
-  }
-
   private cargarOfertas(): void {
-    this.ofertaService.obtenerTodos().subscribe(ofertas => this.ofertas.set(ofertas));
+    this.cargando.set(true);
+    this.ofertaService.obtenerTodos().subscribe({
+      next: ofertas => {
+        this.ofertas.set(ofertas);
+        this.cargando.set(false);
+      },
+      error: () => {
+        this.toastService.error('No pudimos cargar las ofertas.');
+        this.cargando.set(false);
+      }
+    });
   }
 }

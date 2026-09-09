@@ -5,6 +5,10 @@ import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { Talla } from '../models/producto.model';
 
+// MERGE: se descartó la versión de origin/main (TallaApi + carga de solo
+// lectura vía API_URL, sin CRUD) y se usó la de HEAD, por la misma razón que
+// en colores.service.ts: mis-productos.component.ts (ya fusionado) depende
+// de agregarTalla/eliminarTalla/esPersonalizada, que solo existen aquí.
 // Nombres sembrados junto con el backend (ver database/seeds/seed.ts) —
 // protegidos de borrado accidental desde este panel, igual que antes con las
 // "tallas base" del mock.

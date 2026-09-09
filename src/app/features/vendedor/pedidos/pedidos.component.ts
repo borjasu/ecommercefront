@@ -1,24 +1,20 @@
 import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { HttpErrorResponse } from '@angular/common/http';
-import { PedidoVendedorService } from '../../../core/services/pedido-vendedor.service';
+import { VendorPedidoService } from '../../../core/services/vendor-pedido.service';
 import { ToastService } from '../../../core/services/toast.service';
-import { EstadoPago, EstadoPedido, PedidoVendedorDetalle } from '../../../core/models/pedido.model';
-import { claseBadgeEstadoPago, claseBadgeEstadoPedido, etiquetaEstadoPago, etiquetaEstadoPedido } from '../../../shared/utils/pedido-estado.util';
-import { mensajeDeErrorHttp } from '../../../shared/utils/http-error.util';
+import { EstadoPago, EstadoPedido, Pedido } from '../../../core/models/pedido.model';
+import { etiquetaDeRastreo } from '../../../shared/constants/rastreo';
 
 type FiltroEstado = 'todos' | EstadoPedido;
+type Paqueteria = 'DHL' | 'FedEx' | 'Estafeta' | 'Correos de México' | 'Otro';
 
 interface FiltroOpcion {
   valor: FiltroEstado;
   etiqueta: string;
 }
 
-// Lista de referencia para el formulario de captura manual — el backend
-// (RegistrarEnvioDto.paqueteria) acepta cualquier texto libre, esta lista
-// solo ayuda a no escribir el nombre a mano en el caso común.
-const PAQUETERIAS = ['DHL', 'FedEx', 'Estafeta', 'Correos de México', 'Otro'];
+const PAQUETERIAS: Paqueteria[] = ['DHL', 'FedEx', 'Estafeta', 'Correos de México', 'Otro'];
 
 @Component({
     selector: 'app-pedidos',
@@ -27,7 +23,7 @@ const PAQUETERIAS = ['DHL', 'FedEx', 'Estafeta', 'Correos de México', 'Otro'];
     templateUrl: './pedidos.component.html'
 })
 export class PedidosComponent {
-  private readonly pedidoVendedorService = inject(PedidoVendedorService);
+  private readonly vendorPedidoService = inject(VendorPedidoService);
   private readonly toastService = inject(ToastService);
   private readonly fb = inject(FormBuilder);
 
@@ -42,23 +38,35 @@ export class PedidosComponent {
   readonly estados: EstadoPedido[] = ['pendiente', 'enviado', 'entregado', 'cancelado'];
   readonly paqueterias = PAQUETERIAS;
 
-  readonly pedidos = signal<PedidoVendedorDetalle[]>([]);
-  readonly cargando = signal(true);
-  readonly error = signal(false);
+  readonly pedidos = signal<Pedido[]>([]);
   readonly filtroActual = signal<FiltroEstado>('todos');
+  // Vista aparte del filtro por estado: pedidos que el job de limpieza
+  // canceló solo por nunca pagarse (nunca fueron pedidos reales) — el
+  // backend ya los excluye de la vista principal por default.
+  readonly vistaAbandonados = signal(false);
   readonly pedidoExpandidoId = signal<string | null>(null);
-  readonly pedidoPendienteGuia = signal<PedidoVendedorDetalle | null>(null);
+  readonly pedidoPendienteGuia = signal<Pedido | null>(null);
   readonly generandoGuia = signal(false);
+  readonly actualizandoRastreoId = signal<string | null>(null);
 
   readonly guiaForm = this.fb.group({
-    paqueteria: ['DHL', [Validators.required]],
+    paqueteria: ['DHL' as Paqueteria, [Validators.required]],
     numeroGuia: ['', [Validators.required]],
     urlRastreo: ['']
   });
 
+  readonly pedidosOrdenados = computed(() =>
+    [...this.pedidos()].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+  );
+
   readonly pedidosFiltrados = computed(() => {
+    // En la vista de abandonados todos son 'cancelado' por definición — el
+    // filtro por estado no aplica ahí, solo en la vista principal.
+    if (this.vistaAbandonados()) {
+      return this.pedidosOrdenados();
+    }
     const filtro = this.filtroActual();
-    const pedidos = this.pedidos();
+    const pedidos = this.pedidosOrdenados();
     return filtro === 'todos' ? pedidos : pedidos.filter(pedido => pedido.estado === filtro);
   });
 
@@ -66,31 +74,24 @@ export class PedidosComponent {
     this.cargarPedidos();
   }
 
-  reintentar(): void {
-    this.cargarPedidos();
-  }
-
-  toggleDetalle(pedido: PedidoVendedorDetalle): void {
+  toggleDetalle(pedido: Pedido): void {
     this.pedidoExpandidoId.update(id => (id === pedido.id ? null : pedido.id));
   }
 
-  cambiarEstado(pedido: PedidoVendedorDetalle, estado: EstadoPedido): void {
-    if (estado === 'enviado') {
-      // El backend rechaza pasar a "enviado" directo (ver
-      // VendorOrdersService.actualizarEstado) — siempre se llega ahí
-      // generando o registrando una guía primero.
+  cambiarEstado(pedido: Pedido, estado: EstadoPedido): void {
+    if (estado === 'enviado' && !pedido.infoEnvio?.numeroGuia) {
       this.guiaForm.reset({ paqueteria: 'DHL', numeroGuia: '', urlRastreo: '' });
       this.pedidoPendienteGuia.set(pedido);
       return;
     }
 
-    this.pedidoVendedorService.actualizarEstado(pedido.id, estado).subscribe({
+    this.vendorPedidoService.actualizarEstado(pedido.id, estado).subscribe({
       next: () => this.cargarPedidos(),
-      error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
+      error: () => this.toastService.error('No pudimos actualizar el estado del pedido.')
     });
   }
 
-  confirmarGuiaManual(): void {
+  confirmarGuia(): void {
     const pedido = this.pedidoPendienteGuia();
     if (!pedido || this.guiaForm.invalid) {
       this.guiaForm.markAllAsTouched();
@@ -99,7 +100,7 @@ export class PedidosComponent {
 
     const { paqueteria, numeroGuia, urlRastreo } = this.guiaForm.getRawValue();
 
-    this.pedidoVendedorService
+    this.vendorPedidoService
       .registrarEnvioManual(pedido.id, {
         paqueteria: paqueteria!,
         numeroGuia: numeroGuia!,
@@ -110,29 +111,27 @@ export class PedidosComponent {
           this.cargarPedidos();
           this.pedidoPendienteGuia.set(null);
         },
-        error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
+        error: () => this.toastService.error('No pudimos registrar la guía. Verifica los datos.')
       });
   }
 
-  // Alternativa a la captura manual: cotiza y genera la guía real con
-  // Skydropx sin que el vendedor tenga que escribir nada (ver
-  // VendorOrdersService.generarGuiaAutomatica del backend).
-  confirmarGuiaAutomatica(): void {
+  generarGuiaAutomatica(): void {
     const pedido = this.pedidoPendienteGuia();
     if (!pedido) {
       return;
     }
 
     this.generandoGuia.set(true);
-    this.pedidoVendedorService.generarGuiaAutomatica(pedido.id).subscribe({
+    this.vendorPedidoService.generarGuiaAutomatica(pedido.id).subscribe({
       next: () => {
-        this.generandoGuia.set(false);
         this.cargarPedidos();
         this.pedidoPendienteGuia.set(null);
-      },
-      error: (error: HttpErrorResponse) => {
         this.generandoGuia.set(false);
-        this.toastService.error(mensajeDeErrorHttp(error));
+        this.toastService.exito('Guía generada automáticamente con la paquetería.');
+      },
+      error: () => {
+        this.generandoGuia.set(false);
+        this.toastService.error('No pudimos generar la guía automática. Captúrala manualmente.');
       }
     });
   }
@@ -142,33 +141,57 @@ export class PedidosComponent {
   }
 
   etiquetaEstado(estado: EstadoPedido): string {
-    return etiquetaEstadoPedido(estado);
-  }
-
-  claseEstado(estado: EstadoPedido): string {
-    return claseBadgeEstadoPedido(estado);
+    const etiquetas: Record<EstadoPedido, string> = {
+      pendiente: 'Pendiente',
+      enviado: 'Enviado',
+      entregado: 'Entregado',
+      cancelado: 'Cancelado'
+    };
+    return etiquetas[estado];
   }
 
   etiquetaEstadoPago(estadoPago: EstadoPago): string {
-    return etiquetaEstadoPago(estadoPago);
+    const etiquetas: Record<EstadoPago, string> = {
+      pendiente: 'Pendiente',
+      pagado: 'Pagado',
+      reembolsado: 'Reembolsado'
+    };
+    return etiquetas[estadoPago];
   }
 
-  claseEstadoPago(estadoPago: EstadoPago): string {
-    return claseBadgeEstadoPago(estadoPago);
+  etiquetaRastreo(estado: string | null): string | null {
+    return etiquetaDeRastreo(estado);
+  }
+
+  actualizarRastreo(pedido: Pedido): void {
+    this.actualizandoRastreoId.set(pedido.id);
+    this.vendorPedidoService.obtenerRastreo(pedido.id).subscribe({
+      next: ({ trackingStatus }) => {
+        this.pedidos.update(lista =>
+          lista.map(p => (p.id === pedido.id ? { ...p, infoEnvio: { ...p.infoEnvio, trackingStatus } } : p))
+        );
+        this.actualizandoRastreoId.set(null);
+      },
+      error: () => {
+        this.toastService.error('No pudimos actualizar el rastreo. Intenta de nuevo.');
+        this.actualizandoRastreoId.set(null);
+      }
+    });
+  }
+
+  cambiarVista(abandonados: boolean): void {
+    if (this.vistaAbandonados() === abandonados) {
+      return;
+    }
+    this.vistaAbandonados.set(abandonados);
+    this.filtroActual.set('todos');
+    this.cargarPedidos();
   }
 
   private cargarPedidos(): void {
-    this.cargando.set(true);
-    this.error.set(false);
-    this.pedidoVendedorService.listarTodos().subscribe({
-      next: pedidos => {
-        this.pedidos.set(pedidos);
-        this.cargando.set(false);
-      },
-      error: () => {
-        this.error.set(true);
-        this.cargando.set(false);
-      }
+    this.vendorPedidoService.obtenerTodos(this.vistaAbandonados()).subscribe({
+      next: pedidos => this.pedidos.set(pedidos),
+      error: () => this.toastService.error('No pudimos cargar los pedidos.')
     });
   }
 }

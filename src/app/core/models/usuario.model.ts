@@ -10,6 +10,6 @@ export interface Usuario {
   nombre: string;
   email: string;
   rol: Rol;
-  telefono?: string;
-  fechaRegistro: string;
+  telefono?: string | null;
+  fechaRegistro?: string;
 }

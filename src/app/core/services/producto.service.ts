@@ -97,6 +97,22 @@ interface PaginaProductosBackend {
   limit: number;
 }
 
+// MERGE: se combinaron ambas versiones. La lógica de negocio (stock local
+// por talla/color, mayoreo, CRUD de colores/tallas de un producto) es la de
+// HEAD porque inventario.component.ts, mis-productos.component.ts,
+// checkout.component.ts y shared/utils/inventario.util.ts (ya fusionados,
+// fuera de conflicto) dependen de producto.variantes/stockPorTalla y de
+// verificarStockDisponible/descontarStock, que solo existían en HEAD. Se
+// conserva además FiltrosDisponibles/obtenerFiltrosDisponibles de
+// origin/main: es una capacidad nueva (no una implementación alterna de algo
+// que HEAD ya tenía) que catalogo.component.ts sí necesita.
+export interface FiltrosDisponibles {
+  tallas: string[];
+  colores: string[];
+  precioMin: number;
+  precioMax: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -138,6 +154,11 @@ export class ProductoService {
     return this.http
       .get<ProductoBackend[]>(`${this.baseUrl}/destacados`)
       .pipe(map(productos => productos.map(p => this.aProducto(p))));
+  }
+
+  /** Solo talla/color/rango de precio que EXISTEN entre productos activos ahora mismo. */
+  obtenerFiltrosDisponibles(): Observable<FiltrosDisponibles> {
+    return this.http.get<FiltrosDisponibles>(`${this.baseUrl}/filtros-disponibles`);
   }
 
   obtenerPorId(id: string): Observable<Producto | undefined> {

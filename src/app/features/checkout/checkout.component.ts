@@ -1,114 +1,123 @@
-import { Component, ChangeDetectionStrategy, OnDestroy, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, ChangeDetectionStrategy, effect, inject, signal, computed } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { EMPTY } from 'rxjs';
-import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
-import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/services/auth.service';
 import { CartService } from '../../core/services/cart.service';
-import { ProductoService } from '../../core/services/producto.service';
+import { PedidoService } from '../../core/services/pedido.service';
 import { DireccionesService } from '../../core/services/direcciones.service';
-import { CodigosPostalesService, ColoniaCp } from '../../core/services/codigos-postales.service';
-import { EnvioService, OpcionEnvio } from '../../core/services/envio.service';
-import { PagoService, ProcesarPagoPayload } from '../../core/services/pago.service';
-import { PedidoCompradorService } from '../../core/services/pedido-comprador.service';
-import { ToastService } from '../../core/services/toast.service';
-import { ItemCarrito } from '../../core/models/carrito.model';
-import { Color, DetalleStockInsuficiente, ItemStockSolicitado, SIN_COLOR } from '../../core/models/producto.model';
-import { PedidoDetalle } from '../../core/models/pedido.model';
+import { EnviosService } from '../../core/services/envios.service';
+import { PagosService } from '../../core/services/pagos.service';
+import { MercadoPagoService } from '../../core/services/mercado-pago.service';
 import { ColoresService } from '../../core/services/colores.service';
-import { mensajeDeErrorHttp } from '../../shared/utils/http-error.util';
-import { soloDigitos } from '../../shared/utils/texto.util';
-import { resolverImagenProducto } from '../../shared/utils/producto-imagen.util';
+import { OpcionEnvioCardComponent } from '../../shared/components/opcion-envio-card/opcion-envio-card.component';
+import { ItemCarrito } from '../../core/models/carrito.model';
+import { Color } from '../../core/models/producto.model';
+import { ResultadoPago } from '../../core/models/pago.model';
+import { ItemParaCotizar, OpcionEnvio } from '../../core/models/envio.model';
 
-const LARGO_TELEFONO = 10;
+// Sección "activa" (expandida y editable) del checkout de una sola página —
+// nunca cambia de ruta, solo controla qué bloque se ve expandido/colapsado.
+type SeccionId = 'direccion' | 'entrega' | 'facturacion';
 
-type MetodoPago = 'tarjeta' | 'efectivo';
-type ResultadoPago = 'aprobado' | 'pendiente' | 'rechazado';
+const ID_CONTENEDOR_BRICK = 'paymentBrick_container';
 
-// SDK de mercadopago.js (cargado como <script> en index.html) — no tiene un
-// paquete de tipos oficial para el SDK vainilla v2, así que la configuración
-// del Brick se tipa como `unknown`/`any` igual que en los ejemplos oficiales.
-declare const MercadoPago: {
-  new (publicKey: string, opciones?: { locale?: string }): {
-    bricks: () => {
-      create: (tipo: 'payment', contenedorId: string, configuracion: unknown) => Promise<{ unmount: () => void }>;
-    };
-  };
-};
+// Subconjunto representativo del catálogo SAT de regímenes fiscales — no se
+// valida contra un catálogo dinámico del SAT (fuera de alcance), es solo un
+// selector para capturar el dato cuando el comprador pide factura.
+const REGIMENES_FISCALES: { valor: string; etiqueta: string }[] = [
+  { valor: '601', etiqueta: '601 - General de Ley Personas Morales' },
+  { valor: '603', etiqueta: '603 - Personas Morales con Fines no Lucrativos' },
+  { valor: '605', etiqueta: '605 - Sueldos y Salarios' },
+  { valor: '606', etiqueta: '606 - Arrendamiento' },
+  { valor: '612', etiqueta: '612 - Personas Físicas con Actividad Empresarial' },
+  { valor: '616', etiqueta: '616 - Sin obligaciones fiscales' },
+  { valor: '621', etiqueta: '621 - Incorporación Fiscal' },
+  { valor: '625', etiqueta: '625 - Ingresos por Plataformas Tecnológicas' },
+  { valor: '626', etiqueta: '626 - Régimen Simplificado de Confianza' }
+];
 
 @Component({
     selector: 'app-checkout',
-    imports: [ReactiveFormsModule, RouterLink],
+    imports: [ReactiveFormsModule, RouterLink, OpcionEnvioCardComponent],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './checkout.component.html'
 })
-export class CheckoutComponent implements OnDestroy {
+export class CheckoutComponent {
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly cartService = inject(CartService);
-  private readonly productoService = inject(ProductoService);
-  private readonly envioService = inject(EnvioService);
-  private readonly pagoService = inject(PagoService);
-  private readonly pedidoCompradorService = inject(PedidoCompradorService);
-  private readonly http = inject(HttpClient);
-  private readonly codigosPostalesService = inject(CodigosPostalesService);
-  readonly direccionesService = inject(DireccionesService);
+  private readonly pedidoService = inject(PedidoService);
+  private readonly enviosService = inject(EnviosService);
+  private readonly pagosService = inject(PagosService);
+  private readonly mercadoPagoService = inject(MercadoPagoService);
   private readonly coloresService = inject(ColoresService);
-  private readonly toastService = inject(ToastService);
   private readonly router = inject(Router);
+  readonly direccionesService = inject(DireccionesService);
 
   readonly items = this.cartService.itemsCarrito;
-  readonly total = this.cartService.total;
+  readonly subtotal = this.cartService.total;
+  readonly usuario = this.authService.currentUser;
 
-  readonly pasoActual = signal<1 | 2 | 3>(1);
-  readonly metodoPago = signal<MetodoPago>('tarjeta');
+  // Sección actualmente expandida/editable — el resto se muestra colapsada
+  // (con resumen + "Cambiar") o ni siquiera aparece todavía si depende de
+  // esta. Nunca implica cambiar de URL, es solo estado interno de un único
+  // componente de una sola página.
+  readonly seccionActiva = signal<SeccionId>('direccion');
+
+  // Dirección --------------------------------------------------------------
   readonly direccionSeleccionadaId = signal<string | null>(null);
+  readonly direccionConfirmada = signal(false);
+  readonly mostrarNuevaDireccion = signal(false);
 
-  // Paso 3: preparar el pago (dirección real + cotización de envío + pedido +
-  // preferencia, ver `continuarAlPago`) y luego el Payment Brick embebido.
-  readonly preparandoPago = signal(false);
-  readonly errorPreparacion = signal<string | null>(null);
-  readonly opcionEnvio = signal<OpcionEnvio | null>(null);
-  readonly pedidoCreado = signal<PedidoDetalle | null>(null);
-  readonly pagando = signal(false);
-  readonly resultadoPago = signal<ResultadoPago | null>(null);
-
-  // Solo se usa para mostrar la pantalla final: aprobado/pendiente muestran
-  // "gracias", rechazado se resuelve dentro del paso 3 (botón "Intentar de
-  // nuevo" → `reintentarPago`).
-  readonly numeroPedidoFinal = signal<string | null>(null);
-
-  // Estado de la resolución del código postal contra el catálogo SEPOMEX
-  // (GET /codigos-postales/:cp, ver CodigosPostalesService) — sin esto no
-  // hay forma de distinguir "todavía no se ha tecleado un CP válido", "el
-  // catálogo lo encontró" (estado/municipio se bloquean, colonia es un
-  // selector) y "hueco de cobertura" (estado/municipio/colonia se vuelven
-  // editables a mano, ver auditoría del prompt).
-  readonly resolviendoCp = signal(false);
-  readonly cpResuelto = signal(false);
-  readonly cpSinCobertura = signal(false);
-  readonly cpError = signal<string | null>(null);
-  readonly colonias = signal<ColoniaCp[]>([]);
-
-  readonly envioForm = this.fb.group({
+  readonly nuevaDireccionForm = this.fb.group({
+    alias: ['Casa', [Validators.required]],
     nombreCompleto: ['', [Validators.required]],
-    email: [{ value: '', disabled: true }],
-    calle: ['', [Validators.required]],
-    numeroExterior: ['', [Validators.required]],
-    numeroInterior: [''],
-    codigoPostal: ['', [Validators.required, Validators.pattern(/^\d{5}$/)]],
-    colonia: ['', [Validators.required]],
-    municipio: ['', [Validators.required]],
-    estado: ['', [Validators.required]],
-    referencias: [''],
-    telefono: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]]
+    direccion: ['', [Validators.required]],
+    ciudad: ['', [Validators.required]],
+    codigoPostal: ['', [Validators.required, Validators.pattern(/^\d{4,6}$/)]],
+    telefono: ['', [Validators.required, Validators.pattern(/^[\d\s+()-]{7,15}$/)]]
   });
 
-  private mercadoPago?: InstanceType<typeof MercadoPago>;
-  private brickControlador?: { unmount: () => void };
+  readonly direccionElegida = computed(() =>
+    this.direccionesService.listado().find(direccion => direccion.id === this.direccionSeleccionadaId()) ?? null
+  );
+
+  // Entrega (cotización real a Skydropx) -------------------------------------
+  readonly cotizando = signal(false);
+  readonly errorCotizacion = signal<string | null>(null);
+  readonly opcionesEnvio = signal<OpcionEnvio[]>([]);
+  readonly cotizacionId = signal<string | null>(null);
+  readonly rateSeleccionado = signal<string | null>(null);
+  readonly entregaConfirmada = signal(false);
+
+  readonly opcionEntregaElegida = computed(() =>
+    this.opcionesEnvio().find(opcion => opcion.rateId === this.rateSeleccionado()) ?? null
+  );
+  readonly costoEnvio = computed(() => this.opcionEntregaElegida()?.costo ?? 0);
+  readonly totalConEnvio = computed(() => Math.round((this.subtotal() + this.costoEnvio()) * 100) / 100);
+
+  // Facturación (opcional) --------------------------------------------------
+  readonly requiereFactura = signal(false);
+  readonly facturacionConfirmada = signal(false);
+  readonly regimenesFiscales = REGIMENES_FISCALES;
+
+  readonly facturaForm = this.fb.group({
+    rfc: ['', [Validators.required, Validators.pattern(/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/i)]],
+    razonSocial: ['', [Validators.required]],
+    regimenFiscal: ['', [Validators.required]]
+  });
+
+  // Pago — Payment Brick de Mercado Pago, montado inline en esta misma
+  // sección/página (nunca en otra ruta ni con recarga). -------------------
+  readonly pedidoActual = signal<{ id: string; numeroPedido: string } | null>(null);
+  readonly preferenceId = signal<string | null>(null);
+  readonly amountPreferencia = signal<number | null>(null);
+  readonly brickListo = signal(false);
+
+  readonly procesando = signal(false);
+  readonly errorPago = signal<string | null>(null);
+  readonly numeroPedido = signal<string | null>(null);
+  readonly resultadoPagoFinal = signal<ResultadoPago | null>(null);
 
   constructor() {
     if (this.cartService.itemsCarrito().length === 0) {
@@ -117,108 +126,35 @@ export class CheckoutComponent implements OnDestroy {
 
     const usuario = this.authService.currentUser();
     if (usuario) {
-      this.envioForm.patchValue({ nombreCompleto: usuario.nombre, email: usuario.email });
+      this.nuevaDireccionForm.patchValue({ nombreCompleto: usuario.nombre });
     }
 
-    const predeterminada = this.direccionesService.listado().find(direccion => direccion.predeterminada);
-    if (predeterminada) {
-      this.usarDireccionGuardada(predeterminada.id);
-    }
+    // La lista de direcciones se carga de forma asíncrona (HTTP) — este efecto
+    // reacciona en cuanto llegue, en vez de leerla una sola vez en el constructor.
+    effect(() => {
+      const direcciones = this.direccionesService.listado();
+      if (!this.direccionSeleccionadaId() && direcciones.length > 0) {
+        const predeterminada = direcciones.find(direccion => direccion.predeterminada) ?? direcciones[0];
+        this.direccionSeleccionadaId.set(predeterminada.id);
+      }
+    });
 
-    this.observarCodigoPostal();
-  }
-
-  ngOnDestroy(): void {
-    this.brickControlador?.unmount();
-  }
-
-  usarDireccionGuardada(id: string): void {
-    const direccion = this.direccionesService.listado().find(d => d.id === id);
-    if (!direccion) {
-      return;
-    }
-
-    this.direccionSeleccionadaId.set(id);
-    // La dirección guardada (DireccionesService sigue siendo 100% mock local,
-    // ver auditoría del prompt) no tiene calle/colonia/estado/municipio por
-    // separado, solo un texto libre — se completa lo que sí mapea 1 a 1 y se
-    // deja "calle" con ese texto como punto de partida editable. El patchValue
-    // de codigoPostal dispara la misma resolución contra el catálogo SEPOMEX
-    // que si el comprador lo hubiera tecleado a mano (ver observarCodigoPostal),
-    // así estado/municipio/colonia se llenan con datos reales, no con el mock.
-    this.envioForm.patchValue({
-      nombreCompleto: direccion.nombreCompleto,
-      calle: direccion.direccion,
-      codigoPostal: direccion.codigoPostal,
-      telefono: direccion.telefono
+    // Una vez confirmada la facturación (con o sin factura), se dispara el
+    // pago de inmediato — sin ningún selector/pantalla intermedia nuestra: el
+    // Payment Brick ya trae su propio selector de método integrado.
+    effect(() => {
+      if (this.facturacionConfirmada() && !this.pedidoActual()) {
+        this.iniciarPago();
+      }
     });
   }
 
-  // Debounce de 400ms tras dejar de escribir el CP (cubre igual el caso de
-  // perder el foco, que solo dispararía esto un poco antes) — resuelve
-  // estado/municipio/colonia contra GET /codigos-postales/:cp.
-  private observarCodigoPostal(): void {
-    this.envioForm.controls.codigoPostal.valueChanges
-      .pipe(
-        debounceTime(400),
-        distinctUntilChanged(),
-        switchMap(valor => {
-          if (!/^\d{5}$/.test(valor ?? '')) {
-            this.limpiarResolucionCp();
-            return EMPTY;
-          }
-
-          this.resolviendoCp.set(true);
-          this.cpError.set(null);
-
-          return this.codigosPostalesService.buscar(valor!).pipe(
-            catchError((error: HttpErrorResponse) => {
-              this.resolviendoCp.set(false);
-              this.cpResuelto.set(false);
-              this.cpSinCobertura.set(true);
-              this.colonias.set([]);
-              this.envioForm.patchValue({ estado: '', municipio: '', colonia: '' });
-              this.cpError.set(
-                error.status === 404
-                  ? 'No encontramos ese código postal, verifícalo. Puedes completar estado, municipio y colonia manualmente.'
-                  : 'No pudimos verificar el código postal. Puedes completar estado, municipio y colonia manualmente.'
-              );
-              return EMPTY;
-            })
-          );
-        }),
-        takeUntilDestroyed()
-      )
-      .subscribe(respuesta => {
-        this.resolviendoCp.set(false);
-        this.cpResuelto.set(true);
-        this.cpSinCobertura.set(false);
-        this.colonias.set(respuesta.colonias);
-        this.envioForm.patchValue({
-          estado: respuesta.estado,
-          municipio: respuesta.municipio,
-          colonia: ''
-        });
-      });
-  }
-
-  // Vuelve al estado "sin resolver" (campos bloqueados y vacíos) cada vez que
-  // el CP deja de tener 5 dígitos válidos — evita dejar estado/municipio/
-  // colonia de un CP anterior visibles mientras el comprador edita uno nuevo.
-  private limpiarResolucionCp(): void {
-    this.resolviendoCp.set(false);
-    this.cpResuelto.set(false);
-    this.cpSinCobertura.set(false);
-    this.cpError.set(null);
-    this.colonias.set([]);
-    this.envioForm.patchValue({ estado: '', municipio: '', colonia: '' });
-  }
-
-  // Usa el mismo precio efectivo que ya vio en el carrito (normal o de
-  // mayoreo, ver CartService.precioUnitarioEfectivo) — solo es la vista previa
-  // antes de pagar, el cálculo autoritativo real vuelve a hacerlo el backend
-  // al crear el pedido (OrdersService.crear), ignorando cualquier precio que
-  // mande el frontend.
+  // MERGE: origin/main no tenía precio de mayoreo (era una implementación
+  // paralela solo en HEAD) — se usa el mismo precio efectivo que ya se ve en
+  // el carrito (normal, de oferta o de mayoreo, ver
+  // CartService.precioUnitarioEfectivo) en vez de calcular aquí solo con
+  // precioFinal. Solo es la vista previa antes de pagar: el cálculo
+  // autoritativo real lo vuelve a hacer el backend al crear el pedido.
   subtotalLinea(item: ItemCarrito): number {
     return this.cartService.precioUnitarioEfectivo(item) * item.cantidad;
   }
@@ -227,284 +163,303 @@ export class CheckoutComponent implements OnDestroy {
     return this.cartService.aplicaMayoreo(item);
   }
 
-  imagenDe(item: ItemCarrito): string {
-    return resolverImagenProducto(item.producto);
-  }
-
-  onTelefonoInput(evento: Event): void {
-    const valor = (evento.target as HTMLInputElement).value;
-    this.envioForm.patchValue({ telefono: soloDigitos(valor, LARGO_TELEFONO) });
-  }
-
   etiquetaDeColor(color: Color): string {
     return this.coloresService.etiquetaDe(color);
   }
 
-  siguientePaso(): void {
-    if (this.pasoActual() === 2 && this.envioForm.invalid) {
-      this.envioForm.markAllAsTouched();
+  // ---------- Dirección ----------
+  seleccionarDireccion(id: string): void {
+    this.direccionSeleccionadaId.set(id);
+  }
+
+  abrirNuevaDireccion(): void {
+    this.mostrarNuevaDireccion.set(true);
+    this.nuevaDireccionForm.reset({
+      alias: 'Casa',
+      nombreCompleto: this.authService.currentUser()?.nombre ?? '',
+      direccion: '',
+      ciudad: '',
+      codigoPostal: '',
+      telefono: ''
+    });
+  }
+
+  cancelarNuevaDireccion(): void {
+    this.mostrarNuevaDireccion.set(false);
+  }
+
+  guardarNuevaDireccion(): void {
+    if (this.nuevaDireccionForm.invalid) {
+      this.nuevaDireccionForm.markAllAsTouched();
       return;
     }
 
-    this.pasoActual.update(paso => (paso < 3 ? ((paso + 1) as 1 | 2 | 3) : paso));
+    const valores = this.nuevaDireccionForm.getRawValue();
+    const esPrimera = this.direccionesService.listado().length === 0;
+
+    this.direccionesService
+      .crearYObtener({
+        alias: valores.alias!,
+        nombreCompleto: valores.nombreCompleto!,
+        direccion: valores.direccion!,
+        ciudad: valores.ciudad!,
+        codigoPostal: valores.codigoPostal!,
+        telefono: valores.telefono!,
+        predeterminada: esPrimera
+      })
+      .subscribe(direccion => {
+        this.direccionSeleccionadaId.set(direccion.id);
+        this.mostrarNuevaDireccion.set(false);
+      });
   }
 
-  pasoAnterior(): void {
-    this.pasoActual.update(paso => (paso > 1 ? ((paso - 1) as 1 | 2 | 3) : paso));
+  confirmarDireccion(): void {
+    if (!this.direccionSeleccionadaId()) {
+      return;
+    }
+    this.direccionConfirmada.set(true);
+    this.seccionActiva.set('entrega');
+    this.cotizar();
   }
 
-  // Dispara toda la cadena real contra el backend: dirección → cotización de
-  // envío → creación del pedido → preferencia de Mercado Pago → montar el
-  // Payment Brick. Se llama al elegir método de pago en el paso 3, no antes
-  // (así el comprador puede seguir ajustando el paso 2 sin crear nada todavía).
-  continuarAlPago(): void {
-    const verificacion = this.productoService.verificarStockDisponible(this.itemsStockActuales());
-    // Mismo chequeo que ya existía antes de conectar el backend real: el
-    // modelo de productos de ecommerceback todavía no tiene control de stock
-    // por unidad (ver nota en producto.service.ts), así que esta sigue siendo
-    // la única validación de cantidad disponible en toda la app.
-    if (!verificacion.ok) {
-      this.toastService.error(this.mensajeStockInsuficiente(verificacion.detalles));
+  cambiarDireccion(): void {
+    if (this.pedidoActual()) {
+      return; // ya se creó el pedido con estos datos, no se puede editar a medias
+    }
+    this.direccionConfirmada.set(false);
+    this.entregaConfirmada.set(false);
+    this.facturacionConfirmada.set(false);
+    this.seccionActiva.set('direccion');
+  }
+
+  // ---------- Entrega ----------
+  reintentarCotizacion(): void {
+    this.cotizar();
+  }
+
+  seleccionarEntrega(rateId: string): void {
+    this.rateSeleccionado.set(rateId);
+    this.entregaConfirmada.set(true);
+    this.seccionActiva.set('facturacion');
+  }
+
+  cambiarEntrega(): void {
+    if (this.pedidoActual()) {
+      return;
+    }
+    this.entregaConfirmada.set(false);
+    this.facturacionConfirmada.set(false);
+    this.seccionActiva.set('entrega');
+  }
+
+  // ---------- Facturación ----------
+  confirmarFacturacion(): void {
+    if (this.requiereFactura() && this.facturaForm.invalid) {
+      this.facturaForm.markAllAsTouched();
+      return;
+    }
+    this.facturacionConfirmada.set(true);
+  }
+
+  cambiarFacturacion(): void {
+    if (this.pedidoActual()) {
+      return;
+    }
+    this.facturacionConfirmada.set(false);
+    this.seccionActiva.set('facturacion');
+  }
+
+  // ---------- Pago ----------
+  private iniciarPago(): void {
+    const direccionId = this.direccionSeleccionadaId();
+    const cotizacionId = this.cotizacionId();
+    const rateId = this.rateSeleccionado();
+    if (!direccionId || !cotizacionId || !rateId) {
       return;
     }
 
-    this.preparandoPago.set(true);
-    this.errorPreparacion.set(null);
+    this.procesando.set(true);
+    this.errorPago.set(null);
 
-    const {
-      nombreCompleto,
-      calle,
-      numeroExterior,
-      numeroInterior,
-      colonia,
-      municipio,
-      estado,
-      codigoPostal,
-      referencias,
-      telefono
-    } = this.envioForm.getRawValue();
-    const itemsPedido = this.itemsPedidoActuales();
+    const facturaValores = this.requiereFactura() ? this.facturaForm.getRawValue() : null;
 
-    this.crearDireccionTemporal({
-      nombreCompleto: nombreCompleto!,
-      calle: calle!,
-      numeroExterior: numeroExterior!,
-      numeroInterior: numeroInterior || null,
-      colonia: colonia!,
-      municipio: municipio!,
-      estado: estado!,
-      codigoPostal: codigoPostal!,
-      referencias: referencias || null,
-      telefono: telefono!
-    })
-      .pipe(
-        switchMap(direccionCreada =>
-          this.envioService.cotizar(direccionCreada.id, itemsPedido).pipe(
-            switchMap(cotizacion => {
-              const mejorOpcion = [...cotizacion.opciones].sort((a, b) => a.costo - b.costo)[0];
-              if (!mejorOpcion) {
-                throw new Error('No hay opciones de envío disponibles para esa dirección.');
-              }
-              this.opcionEnvio.set(mejorOpcion);
-              return this.pedidoCompradorService.crear({
-                items: itemsPedido,
-                direccionId: direccionCreada.id,
-                cotizacionId: cotizacion.cotizacionId,
-                rateId: mejorOpcion.rateId,
-                metodoPago: this.metodoPago()
-              });
-            }),
-            switchMap(pedido => {
-              this.pedidoCreado.set(pedido);
-              return this.pagoService.crearPreferencia(pedido.id);
-            })
-          )
-        )
-      )
+    this.pedidoService
+      .crearPedido({
+        items: this.itemsParaBackend(),
+        direccionId,
+        cotizacionId,
+        rateId,
+        metodoPago: 'tarjeta',
+        ...(facturaValores && {
+          datosFiscales: {
+            rfc: facturaValores.rfc!,
+            razonSocial: facturaValores.razonSocial!,
+            regimenFiscal: facturaValores.regimenFiscal!
+          }
+        })
+      })
       .subscribe({
-        next: respuesta => {
-          this.preparandoPago.set(false);
-          setTimeout(() => this.montarBrick(respuesta.preferenceId), 0);
+        next: pedido => {
+          this.pedidoActual.set({ id: pedido.id, numeroPedido: pedido.numeroPedido });
+          this.iniciarPreferencia(pedido.id);
         },
-        error: (error: unknown) => {
-          this.preparandoPago.set(false);
-          this.errorPreparacion.set(
-            error instanceof HttpErrorResponse ? mensajeDeErrorHttp(error) : 'No se pudo preparar el pago. Intenta de nuevo.'
+        error: () => {
+          this.errorPago.set(
+            'No pudimos crear tu pedido. La cotización de envío pudo haber expirado — vuelve a cotizar.'
           );
+          this.procesando.set(false);
+          this.facturacionConfirmada.set(false);
         }
       });
   }
 
-  // El pedido y la dirección ya existen (se creó en `continuarAlPago`) — un
-  // pago rechazado solo necesita una preferencia nueva para volver a montar
-  // el Brick, no repetir toda la cadena.
-  reintentarPago(): void {
-    const pedido = this.pedidoCreado();
-    if (!pedido) {
-      return;
-    }
-
-    this.resultadoPago.set(null);
-    this.brickControlador?.unmount();
-    this.brickControlador = undefined;
-    this.preparandoPago.set(true);
-
-    this.pagoService.crearPreferencia(pedido.id).subscribe({
-      next: respuesta => {
-        this.preparandoPago.set(false);
-        setTimeout(() => this.montarBrick(respuesta.preferenceId), 0);
+  private iniciarPreferencia(pedidoId: string): void {
+    this.pagosService.crearPreferencia(pedidoId).subscribe({
+      next: ({ preferenceId, amount }) => {
+        this.preferenceId.set(preferenceId);
+        this.amountPreferencia.set(amount);
+        this.procesando.set(false);
+        // setTimeout: el contenedor del Brick se renderiza en el template a
+        // partir de preferenceId() — se difiere un tick para asegurar que ese
+        // <div> ya exista en el DOM antes de que el SDK intente montarse ahí.
+        setTimeout(() => this.montarBrick(amount, preferenceId));
       },
-      error: (error: HttpErrorResponse) => {
-        this.preparandoPago.set(false);
-        this.toastService.error(mensajeDeErrorHttp(error));
+      error: () => {
+        this.errorPago.set('No pudimos iniciar el pago. Intenta de nuevo.');
+        this.procesando.set(false);
       }
     });
   }
 
-  private itemsStockActuales(): ItemStockSolicitado[] {
-    return this.items().map(item => ({
-      productoId: item.producto.id,
-      talla: item.talla,
-      color: item.color,
-      cantidad: item.cantidad
-    }));
-  }
+  private async montarBrick(amount: number, preferenceId: string): Promise<void> {
+    const usuario = this.authService.currentUser();
+    const partesNombre = (usuario?.nombre ?? '').trim().split(/\s+/);
 
-  private itemsPedidoActuales(): { productoId: string; talla: string; color: string; cantidad: number }[] {
-    return this.itemsStockActuales().map(item => ({ ...item, color: item.color ?? SIN_COLOR }));
-  }
-
-  private crearDireccionTemporal(datos: {
-    nombreCompleto: string;
-    calle: string;
-    numeroExterior: string;
-    numeroInterior: string | null;
-    colonia: string;
-    municipio: string;
-    estado: string;
-    codigoPostal: string;
-    referencias: string | null;
-    telefono: string;
-  }) {
-    // NOTA TEMPORAL (decisión explícita del día 3 del sprint): DireccionesService
-    // sigue siendo 100% mock/localStorage — no tiene ids reales de la BD, y
-    // POST /pedidos y POST /envios/cotizar exigen un direccionId real. Mientras
-    // no se conecte esa migración (día futuro), aquí se crea una dirección real
-    // contra el backend con los datos que el comprador ya llenó en el paso 2
-    // (ahora estructurados vía SEPOMEX, ver observarCodigoPostal), solo para
-    // tener un id válido con el que cotizar y crear el pedido. No reemplaza
-    // esa migración: cada checkout inserta una fila nueva en `direcciones`,
-    // no gestiona ni reutiliza un catálogo real todavía.
-    return this.http.post<{ id: string }>(
-      `${environment.apiUrl}/direcciones`,
-      {
-        alias: 'Checkout',
-        nombreCompleto: datos.nombreCompleto,
-        calle: datos.calle,
-        numeroExterior: datos.numeroExterior,
-        numeroInterior: datos.numeroInterior || undefined,
-        colonia: datos.colonia,
-        municipio: datos.municipio,
-        estado: datos.estado,
-        codigoPostal: datos.codigoPostal,
-        referencias: datos.referencias || undefined,
-        telefono: datos.telefono
-      },
-      { withCredentials: true }
-    );
-  }
-
-  private montarBrick(preferenceId: string): void {
-    const pedido = this.pedidoCreado();
-    if (!pedido) {
-      return;
-    }
-
-    this.mercadoPago ??= new MercadoPago(environment.mercadoPagoPublicKey, { locale: 'es-MX' });
-    const esTarjeta = this.metodoPago() === 'tarjeta';
-
-    this.mercadoPago
-      .bricks()
-      .create('payment', 'brick-pago-container', {
-        initialization: {
-          amount: pedido.total,
-          preferenceId,
-          payer: { email: this.authService.currentUser()?.email }
-        },
-        customization: {
-          paymentMethods: esTarjeta
-            ? { creditCard: 'all', debitCard: 'all', prepaidCard: 'all', ticket: 'none', bankTransfer: 'none', mercadoPago: 'none', atm: 'none' }
-            : { creditCard: 'none', debitCard: 'none', prepaidCard: 'none', ticket: 'all', bankTransfer: 'all', mercadoPago: 'none', atm: 'none' }
-        },
-        callbacks: {
-          onReady: () => {},
-          onError: () => {
-            this.toastService.error('Ocurrió un error al cargar el formulario de pago.');
-          },
-          onSubmit: ({ formData }: { formData: Record<string, unknown> }) =>
-            new Promise<void>((resolve, reject) => {
-              this.pagando.set(true);
-              const payload = { ...formData, pedidoId: pedido.id } as unknown as ProcesarPagoPayload;
-              this.pagoService.procesar(payload).subscribe({
-                next: respuesta => {
-                  this.pagando.set(false);
-                  this.resultadoPago.set(respuesta.resultado);
-                  this.confirmarContraBackend(pedido.id, respuesta.resultado);
-                  resolve();
-                },
-                error: (error: HttpErrorResponse) => {
-                  this.pagando.set(false);
-                  this.toastService.error(mensajeDeErrorHttp(error));
-                  reject();
-                }
-              });
-            })
+    await this.mercadoPagoService.montarPaymentBrick(ID_CONTENEDOR_BRICK, {
+      initialization: {
+        amount,
+        preferenceId,
+        payer: {
+          firstName: partesNombre[0] ?? '',
+          lastName: partesNombre.slice(1).join(' '),
+          email: usuario?.email
         }
-      })
-      .then(controlador => {
-        this.brickControlador = controlador;
-      });
-  }
-
-  // Nunca se refleja `resultado` (la respuesta síncrona de /pagos/procesar)
-  // como estado final sin antes volver a consultar el pedido real: es la
-  // única forma de estar seguros de lo que el backend (y, en última
-  // instancia, el webhook de Mercado Pago) realmente confirmó.
-  private confirmarContraBackend(pedidoId: string, resultado: ResultadoPago): void {
-    this.pedidoCompradorService.obtenerPorId(pedidoId).subscribe({
-      next: pedidoActualizado => {
-        this.pedidoCreado.set(pedidoActualizado);
-        this.finalizarSegunResultado(resultado, pedidoActualizado.numeroPedido);
       },
-      // Si el GET de confirmación falla (red caída, etc.) igual se refleja el
-      // resultado síncrono que sí llegó — no se deja al comprador sin
-      // respuesta; "Mis pedidos" siempre parte de una consulta fresca, así
-      // que verá el estado real apenas la conexión se restablezca.
-      error: () => this.finalizarSegunResultado(resultado, this.pedidoCreado()?.numeroPedido ?? '')
+      customization: {
+        visual: {
+          style: {
+            theme: 'default',
+            // Colores reales de marca (ver src/styles.css) — no inventados.
+            // outline*/baseColorFirstVariant cubren foco, hover y el indicador
+            // de carga del propio formulario del Brick — sin ellas, esos
+            // estados se quedan en el azul default de Mercado Pago aunque
+            // baseColor ya esté en dorado.
+            customVariables: {
+              baseColor: '#c9a227', // --color-brand-gold
+              baseColorFirstVariant: '#e8c468', // --color-brand-gold-light (hover)
+              textPrimaryColor: '#14110d', // --color-brand-ink
+              textSecondaryColor: '#7a7568', // --color-brand-muted
+              outlinePrimaryColor: '#c9a227', // --color-brand-gold (foco/carga)
+              outlineSecondaryColor: '#c9a227',
+              buttonTextColor: '#14110d', // --color-brand-ink
+              formBackgroundColor: '#ffffff',
+              borderRadiusMedium: '2px' // mismo radio casi-recto que .btn-gold/.input-field
+            }
+          }
+        },
+        paymentMethods: {
+          creditCard: 'all',
+          debitCard: 'all',
+          ticket: 'all', // pago en efectivo (OXXO y similares) — clave en México
+          bankTransfer: 'all',
+          maxInstallments: 3 // negocio pequeño, no conviene ofrecer más meses
+        }
+      },
+      callbacks: {
+        onReady: () => this.brickListo.set(true),
+        onSubmit: ({ formData }) =>
+          new Promise<void>((resolve, reject) => {
+            const pedido = this.pedidoActual();
+            if (!pedido) {
+              reject(new Error('No hay un pedido activo para pagar.'));
+              return;
+            }
+
+            this.procesando.set(true);
+            this.errorPago.set(null);
+
+            this.pagosService.procesar(pedido.id, formData).subscribe({
+              next: resultado => {
+                this.manejarResultadoPago(resultado, pedido.numeroPedido);
+                resolve();
+              },
+              error: () => {
+                this.errorPago.set('No pudimos procesar tu pago. Intenta de nuevo.');
+                this.procesando.set(false);
+                reject(new Error('Fallo al procesar el pago.'));
+              }
+            });
+          }),
+        onError: () => {
+          this.errorPago.set('Ocurrió un error con el widget de pago. Intenta de nuevo.');
+          this.procesando.set(false);
+        }
+      }
     });
   }
 
-  private finalizarSegunResultado(resultado: ResultadoPago, numeroPedido: string): void {
+  private manejarResultadoPago(resultado: ResultadoPago, numeroPedido: string): void {
     if (resultado === 'rechazado') {
-      this.toastService.error('Tu pago fue rechazado. Puedes intentar de nuevo con otro método o tarjeta.');
+      // El Brick ya muestra el motivo del rechazo y deja reintentar sin
+      // perder los datos de envío/facturación ya confirmados (sigue montado).
+      this.errorPago.set('Tu pago fue rechazado. Puedes intentar de nuevo con otro método dentro del mismo formulario.');
+      this.procesando.set(false);
       return;
     }
 
-    // Solo aquí se descuenta el stock local y se vacía el carrito: el pedido
-    // ya está realmente creado Y el pago realmente aprobado o en curso
-    // (pendiente = p. ej. eligió pagar en efectivo/OXXO) — nunca antes.
-    this.productoService.descontarStock(this.itemsStockActuales());
+    // 'pendiente' cubre tickets (OXXO) y transferencias que tardan en
+    // confirmarse — el webhook (fuente de verdad definitiva) actualiza el
+    // pedido cuando el pago realmente se complete, esto solo confirma que el
+    // pedido quedó registrado. La confirmación se muestra en la MISMA
+    // experiencia (sin salto de página), solo cambia lo que se ve dentro del
+    // mismo componente de checkout.
+    this.mercadoPagoService.desmontarBrick();
     this.cartService.vaciarCarrito();
-    this.numeroPedidoFinal.set(numeroPedido);
+    this.numeroPedido.set(numeroPedido);
+    this.resultadoPagoFinal.set(resultado);
+    this.procesando.set(false);
   }
 
-  private mensajeStockInsuficiente(detalles: DetalleStockInsuficiente[]): string {
-    if (detalles.length === 1) {
-      const detalle = detalles[0];
-      const colorTexto = detalle.color ? `, color ${this.coloresService.etiquetaDe(detalle.color)}` : '';
-      return `Ya no hay suficiente stock de "${detalle.productoNombre}" (talla ${detalle.talla}${colorTexto}). Disponible: ${detalle.disponible}.`;
+  private cotizar(): void {
+    const direccionId = this.direccionSeleccionadaId();
+    if (!direccionId) {
+      return;
     }
 
-    return `${detalles.length} artículos de tu bolsa ya no tienen stock suficiente. Ajusta las cantidades e intenta de nuevo.`;
+    this.cotizando.set(true);
+    this.errorCotizacion.set(null);
+    this.opcionesEnvio.set([]);
+    this.rateSeleccionado.set(null);
+
+    this.enviosService.cotizar(direccionId, this.itemsParaBackend()).subscribe({
+      next: respuesta => {
+        this.cotizacionId.set(respuesta.cotizacionId);
+        this.opcionesEnvio.set(respuesta.opciones);
+        this.cotizando.set(false);
+      },
+      error: () => {
+        this.errorCotizacion.set('No pudimos cotizar el envío para esta dirección. Intenta de nuevo.');
+        this.cotizando.set(false);
+      }
+    });
+  }
+
+  private itemsParaBackend(): ItemParaCotizar[] {
+    return this.items().map(item => ({
+      productoId: item.producto.id,
+      talla: item.talla,
+      color: item.color ?? '',
+      cantidad: item.cantidad
+    }));
   }
 }

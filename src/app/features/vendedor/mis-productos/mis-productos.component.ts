@@ -174,6 +174,15 @@ export class MisProductosComponent {
   constructor() {
     this.cargarProductosIniciales();
 
+    // MERGE: se descartó el effect de origin/main, que reconstruía los
+    // FormGroup `tallas`/`colores` enteros con setControl() cada vez que
+    // cambiaba tallas()/colores() — eso resetea a "sin marcar" cualquier
+    // casilla que el vendedor ya hubiera marcado en este mismo formulario en
+    // cuanto se agrega un color/talla personalizado a mitad de edición (ver
+    // agregarColorPersonalizado/agregarTallaPersonalizada más abajo, que sí
+    // disparan ese mismo signal). La versión de HEAD solo agrega los
+    // controles que faltan, preservando lo ya marcado.
+    //
     // Colores/TallasService cargan su listado del backend real de forma
     // asíncrona (ver ColoresService/TallasService) — cuando llegan (o cuando
     // se agrega/elimina uno desde este mismo formulario) se sincronizan los
