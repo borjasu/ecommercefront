@@ -147,7 +147,7 @@
               </label>
               <select id="categoria" formControlName="categoria" class="input-field">
                 <option value="">Todas</option>
-                @for (opcion of categorias; track opcion.valor) {
+                @for (opcion of categorias(); track opcion.valor) {
                   <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
                 }
               </select>
@@ -187,7 +187,7 @@
                   (change)="filtroCategoriaProductos.set($any($event.target).value)"
                 >
                   <option value="">Todas las categorías</option>
-                  @for (opcion of categorias; track opcion.valor) {
+                  @for (opcion of categorias(); track opcion.valor) {
                     <option [value]="opcion.valor">{{ opcion.etiqueta }}</option>
                   }
                 </select>

@@ -8,7 +8,10 @@ import { ToastService } from '../../../core/services/toast.service';
 import { ConfirmService } from '../../../core/services/confirm.service';
 import { ColoresService, ColorOpcion } from '../../../core/services/colores.service';
 import { TallasService } from '../../../core/services/tallas.service';
+import { CategoriasService, CategoriaOpcion } from '../../../core/services/categorias.service';
 import { FotoColorService } from '../../../core/services/foto-color.service';
+import { ICONOS_CATEGORIA } from '../../../shared/constants/iconos-categoria';
+import { IconoCategoriaComponent } from '../../../shared/components/icono-categoria/icono-categoria.component';
 import {
   Audiencia,
   Categoria,
@@ -20,7 +23,7 @@ import {
   Talla,
   VarianteStock
 } from '../../../core/models/producto.model';
-import { AUDIENCIAS, CATEGORIAS } from '../../../shared/constants/categorias';
+import { AUDIENCIAS } from '../../../shared/constants/categorias';
 import { mensajeDeErrorHttp } from '../../../shared/utils/http-error.util';
 import { PLACEHOLDER_IMAGEN_PRODUCTO, resolverImagenProducto } from '../../../shared/utils/producto-imagen.util';
 
@@ -34,9 +37,43 @@ function alMenosUnaTallaValidator(control: AbstractControl): ValidationErrors | 
   return seleccionadas.some(seleccionada => seleccionada) ? null : { ningunaTalla: true };
 }
 
+// Mayoreo: validador de nivel raíz (no de un solo control) porque necesita leer
+// tres campos hermanos a la vez — mayoreoCantidadMinima/mayoreoPrecioPorPieza
+// solo son obligatorios si mayoreoHabilitado está marcado, y mayoreoPrecioPorPieza
+// además se compara contra `precio`. Replica del lado cliente la misma regla que
+// VendorProductsService valida de forma autoritativa en el backend.
+function mayoreoValidator(control: AbstractControl): ValidationErrors | null {
+  const valores = control.value as {
+    mayoreoHabilitado: boolean;
+    mayoreoCantidadMinima: number | null;
+    mayoreoPrecioPorPieza: number | null;
+    precio: number;
+  };
+
+  if (!valores.mayoreoHabilitado) {
+    return null;
+  }
+  if (valores.mayoreoCantidadMinima == null) {
+    return { mayoreoCantidadMinimaRequerida: true };
+  }
+  if (!Number.isInteger(valores.mayoreoCantidadMinima) || valores.mayoreoCantidadMinima < 2) {
+    return { mayoreoCantidadMinimaInvalida: true };
+  }
+  if (valores.mayoreoPrecioPorPieza == null) {
+    return { mayoreoPrecioRequerido: true };
+  }
+  if (valores.mayoreoPrecioPorPieza <= 0) {
+    return { mayoreoPrecioInvalido: true };
+  }
+  if (valores.mayoreoPrecioPorPieza >= valores.precio) {
+    return { mayoreoPrecioNoMenorAlNormal: true };
+  }
+  return null;
+}
+
 @Component({
     selector: 'app-mis-productos',
-    imports: [ReactiveFormsModule],
+    imports: [ReactiveFormsModule, IconoCategoriaComponent],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './mis-productos.component.html'
 })
@@ -47,17 +84,19 @@ export class MisProductosComponent {
   private readonly confirmService = inject(ConfirmService);
   private readonly coloresService = inject(ColoresService);
   private readonly tallasService = inject(TallasService);
+  private readonly categoriasService = inject(CategoriasService);
   private readonly fotoColorService = inject(FotoColorService);
 
-  readonly categorias = CATEGORIAS;
+  readonly categorias = this.categoriasService.listado;
   readonly audiencias = AUDIENCIAS;
   readonly colores = this.coloresService.listado;
   readonly tallas = this.tallasService.listado;
+  readonly iconosDisponibles = ICONOS_CATEGORIA;
 
-  readonly filtrosCategoria: { valor: FiltroCategoria; etiqueta: string }[] = [
+  readonly filtrosCategoria = computed<{ valor: FiltroCategoria; etiqueta: string }[]>(() => [
     { valor: 'todos', etiqueta: 'Todos' },
-    ...CATEGORIAS
-  ];
+    ...this.categorias()
+  ]);
 
   readonly productos = signal<Producto[]>([]);
   readonly cargando = signal(true);
@@ -83,6 +122,11 @@ export class MisProductosComponent {
 
   readonly nuevaTallaNombre = signal('');
   readonly mostrarAgregarTalla = signal(false);
+
+  readonly nuevaCategoriaNombre = signal('');
+  readonly nuevaCategoriaIcono = signal('accesorio');
+  readonly mostrarAgregarCategoria = signal(false);
+  readonly mostrarGestionCategorias = signal(false);
 
   // Stock inicial por combinación talla×color, capturado en el mismo
   // formulario (antes solo se podía asignar desde Inventario, así que todo
@@ -115,6 +159,9 @@ export class MisProductosComponent {
     destacado: [false],
     etiqueta: ['NINGUNA' as 'NINGUNA' | 'NUEVO' | 'ESENCIAL'],
     imagenUrl: [''],
+    mayoreoHabilitado: [false],
+    mayoreoCantidadMinima: [null as number | null],
+    mayoreoPrecioPorPieza: [null as number | null],
     tallas: this.fb.group(
       Object.fromEntries(this.tallas().map(talla => [talla, this.fb.control(false)])),
       { validators: alMenosUnaTallaValidator }
@@ -122,7 +169,7 @@ export class MisProductosComponent {
     colores: this.fb.group(
       Object.fromEntries(this.colores().map(opcion => [opcion.valor, this.fb.control(false)]))
     )
-  });
+  }, { validators: mayoreoValidator });
 
   constructor() {
     this.cargarProductosIniciales();
@@ -192,6 +239,9 @@ export class MisProductosComponent {
       destacado: false,
       etiqueta: 'NINGUNA',
       imagenUrl: '',
+      mayoreoHabilitado: false,
+      mayoreoCantidadMinima: null,
+      mayoreoPrecioPorPieza: null,
       tallas: this.mapaTallas([]),
       colores: this.mapaColores([])
     });
@@ -212,6 +262,9 @@ export class MisProductosComponent {
       destacado: producto.destacado,
       etiqueta: producto.etiqueta ?? 'NINGUNA',
       imagenUrl: producto.imagenUrl,
+      mayoreoHabilitado: producto.mayoreoHabilitado,
+      mayoreoCantidadMinima: producto.mayoreoCantidadMinima ?? null,
+      mayoreoPrecioPorPieza: producto.mayoreoPrecioPorPieza ?? null,
       tallas: this.mapaTallas(producto.tallasDisponibles),
       colores: this.mapaColores(producto.coloresDisponibles)
     });
@@ -348,6 +401,13 @@ export class MisProductosComponent {
       tallasDisponibles,
       imagenUrl: valores.imagenUrl || PLACEHOLDER_IMAGEN_PRODUCTO,
       etiqueta,
+      // mayoreoCantidadMinima/mayoreoPrecioPorPieza se mandan tal cual estén en
+      // el form aunque mayoreoHabilitado sea false — igual que imagenUrl con
+      // "Producto destacado", se conservan por si el vendedor vuelve a activar
+      // el mayoreo después, en vez de perder lo que ya había capturado.
+      mayoreoHabilitado: !!valores.mayoreoHabilitado,
+      mayoreoCantidadMinima: valores.mayoreoCantidadMinima,
+      mayoreoPrecioPorPieza: valores.mayoreoPrecioPorPieza,
       variantes
     };
 
@@ -405,7 +465,7 @@ export class MisProductosComponent {
   }
 
   etiquetaDeCategoria(categoria: Categoria): string {
-    return this.categorias.find(opcion => opcion.valor === categoria)?.etiqueta ?? categoria;
+    return this.categorias().find(opcion => opcion.valor === categoria)?.etiqueta ?? categoria;
   }
 
   etiquetaDeAudiencia(audiencia: Audiencia): string {
@@ -508,6 +568,83 @@ export class MisProductosComponent {
 
   esTallaPersonalizada(talla: string): boolean {
     return this.tallasService.esPersonalizada(talla);
+  }
+
+  abrirAgregarCategoria(): void {
+    this.nuevaCategoriaNombre.set('');
+    this.nuevaCategoriaIcono.set('accesorio');
+    this.mostrarAgregarCategoria.set(true);
+  }
+
+  cancelarAgregarCategoria(): void {
+    this.mostrarAgregarCategoria.set(false);
+  }
+
+  agregarCategoriaPersonalizada(): void {
+    const nombre = this.nuevaCategoriaNombre().trim();
+    if (!nombre) {
+      return;
+    }
+
+    this.categoriasService.agregarCategoria(nombre, this.nuevaCategoriaIcono()).subscribe({
+      next: resultado => {
+        if (!resultado.ok) {
+          this.toastService.error('Ya existe una categoría con ese nombre.');
+          return;
+        }
+
+        this.productoForm.patchValue({ categoria: resultado.categoria.valor });
+        this.mostrarAgregarCategoria.set(false);
+        this.toastService.exito(`Categoría "${resultado.categoria.etiqueta}" agregada.`);
+      },
+      error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
+    });
+  }
+
+  abrirGestionCategorias(): void {
+    this.mostrarGestionCategorias.set(true);
+  }
+
+  cerrarGestionCategorias(): void {
+    this.mostrarGestionCategorias.set(false);
+  }
+
+  // A diferencia de eliminarColorPersonalizado/eliminarTallaPersonalizada
+  // (borrado lógico, el backend nunca los rechaza), aquí el backend SÍ puede
+  // devolver un rechazo real (categoría en uso) — el pre-chequeo de abajo es
+  // solo para dar feedback instantáneo sin esperar la red; la fuente de
+  // verdad sigue siendo la respuesta de CategoriasService.eliminarCategoria.
+  async eliminarCategoriaDesdeGestion(categoria: CategoriaOpcion): Promise<void> {
+    const productosConCategoria = this.productos().filter(producto => producto.categoria === categoria.valor);
+
+    if (productosConCategoria.length > 0) {
+      this.toastService.error(
+        `No puedes eliminar "${categoria.etiqueta}": ${productosConCategoria.length} producto(s) la usan.`
+      );
+      return;
+    }
+
+    const confirmado = await this.confirmService.confirmar({
+      titulo: 'Eliminar categoría',
+      mensaje: `¿Seguro que quieres eliminar la categoría "${categoria.etiqueta}"? Esta acción no se puede deshacer.`,
+      textoConfirmar: 'Eliminar',
+      peligroso: true
+    });
+
+    if (!confirmado) {
+      return;
+    }
+
+    this.categoriasService.eliminarCategoria(categoria.id).subscribe({
+      next: resultado => {
+        if (!resultado.ok) {
+          this.toastService.error(resultado.mensaje);
+          return;
+        }
+        this.toastService.exito(`Categoría "${categoria.etiqueta}" eliminada.`);
+      },
+      error: (error: HttpErrorResponse) => this.toastService.error(mensajeDeErrorHttp(error))
+    });
   }
 
   async eliminarTallaPersonalizada(talla: string): Promise<void> {

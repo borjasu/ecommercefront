@@ -7,7 +7,8 @@ import { ToastService } from '../../../core/services/toast.service';
 import { ConfirmService } from '../../../core/services/confirm.service';
 import { Audiencia, Categoria, Producto, Talla } from '../../../core/models/producto.model';
 import { Oferta, TipoDescuento } from '../../../core/models/oferta.model';
-import { AUDIENCIAS, CATEGORIAS } from '../../../shared/constants/categorias';
+import { AUDIENCIAS } from '../../../shared/constants/categorias';
+import { CategoriasService } from '../../../core/services/categorias.service';
 import { resolverImagenProducto } from '../../../shared/utils/producto-imagen.util';
 
 const RETRASO_CARGA_MS = 400;
@@ -88,8 +89,9 @@ export class OfertasComponent {
   private readonly productoService = inject(ProductoService);
   private readonly toastService = inject(ToastService);
   private readonly confirmService = inject(ConfirmService);
+  private readonly categoriasService = inject(CategoriasService);
 
-  readonly categorias = CATEGORIAS;
+  readonly categorias = this.categoriasService.listado;
   readonly audiencias = AUDIENCIAS;
 
   readonly ofertas = signal<Oferta[]>([]);
@@ -279,7 +281,7 @@ export class OfertasComponent {
 
     const partes: string[] = [];
     if (oferta.categoriaAplicable) {
-      partes.push(this.categorias.find(c => c.valor === oferta.categoriaAplicable)?.etiqueta ?? oferta.categoriaAplicable);
+      partes.push(this.categorias().find(c => c.valor === oferta.categoriaAplicable)?.etiqueta ?? oferta.categoriaAplicable);
     }
     if (oferta.audienciaAplicable) {
       partes.push(this.audiencias.find(a => a.valor === oferta.audienciaAplicable)?.etiqueta ?? oferta.audienciaAplicable);
@@ -288,7 +290,7 @@ export class OfertasComponent {
   }
 
   etiquetaDeCategoria(categoria: Categoria): string {
-    return this.categorias.find(opcion => opcion.valor === categoria)?.etiqueta ?? categoria;
+    return this.categorias().find(opcion => opcion.valor === categoria)?.etiqueta ?? categoria;
   }
 
   etiquetaDeAudiencia(audiencia: Audiencia): string {
