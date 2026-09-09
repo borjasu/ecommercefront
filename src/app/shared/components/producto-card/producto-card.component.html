@@ -58,6 +58,11 @@
     } @else {
       <p class="font-body text-sm font-semibold text-brand-gold">${{ producto().precio }}</p>
     }
+    @if (producto().mayoreoHabilitado) {
+      <p class="font-body text-xs text-brand-muted">
+        Compra {{ producto().mayoreoCantidadMinima }}+ piezas y paga ${{ producto().mayoreoPrecioPorPieza }} c/u
+      </p>
+    }
   </div>
 
   <button type="button" class="btn-gold mt-3 w-full truncate" (click)="abrirModal()">AGREGAR</button>
