@@ -1,10 +1,15 @@
-import { Component, ChangeDetectionStrategy, effect, inject, signal, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, DestroyRef, effect, inject, signal, computed } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { EMPTY } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { AuthService } from '../../core/services/auth.service';
 import { CartService } from '../../core/services/cart.service';
 import { PedidoService } from '../../core/services/pedido.service';
 import { DireccionesService } from '../../core/services/direcciones.service';
+import { CodigosPostalesService, ColoniaCp } from '../../core/services/codigos-postales.service';
 import { EnviosService } from '../../core/services/envios.service';
 import { PagosService } from '../../core/services/pagos.service';
 import { MercadoPagoService } from '../../core/services/mercado-pago.service';
@@ -51,6 +56,8 @@ export class CheckoutComponent {
   private readonly pagosService = inject(PagosService);
   private readonly mercadoPagoService = inject(MercadoPagoService);
   private readonly coloresService = inject(ColoresService);
+  private readonly codigosPostalesService = inject(CodigosPostalesService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
   readonly direccionesService = inject(DireccionesService);
 
@@ -72,11 +79,27 @@ export class CheckoutComponent {
   readonly nuevaDireccionForm = this.fb.group({
     alias: ['Casa', [Validators.required]],
     nombreCompleto: ['', [Validators.required]],
-    direccion: ['', [Validators.required]],
-    ciudad: ['', [Validators.required]],
-    codigoPostal: ['', [Validators.required, Validators.pattern(/^\d{4,6}$/)]],
+    calle: ['', [Validators.required]],
+    numeroExterior: ['', [Validators.required]],
+    numeroInterior: [''],
+    codigoPostal: ['', [Validators.required, Validators.pattern(/^\d{5}$/)]],
+    colonia: ['', [Validators.required]],
+    municipio: ['', [Validators.required]],
+    estado: ['', [Validators.required]],
+    referencias: [''],
     telefono: ['', [Validators.required, Validators.pattern(/^[\d\s+()-]{7,15}$/)]]
   });
+
+  // Estado de la resolución del código postal contra el catálogo SEPOMEX
+  // (GET /codigos-postales/:cp, ver CodigosPostalesService) — sin esto no hay
+  // forma de distinguir "todavía no se ha tecleado un CP válido", "el
+  // catálogo lo encontró" (estado/municipio se bloquean, colonia es un
+  // selector) y "hueco de cobertura" (los tres se vuelven editables a mano).
+  readonly resolviendoCp = signal(false);
+  readonly cpResuelto = signal(false);
+  readonly cpSinCobertura = signal(false);
+  readonly cpError = signal<string | null>(null);
+  readonly colonias = signal<ColoniaCp[]>([]);
 
   readonly direccionElegida = computed(() =>
     this.direccionesService.listado().find(direccion => direccion.id === this.direccionSeleccionadaId()) ?? null
@@ -147,6 +170,8 @@ export class CheckoutComponent {
         this.iniciarPago();
       }
     });
+
+    this.observarCodigoPostal();
   }
 
   // MERGE: origin/main no tenía precio de mayoreo (era una implementación
@@ -174,12 +199,18 @@ export class CheckoutComponent {
 
   abrirNuevaDireccion(): void {
     this.mostrarNuevaDireccion.set(true);
+    this.limpiarResolucionCp();
     this.nuevaDireccionForm.reset({
       alias: 'Casa',
       nombreCompleto: this.authService.currentUser()?.nombre ?? '',
-      direccion: '',
-      ciudad: '',
+      calle: '',
+      numeroExterior: '',
+      numeroInterior: '',
       codigoPostal: '',
+      colonia: '',
+      municipio: '',
+      estado: '',
+      referencias: '',
       telefono: ''
     });
   }
@@ -201,9 +232,14 @@ export class CheckoutComponent {
       .crearYObtener({
         alias: valores.alias!,
         nombreCompleto: valores.nombreCompleto!,
-        direccion: valores.direccion!,
-        ciudad: valores.ciudad!,
+        calle: valores.calle!,
+        numeroExterior: valores.numeroExterior!,
+        numeroInterior: valores.numeroInterior || null,
+        colonia: valores.colonia!,
+        municipio: valores.municipio!,
+        estado: valores.estado!,
         codigoPostal: valores.codigoPostal!,
+        referencias: valores.referencias || null,
         telefono: valores.telefono!,
         predeterminada: esPrimera
       })
@@ -211,6 +247,67 @@ export class CheckoutComponent {
         this.direccionSeleccionadaId.set(direccion.id);
         this.mostrarNuevaDireccion.set(false);
       });
+  }
+
+  // Debounce de 400ms tras dejar de escribir el CP (cubre igual el caso de
+  // perder el foco, que solo dispararía esto un poco antes) — resuelve
+  // estado/municipio/colonia contra GET /codigos-postales/:cp.
+  private observarCodigoPostal(): void {
+    this.nuevaDireccionForm.controls.codigoPostal.valueChanges
+      .pipe(
+        debounceTime(400),
+        distinctUntilChanged(),
+        switchMap(valor => {
+          if (!/^\d{5}$/.test(valor ?? '')) {
+            this.limpiarResolucionCp();
+            return EMPTY;
+          }
+
+          this.resolviendoCp.set(true);
+          this.cpError.set(null);
+
+          return this.codigosPostalesService.buscar(valor!).pipe(
+            catchError((error: HttpErrorResponse) => {
+              this.resolviendoCp.set(false);
+              this.cpResuelto.set(false);
+              this.cpSinCobertura.set(true);
+              this.colonias.set([]);
+              this.cpError.set(
+                error.status === 404
+                  ? 'No encontramos ese código postal, verifícalo. Puedes completar estado, municipio y colonia manualmente.'
+                  : 'No pudimos verificar el código postal. Puedes completar estado, municipio y colonia manualmente.'
+              );
+              return EMPTY;
+            })
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(respuesta => {
+        const coloniaActual = this.nuevaDireccionForm.controls.colonia.value;
+        const coloniaSigueValida = respuesta.colonias.some(c => c.nombre === coloniaActual);
+
+        this.resolviendoCp.set(false);
+        this.cpResuelto.set(true);
+        this.cpSinCobertura.set(false);
+        this.colonias.set(respuesta.colonias);
+        this.nuevaDireccionForm.patchValue({
+          estado: respuesta.estado,
+          municipio: respuesta.municipio,
+          colonia: coloniaSigueValida ? coloniaActual : ''
+        });
+      });
+  }
+
+  // Vuelve al estado "sin resolver" (campos bloqueados y vacíos) cada vez que
+  // el CP deja de tener 5 dígitos válidos — evita dejar estado/municipio/
+  // colonia de un CP anterior visibles mientras se edita uno nuevo.
+  private limpiarResolucionCp(): void {
+    this.resolviendoCp.set(false);
+    this.cpResuelto.set(false);
+    this.cpSinCobertura.set(false);
+    this.cpError.set(null);
+    this.colonias.set([]);
   }
 
   confirmarDireccion(): void {

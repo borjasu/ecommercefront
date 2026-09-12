@@ -60,7 +60,7 @@ export class CarritoComponent {
 
       this.envioEstimadoService.solicitar(
         predeterminada.id,
-        predeterminada.ciudad,
+        predeterminada.municipio,
         this.itemsParaCotizar(),
         this.totalArticulos()
       );
