@@ -21,8 +21,13 @@
           </div>
           <div class="mt-2 space-y-0.5 text-brand-muted">
             <p>{{ direccion.nombreCompleto }}</p>
-            <p>{{ direccion.direccion }}</p>
-            <p>{{ direccion.ciudad }}, CP {{ direccion.codigoPostal }}</p>
+            <p>
+              {{ direccion.calle }} {{ direccion.numeroExterior }}
+              @if (direccion.numeroInterior) {
+                Int. {{ direccion.numeroInterior }}
+              }
+            </p>
+            <p>{{ direccion.colonia }}, {{ direccion.municipio }}, {{ direccion.estado }}, CP {{ direccion.codigoPostal }}</p>
             <p>Tel: {{ direccion.telefono }}</p>
           </div>
           <div class="mt-3 flex flex-wrap items-center gap-3">
@@ -97,35 +102,114 @@
           }
         </div>
 
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-[2fr_1fr_1fr]">
+          <div>
+            <label for="calle" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              Calle
+            </label>
+            <input id="calle" type="text" formControlName="calle" class="input-field" autocomplete="address-line1" />
+            @if (direccionForm.controls.calle.invalid && direccionForm.controls.calle.touched) {
+              <p class="mt-1 font-body text-xs text-red-600">La calle es requerida.</p>
+            }
+          </div>
+          <div>
+            <label for="numeroExterior" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              No. exterior
+            </label>
+            <input id="numeroExterior" type="text" formControlName="numeroExterior" class="input-field" />
+            @if (direccionForm.controls.numeroExterior.invalid && direccionForm.controls.numeroExterior.touched) {
+              <p class="mt-1 font-body text-xs text-red-600">Requerido.</p>
+            }
+          </div>
+          <div>
+            <label for="numeroInterior" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              No. interior
+            </label>
+            <input id="numeroInterior" type="text" formControlName="numeroInterior" class="input-field" />
+          </div>
+        </div>
+
         <div>
-          <label for="direccion" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-            Dirección
+          <label for="codigoPostal" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+            Código postal
           </label>
-          <input id="direccion" type="text" formControlName="direccion" class="input-field" />
-          @if (direccionForm.controls.direccion.invalid && direccionForm.controls.direccion.touched) {
-            <p class="mt-1 font-body text-xs text-red-600">La dirección es requerida.</p>
+          <input
+            id="codigoPostal"
+            type="text"
+            inputmode="numeric"
+            maxlength="5"
+            formControlName="codigoPostal"
+            class="input-field max-w-[10rem]"
+            autocomplete="postal-code"
+          />
+          @if (direccionForm.controls.codigoPostal.invalid && direccionForm.controls.codigoPostal.touched) {
+            <p class="mt-1 font-body text-xs text-red-600">Ingresa un código postal válido a 5 dígitos.</p>
+          } @else if (resolviendoCp()) {
+            <p class="mt-1 font-body text-xs text-brand-muted">Buscando código postal…</p>
+          } @else if (cpError()) {
+            <p class="mt-1 font-body text-xs text-brand-oxide">{{ cpError() }}</p>
           }
         </div>
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label for="ciudad" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-              Ciudad
+            <label for="estado" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              Estado
             </label>
-            <input id="ciudad" type="text" formControlName="ciudad" class="input-field" />
-            @if (direccionForm.controls.ciudad.invalid && direccionForm.controls.ciudad.touched) {
-              <p class="mt-1 font-body text-xs text-red-600">La ciudad es requerida.</p>
+            <input
+              id="estado"
+              type="text"
+              formControlName="estado"
+              [readonly]="cpResuelto()"
+              [class.bg-brand-muted/10]="cpResuelto()"
+              class="input-field"
+            />
+            @if (direccionForm.controls.estado.invalid && direccionForm.controls.estado.touched) {
+              <p class="mt-1 font-body text-xs text-red-600">El estado es requerido.</p>
             }
           </div>
           <div>
-            <label for="codigoPostal" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
-              Código postal
+            <label for="municipio" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+              Municipio
             </label>
-            <input id="codigoPostal" type="text" inputmode="numeric" formControlName="codigoPostal" class="input-field" />
-            @if (direccionForm.controls.codigoPostal.invalid && direccionForm.controls.codigoPostal.touched) {
-              <p class="mt-1 font-body text-xs text-red-600">Ingresa un código postal válido.</p>
+            <input
+              id="municipio"
+              type="text"
+              formControlName="municipio"
+              [readonly]="cpResuelto()"
+              [class.bg-brand-muted/10]="cpResuelto()"
+              class="input-field"
+            />
+            @if (direccionForm.controls.municipio.invalid && direccionForm.controls.municipio.touched) {
+              <p class="mt-1 font-body text-xs text-red-600">El municipio es requerido.</p>
             }
           </div>
+        </div>
+
+        <div>
+          <label for="colonia" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+            Colonia
+          </label>
+          @if (cpResuelto() && colonias().length > 0) {
+            <select id="colonia" formControlName="colonia" class="input-field">
+              <option value="" disabled>Selecciona una colonia</option>
+              @for (colonia of colonias(); track colonia.nombre) {
+                <option [value]="colonia.nombre">{{ colonia.nombre }}</option>
+              }
+            </select>
+          } @else {
+            <input id="colonia" type="text" formControlName="colonia" class="input-field" />
+          }
+          @if (direccionForm.controls.colonia.invalid && direccionForm.controls.colonia.touched) {
+            <p class="mt-1 font-body text-xs text-red-600">La colonia es requerida.</p>
+          }
+        </div>
+
+        <div>
+          <label for="referencias" class="mb-1 block font-body text-xs uppercase tracking-wide text-brand-muted">
+            Referencias (opcional)
+          </label>
+          <input id="referencias" type="text" formControlName="referencias" class="input-field" placeholder="Ej. portón negro, entre calles X y Y" />
         </div>
 
         <div>
