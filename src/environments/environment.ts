@@ -3,7 +3,7 @@
 // ver angular.json → architect.build.configurations.development.fileReplacements).
 export const environment = {
   production: true,
-  apiUrl: 'http://localhost:3000',
+  apiUrl: 'https://ecommerceback-production-38fb.up.railway.app',
   // Llave PÚBLICA de Mercado Pago (par de MERCADOPAGO_ACCESS_TOKEN, que es
   // privada y solo vive en el backend) — está pensada para viajar al cliente,
   // se usa para inicializar el SDK JS del Payment Brick (ver
